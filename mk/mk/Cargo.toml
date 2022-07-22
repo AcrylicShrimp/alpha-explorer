@@ -1,0 +1,37 @@
+[package]
+name = "mk"
+version = "0.1.0"
+edition = "2021"
+authors = ["AcrylicShrimp <led789zxpp@naver.com>"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+codegen = { path = "../codegen" }
+render = { path = "../render" }
+res = { path = "../res", features = ["asset_loader", "meta_loader"] }
+
+# Third parties
+bitvec = { version = "0.22" }
+bumpalo = { version = "3", features = ["collections"] }
+crossbeam-channel = { version = "0.5" }
+colored = { version = "2" }
+downcast-rs = { version = "1" }
+fontdue = { version = "0.7" }
+gl = { version = "0.14" }
+glutin = { version = "0.28" }
+image = { version = "0.24" }
+itertools = { version = "0.10" }
+# legion = { version = "0.4", default-features = false, features = ["crossbeam-events"] }
+legion = { version = "0.4", default-features = false }
+mlua = { version = "0.7", features = ["lua54", "vendored"] }
+parking_lot = { version = "0.12" }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1" }
+# wrapped2d = { version = "0.4" }
+
+[features]
+res_writer = ["res/writer"]
+
+[profile.release]
+debug = true

@@ -1,0 +1,13 @@
+[package]
+name = "render"
+version = "0.1.0"
+edition = "2021"
+authors = ["AcrylicShrimp <led789zxpp@naver.com>"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bumpalo = { version = "3", features = ["collections"] }
+
+[target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))'.dependencies]
+gl33 = { path = "gl33" }

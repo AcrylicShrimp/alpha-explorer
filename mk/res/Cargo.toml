@@ -1,0 +1,26 @@
+[package]
+name = "res"
+version = "0.1.0"
+edition = "2021"
+authors = ["AcrylicShrimp <led789zxpp@naver.com>"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+aes = { version = "0.7", features = ["ctr"], optional = true }
+bincode = { version = "1", optional = true }
+brotli = { version = "3", optional = true }
+byteorder = { version = "1", optional = true }
+crc32fast = { version = "1", optional = true }
+downcast-rs = { version = "1", optional = true }
+memmap2 = { version = "0.5", optional = true }
+rand = { version = "0.8", optional = true }
+rayon = { version = "1", optional = true }
+rust-argon2 = { version = "0.8", optional = true }
+serde = { version = "1", features = ["derive"] }
+sha256 = { version = "1", optional = true }
+
+[features]
+asset_loader = ["aes", "bincode", "brotli", "downcast-rs", "rust-argon2"]
+meta_loader = ["bincode", "brotli", "downcast-rs"]
+writer = ["aes", "bincode", "brotli", "byteorder", "crc32fast", "downcast-rs", "memmap2", "rand", "rayon", "rust-argon2", "sha256"]

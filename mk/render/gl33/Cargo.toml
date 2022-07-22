@@ -1,0 +1,9 @@
+[package]
+name = "gl33"
+description = "opengl 3.3 binding for mk"
+authors = ["AcrylicShrimp <led789zxpp@naver.com>"]
+version = "0.0.0"
+edition = "2021"
+
+[build-dependencies]
+gl_generator = { version = "0.14" }
