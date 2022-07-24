@@ -23,10 +23,7 @@ pub use sprite_atlas_grid::*;
 pub use sprite_nine_patch::*;
 pub use tilemap::*;
 
-use codegen::lua_rc;
-use fontdue::Font;
-
-lua_rc!(Font as LuaRcFont);
-lua_rc!(Buffer as LuaRcBuffer);
-lua_rc!(Shader as LuaRcShader);
-lua_rc!(Texture as LuaRcTexture);
+define_lua_handle!(fontdue::Font as LuaFontHandle);
+define_lua_handle!(Buffer as LuaBufferHandle);
+define_lua_handle!(Shader as LuaShaderHandle);
+define_lua_handle!(Texture as LuaTextureHandle);

@@ -1,4 +1,4 @@
-use crate::render::{LuaRcSprite, LuaRcTexture, Sprite, SpriteChannel, TexelMapping, Texture};
+use crate::render::{LuaRcSprite, LuaTextureHandle, Sprite, SpriteChannel, TexelMapping, Texture};
 use codegen::LuaRc;
 use image::{open as open_image, ColorType, GenericImageView, ImageError};
 use mlua::prelude::*;
@@ -65,9 +65,9 @@ type AtlasMetadataJSON = HashMap<String, AtlasItemJSON>;
 
 #[derive(LuaRc, Debug)]
 pub struct SpriteAtlas {
-    #[lua_userdata(LuaRcTexture)]
+    #[lua_user_type(LuaTextureHandle)]
     texture: Arc<Texture>,
-    #[lua_userfunc(get=lua_get_sprites)]
+    #[lua_user_func(getter=lua_get_sprites)]
     sprites: HashMap<String, Arc<Sprite>>,
 }
 

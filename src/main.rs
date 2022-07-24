@@ -6,7 +6,7 @@ fn main() -> Result<(), EngineError> {
         "alpha-explorer",
         640,
         480,
-        true,
+        false,
         current_dir()?.join("assets"),
         "assets/scripts/entry.lua",
     )

@@ -8,13 +8,13 @@ use std::marker::PhantomData;
 pub struct UIElement {
     #[lua_hidden]
     index: u32,
-    #[lua_userfunc(get=lua_get_anchor, set=lua_set_anchor)]
+    #[lua_user_func(getter=lua_get_anchor, setter=lua_set_anchor)]
     anchor: PhantomData<UIAnchor>,
-    #[lua_userfunc(get=lua_get_margin, set=lua_set_margin)]
+    #[lua_user_func(getter=lua_get_margin, setter=lua_set_margin)]
     margin: PhantomData<UIMargin>,
-    #[lua_userfunc(get=lua_get_is_interactible, set=lua_set_is_interactible)]
+    #[lua_user_func(getter=lua_get_is_interactible, setter=lua_set_is_interactible)]
     is_interactible: PhantomData<bool>,
-    #[lua_userfunc(get=lua_get_order_index, set=lua_set_order_index)]
+    #[lua_user_func(getter=lua_get_order_index, setter=lua_set_order_index)]
     order_index: PhantomData<u32>,
 }
 

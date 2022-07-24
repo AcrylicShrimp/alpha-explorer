@@ -1,4 +1,4 @@
-use crate::render::{LuaRcSprite, LuaRcTexture, Sprite, SpriteChannel, TexelMapping, Texture};
+use crate::render::{LuaRcSprite, LuaTextureHandle, Sprite, SpriteChannel, TexelMapping, Texture};
 use codegen::LuaRc;
 use image::{open as open_image, ColorType, GenericImageView, ImageError};
 use serde::Deserialize;
@@ -57,25 +57,25 @@ struct NinePatchMetadataJSON {
 
 #[derive(LuaRc, Debug)]
 pub struct SpriteNinePatch {
-    #[lua_userdata(LuaRcTexture)]
+    #[lua_user_type(LuaTextureHandle)]
     texture: Arc<Texture>,
-    #[lua_userdata(LuaRcSprite)]
+    #[lua_user_type(LuaRcSprite)]
     sprite_lt: Arc<Sprite>,
-    #[lua_userdata(LuaRcSprite)]
+    #[lua_user_type(LuaRcSprite)]
     sprite_ct: Arc<Sprite>,
-    #[lua_userdata(LuaRcSprite)]
+    #[lua_user_type(LuaRcSprite)]
     sprite_rt: Arc<Sprite>,
-    #[lua_userdata(LuaRcSprite)]
+    #[lua_user_type(LuaRcSprite)]
     sprite_lm: Arc<Sprite>,
-    #[lua_userdata(LuaRcSprite)]
+    #[lua_user_type(LuaRcSprite)]
     sprite_cm: Arc<Sprite>,
-    #[lua_userdata(LuaRcSprite)]
+    #[lua_user_type(LuaRcSprite)]
     sprite_rm: Arc<Sprite>,
-    #[lua_userdata(LuaRcSprite)]
+    #[lua_user_type(LuaRcSprite)]
     sprite_lb: Arc<Sprite>,
-    #[lua_userdata(LuaRcSprite)]
+    #[lua_user_type(LuaRcSprite)]
     sprite_cb: Arc<Sprite>,
-    #[lua_userdata(LuaRcSprite)]
+    #[lua_user_type(LuaRcSprite)]
     sprite_rb: Arc<Sprite>,
 }
 

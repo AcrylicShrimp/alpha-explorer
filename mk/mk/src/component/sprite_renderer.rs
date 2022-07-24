@@ -1,4 +1,4 @@
-use crate::render::{Color, Layer, LuaRcShader, LuaRcSprite, Shader, Sprite};
+use crate::render::{Color, Layer, LuaRcSprite, LuaShaderHandle, Shader, Sprite};
 use codegen::{Animation, LuaComponent};
 use std::sync::Arc;
 
@@ -7,9 +7,9 @@ pub struct SpriteRenderer {
     pub layer: Layer,
     pub order: isize,
     pub color: Color,
-    #[lua_userdata(LuaRcShader)]
+    #[lua_user_type(LuaShaderHandle)]
     pub shader: Arc<Shader>,
-    #[lua_userdata(LuaRcSprite)]
+    #[lua_user_type(LuaRcSprite)]
     pub sprite: Arc<Sprite>,
 }
 

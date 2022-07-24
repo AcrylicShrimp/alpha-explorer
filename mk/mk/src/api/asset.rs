@@ -1,8 +1,8 @@
 use crate::api::use_context;
 use crate::codegen_traits::LuaApiTable;
 use crate::render::{
-    LuaRcFont, LuaRcShader, LuaRcSprite, LuaRcSpriteAtlas, LuaRcSpriteAtlasGrid,
-    LuaRcSpriteNinePatch,
+    LuaFontHandle, LuaRcSprite, LuaRcSpriteAtlas, LuaRcSpriteAtlasGrid, LuaRcSpriteNinePatch,
+    LuaShaderHandle,
 };
 use mlua::prelude::*;
 
@@ -21,7 +21,7 @@ impl LuaApiTable for FontAsset {
                 let asset = asset_mgr.load(&name).map_err(|err| {
                     format!("unable to load font '{}' due to: {}", name, err).to_lua_err()
                 })?;
-                Ok(LuaRcFont::from(asset))
+                Ok(LuaFontHandle::from(asset))
             })?,
         )?;
         Ok(())
@@ -43,7 +43,7 @@ impl LuaApiTable for ShaderAsset {
                 let asset = asset_mgr.load(&name).map_err(|err| {
                     format!("unable to load shader '{}' due to: {}", name, err).to_lua_err()
                 })?;
-                Ok(LuaRcShader::from(asset))
+                Ok(LuaShaderHandle::from(asset))
             })?,
         )?;
         Ok(())

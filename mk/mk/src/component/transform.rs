@@ -9,17 +9,17 @@ use std::marker::PhantomData;
 pub struct Transform {
     #[lua_hidden]
     index: u32,
-    #[lua_userfunc(get=lua_get_position, set=lua_set_position)]
+    #[lua_user_func(getter=lua_get_position, setter=lua_set_position)]
     position: PhantomData<Vec2>,
-    #[lua_userfunc(get=lua_get_scale, set=lua_set_scale)]
+    #[lua_user_func(getter=lua_get_scale, setter=lua_set_scale)]
     scale: PhantomData<Vec2>,
-    #[lua_userfunc(get=lua_get_angle, set=lua_set_angle)]
+    #[lua_user_func(getter=lua_get_angle, setter=lua_set_angle)]
     angle: PhantomData<f32>,
-    #[lua_userfunc(get=lua_get_local_position, set=lua_set_local_position)]
+    #[lua_user_func(getter=lua_get_local_position, setter=lua_set_local_position)]
     local_position: PhantomData<Vec2>,
-    #[lua_userfunc(get=lua_get_local_scale, set=lua_set_local_scale)]
+    #[lua_user_func(getter=lua_get_local_scale, setter=lua_set_local_scale)]
     local_scale: PhantomData<Vec2>,
-    #[lua_userfunc(get=lua_get_local_angle, set=lua_set_local_angle)]
+    #[lua_user_func(getter=lua_get_local_angle, setter=lua_set_local_angle)]
     local_angle: PhantomData<Vec2>,
 }
 

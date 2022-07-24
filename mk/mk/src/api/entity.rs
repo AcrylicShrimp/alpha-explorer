@@ -7,7 +7,7 @@ use crate::component::{
     UIElement, UIScaleMode, UIScaler,
 };
 use crate::render::{
-    Color, LuaRcFont, LuaRcShader, LuaRcSprite, LuaRcSpriteNinePatch, LuaRcTilemap,
+    Color, LuaFontHandle, LuaRcSprite, LuaRcSpriteNinePatch, LuaRcTilemap, LuaShaderHandle,
 };
 use crate::structure::Vec2;
 use crate::ui::{UIAnchor, UIMargin};
@@ -17,40 +17,38 @@ use mlua::prelude::*;
 use std::marker::PhantomData;
 
 #[derive(LuaComponentNoWrapper, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[lua_method(listen)]
+#[lua_method(unlisten)]
 pub struct Entity {
     #[lua_hidden]
     entity: legion::Entity,
     #[lua_readonly]
-    #[lua_userfunc(get=lua_get_transform)]
+    #[lua_user_func(getter=lua_get_transform)]
     transform: PhantomData<Transform>,
     #[lua_readonly]
-    #[lua_userfunc(get=lua_get_size)]
+    #[lua_user_func(getter=lua_get_size)]
     size: PhantomData<Size>,
     #[lua_readonly]
-    #[lua_userfunc(get=lua_get_ui_element)]
+    #[lua_user_func(getter=lua_get_ui_element)]
     ui_element: PhantomData<UIElement>,
     #[lua_readonly]
-    #[lua_userfunc(get=lua_get_ui_scaler)]
+    #[lua_user_func(getter=lua_get_ui_scaler)]
     ui_scaler: PhantomData<UIScaler>,
     #[lua_readonly]
-    #[lua_userfunc(get=lua_get_camera)]
+    #[lua_user_func(getter=lua_get_camera)]
     camera: PhantomData<LuaComponentCamera>,
     #[lua_readonly]
-    #[lua_userfunc(get=lua_get_glyph_renderer)]
+    #[lua_user_func(getter=lua_get_glyph_renderer)]
     glyph_renderer: PhantomData<LuaComponentGlyphRenderer>,
     #[lua_readonly]
-    #[lua_userfunc(get=lua_get_sprite_renderer)]
+    #[lua_user_func(getter=lua_get_sprite_renderer)]
     sprite_renderer: PhantomData<LuaComponentSpriteRenderer>,
     #[lua_readonly]
-    #[lua_userfunc(get=lua_get_nine_patch_renderer)]
+    #[lua_user_func(getter=lua_get_nine_patch_renderer)]
     nine_patch_renderer: PhantomData<LuaComponentNinePatchRenderer>,
     #[lua_readonly]
-    #[lua_userfunc(get=lua_get_tilemap_renderer)]
+    #[lua_user_func(getter=lua_get_tilemap_renderer)]
     tilemap_renderer: PhantomData<LuaComponentTilemapRenderer>,
-    #[lua_method]
-    listen: PhantomData<()>,
-    #[lua_method]
-    unlisten: PhantomData<()>,
 }
 
 impl Entity {
@@ -66,8 +64,6 @@ impl Entity {
             sprite_renderer: PhantomData,
             nine_patch_renderer: PhantomData,
             tilemap_renderer: PhantomData,
-            listen: PhantomData,
-            unlisten: PhantomData,
         }
     }
 
@@ -417,8 +413,8 @@ struct GlyphRendererBuildParam {
     pub layer: Option<crate::render::Layer>,
     pub order: Option<isize>,
     pub color: Option<Color>,
-    pub shader: LuaRcShader,
-    pub font: LuaRcFont,
+    pub shader: LuaShaderHandle,
+    pub font: LuaFontHandle,
     pub font_size: f32,
     pub thickness: f32,
     pub smoothness: f32,
@@ -431,7 +427,7 @@ struct SpriteRendererBuildParam {
     pub layer: Option<crate::render::Layer>,
     pub order: Option<isize>,
     pub color: Option<Color>,
-    pub shader: LuaRcShader,
+    pub shader: LuaShaderHandle,
     pub sprite: LuaRcSprite,
 }
 
@@ -440,7 +436,7 @@ struct NinePatchRendererBuildParam {
     pub layer: Option<crate::render::Layer>,
     pub order: Option<isize>,
     pub color: Option<Color>,
-    pub shader: LuaRcShader,
+    pub shader: LuaShaderHandle,
     pub nine_patch: LuaRcSpriteNinePatch,
 }
 
@@ -449,7 +445,7 @@ struct TilemapRendererBuildParam {
     pub layer: Option<crate::render::Layer>,
     pub order: Option<isize>,
     pub color: Option<Color>,
-    pub shader: LuaRcShader,
+    pub shader: LuaShaderHandle,
     pub tilemap: LuaRcTilemap,
 }
 

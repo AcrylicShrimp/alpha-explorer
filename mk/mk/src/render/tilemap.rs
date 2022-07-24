@@ -9,6 +9,6 @@ pub struct Tilemap {
     pub tile_count_x: usize,
     pub tile_count_y: usize,
     pub layers: Vec<Vec<usize>>,
-    #[lua_userdata(LuaRcSpriteAtlasGrid)]
+    #[lua_user_type(LuaRcSpriteAtlasGrid)]
     pub palette: Arc<SpriteAtlasGrid>,
 }
