@@ -13,6 +13,7 @@ pub fn lua_struct(item: TokenStream) -> TokenStream {
 
     let name = input.ident;
     let name_str = name.to_string();
+
     let from_lua_field_expanded = data.fields.iter().map(|field| {
         let field_name = field
             .ident
@@ -33,7 +34,8 @@ pub fn lua_struct(item: TokenStream) -> TokenStream {
             (#field_name_str, self.#field_name.to_lua(lua)?),
         }
     });
-    let expanded = quote! {
+
+    TokenStream::from(quote! {
         impl<'lua> mlua::FromLua<'lua> for #name {
             fn from_lua(value: mlua::Value<'lua>, _: &'lua mlua::Lua) -> mlua::Result<Self> {
                 use mlua::ExternalError;
@@ -58,7 +60,5 @@ pub fn lua_struct(item: TokenStream) -> TokenStream {
                 ))
             }
         }
-    };
-
-    TokenStream::from(expanded)
+    })
 }
