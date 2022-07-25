@@ -18,10 +18,10 @@ impl LuaApiTable for FontAsset {
             "load",
             lua.create_function(|_, name: String| {
                 let asset_mgr = use_context().asset_mgr();
-                let asset = asset_mgr.load(&name).map_err(|err| {
+                let asset: LuaFontHandle = asset_mgr.load(&name).map_err(|err| {
                     format!("unable to load font '{}' due to: {}", name, err).to_lua_err()
                 })?;
-                Ok(LuaFontHandle::from(asset))
+                Ok(asset)
             })?,
         )?;
         Ok(())
@@ -40,10 +40,10 @@ impl LuaApiTable for ShaderAsset {
             "load",
             lua.create_function(|_, name: String| {
                 let asset_mgr = use_context().asset_mgr();
-                let asset = asset_mgr.load(&name).map_err(|err| {
+                let asset: LuaShaderHandle = asset_mgr.load(&name).map_err(|err| {
                     format!("unable to load shader '{}' due to: {}", name, err).to_lua_err()
                 })?;
-                Ok(LuaShaderHandle::from(asset))
+                Ok(asset)
             })?,
         )?;
         Ok(())
@@ -62,10 +62,10 @@ impl LuaApiTable for SpriteAsset {
             "load",
             lua.create_function(|_, name: String| {
                 let asset_mgr = use_context().asset_mgr();
-                let asset = asset_mgr.load(&name).map_err(|err| {
+                let asset: LuaRcSprite = asset_mgr.load(&name).map_err(|err| {
                     format!("unable to load sprite '{}' due to: {}", name, err).to_lua_err()
                 })?;
-                Ok(LuaRcSprite::from(asset))
+                Ok(asset)
             })?,
         )?;
         Ok(())
@@ -84,10 +84,10 @@ impl LuaApiTable for SpriteAtlasAsset {
             "load",
             lua.create_function(|_, name: String| {
                 let asset_mgr = use_context().asset_mgr();
-                let asset = asset_mgr.load(&name).map_err(|err| {
+                let asset: LuaRcSpriteAtlas = asset_mgr.load(&name).map_err(|err| {
                     format!("unable to load sprite atlas '{}' due to: {}", name, err).to_lua_err()
                 })?;
-                Ok(LuaRcSpriteAtlas::from(asset))
+                Ok(asset)
             })?,
         )?;
         Ok(())
@@ -106,14 +106,14 @@ impl LuaApiTable for SpriteAtlasGridAsset {
             "load",
             lua.create_function(|_, name: String| {
                 let asset_mgr = use_context().asset_mgr();
-                let asset = asset_mgr.load(&name).map_err(|err| {
+                let asset: LuaRcSpriteAtlasGrid = asset_mgr.load(&name).map_err(|err| {
                     format!(
                         "unable to load sprite atlas grid '{}' due to: {}",
                         name, err
                     )
                     .to_lua_err()
                 })?;
-                Ok(LuaRcSpriteAtlasGrid::from(asset))
+                Ok(asset)
             })?,
         )?;
         Ok(())
@@ -132,14 +132,14 @@ impl LuaApiTable for SpriteNinePatchAsset {
             "load",
             lua.create_function(|_, name: String| {
                 let asset_mgr = use_context().asset_mgr();
-                let asset = asset_mgr.load(&name).map_err(|err| {
+                let asset: LuaRcSpriteNinePatch = asset_mgr.load(&name).map_err(|err| {
                     format!(
                         "unable to load sprite nine-patch '{}' due to: {}",
                         name, err
                     )
                     .to_lua_err()
                 })?;
-                Ok(LuaRcSpriteNinePatch::from(asset))
+                Ok(asset)
             })?,
         )?;
         Ok(())

@@ -7,7 +7,7 @@ pub struct AssetLoader<T>
 where
     T: 'static + Any + Send + Sync,
 {
-    loader: Box<dyn Fn(&AssetManager, &Path, &Path) -> Result<Arc<T>, AssetLoadError> + Sync>,
+    loader: Box<dyn Fn(&AssetManager, &Path, &Path) -> Result<T, AssetLoadError> + Sync>,
 }
 
 impl<T> AssetLoader<T>
@@ -16,7 +16,7 @@ where
 {
     pub fn new<F>(loader: F) -> Self
     where
-        F: 'static + Fn(&AssetManager, &Path, &Path) -> Result<Arc<T>, AssetLoadError> + Sync,
+        F: 'static + Fn(&AssetManager, &Path, &Path) -> Result<T, AssetLoadError> + Sync,
     {
         Self {
             loader: Box::new(loader),
@@ -29,7 +29,11 @@ where
         base: P,
         path: P,
     ) -> Result<Arc<T>, AssetLoadError> {
-        self.loader.as_ref()(asset_mgr, base.as_ref(), path.as_ref())
+        Ok(Arc::new(self.loader.as_ref()(
+            asset_mgr,
+            base.as_ref(),
+            path.as_ref(),
+        )?))
     }
 }
 

@@ -1,4 +1,5 @@
 use crate::asset::{AssetLoadError, AssetLoader};
+use crate::render::LuaFontHandle;
 use fontdue::{Font, FontSettings};
 use std::fs::{metadata as fs_metadata, read as fs_read};
 use std::io::{Error as IOError, ErrorKind as IOErrorKind};
@@ -9,7 +10,7 @@ impl From<&'static str> for AssetLoadError {
     }
 }
 
-pub fn font_loader() -> AssetLoader<Font> {
+pub fn font_loader() -> AssetLoader<LuaFontHandle> {
     AssetLoader::new(|_asset_mgr, base, path| {
         let path = base.join("fonts").join(path);
         let mut font_path = Err(IOError::new(IOErrorKind::NotFound, "cannot find a font"));
@@ -27,6 +28,9 @@ pub fn font_loader() -> AssetLoader<Font> {
             }
         }
 
-        Ok(Font::from_bytes(fs_read(font_path?)?, FontSettings::default())?.into())
+        Ok(LuaFontHandle::wrap(Font::from_bytes(
+            fs_read(font_path?)?,
+            FontSettings::default(),
+        )?))
     })
 }

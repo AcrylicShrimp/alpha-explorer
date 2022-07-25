@@ -1,11 +1,10 @@
 use crate::asset::{AssetLoadError, AssetLoader};
+use crate::render::{LuaShaderHandle, Shader};
 use crate::{emit_diagnostic_error, emit_diagnostic_info, subdiag_warn};
-use render::Shader;
 use std::any::type_name;
 use std::fs::read_to_string;
-use std::sync::Arc;
 
-pub fn shader_loader() -> AssetLoader<Shader> {
+pub fn shader_loader() -> AssetLoader<LuaShaderHandle> {
     AssetLoader::new(|_asset_mgr, base, path| {
         let vs = read_to_string(base.join("shaders").join(path).join("vertex.glsl"))?;
         let fs = read_to_string(base.join("shaders").join(path).join("fragment.glsl"))?;
@@ -76,6 +75,6 @@ pub fn shader_loader() -> AssetLoader<Shader> {
             }
         };
 
-        Ok(Arc::new(shader))
+        Ok(LuaShaderHandle::wrap(shader))
     })
 }

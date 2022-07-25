@@ -15,7 +15,7 @@ where
 
 impl<T> AssetCacheManager<T>
 where
-    T: 'static + Any + Sync + Send,
+    T: 'static + Clone + Any + Sync + Send,
 {
     pub fn new() -> Self {
         Self {

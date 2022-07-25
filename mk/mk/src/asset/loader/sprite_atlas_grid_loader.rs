@@ -1,5 +1,5 @@
 use crate::asset::{AssetLoadError, AssetLoader};
-use crate::render::{SpriteAtlasGrid, SpriteAtlasGridError};
+use crate::render::{LuaRcSpriteAtlasGrid, SpriteAtlasGrid, SpriteAtlasGridError};
 
 impl From<SpriteAtlasGridError> for AssetLoadError {
     fn from(err: SpriteAtlasGridError) -> Self {
@@ -7,8 +7,11 @@ impl From<SpriteAtlasGridError> for AssetLoadError {
     }
 }
 
-pub fn sprite_atlas_grid_loader() -> AssetLoader<SpriteAtlasGrid> {
+pub fn sprite_atlas_grid_loader() -> AssetLoader<LuaRcSpriteAtlasGrid> {
     AssetLoader::new(|_asset_mgr, base, path| {
-        Ok(SpriteAtlasGrid::from_file(&base.join("sprites").join(path), None)?.into())
+        Ok(LuaRcSpriteAtlasGrid::wrap(SpriteAtlasGrid::from_file(
+            &base.join("sprites").join(path),
+            None,
+        )?))
     })
 }

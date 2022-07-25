@@ -3,7 +3,7 @@ use crate::asset::{
 };
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
-use std::fmt::Debug;
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -22,7 +22,7 @@ impl AssetManager {
 
     pub fn register_loader<T>(&mut self, loader: AssetLoader<T>)
     where
-        T: 'static + Debug + Any + Send + Sync,
+        T: 'static + Clone + Any + Send + Sync,
     {
         self.types.insert(
             TypeId::of::<T>(),
@@ -31,16 +31,16 @@ impl AssetManager {
     }
 
     // TODO: Provide async-way to load assets.
-    pub fn load<T>(&self, path: impl AsRef<Path>) -> Result<Arc<T>, AssetLoadError>
+    pub fn load<T>(&self, path: impl AsRef<Path>) -> Result<T, AssetLoadError>
     where
-        T: 'static + Debug + Any + Send + Sync,
+        T: 'static + Clone + Any + Send + Sync,
     {
         match self.types.get(&TypeId::of::<T>()) {
             Some((cache, loader)) => {
                 let cache = cache.downcast_ref::<AssetCacheManager<T>>().unwrap();
 
                 match cache.load(&path) {
-                    Some(asset) => Ok(asset),
+                    Some(asset) => Ok(asset.deref().clone()),
                     None => {
                         let asset = loader.downcast_ref::<AssetLoader<T>>().unwrap().load(
                             self,
@@ -49,7 +49,7 @@ impl AssetManager {
                         )?;
 
                         cache.cache(path.as_ref().to_path_buf(), Arc::downgrade(&asset));
-                        Ok(asset)
+                        Ok(asset.deref().clone())
                     }
                 }
             }
