@@ -319,7 +319,7 @@ impl System for RendererSystem {
                     }
 
                     let matrix = transform_mgr.transform_world_matrix(transform.index());
-                    let sprite = &renderer.sprite;
+                    let sprite = &renderer.sprite.inner();
                     let mut buffer = render_mgr.alloc_buffer();
 
                     buffer.replace(&[
@@ -419,10 +419,10 @@ impl System for RendererSystem {
                     }
 
                     let matrix = transform_mgr.transform_world_matrix(transform.index());
-                    let nine_patch = &renderer.nine_patch;
+                    let nine_patch = renderer.nine_patch.inner();
 
-                    let left = nine_patch.sprite_lt().width() as f32;
-                    let right = nine_patch.sprite_rt().width() as f32;
+                    let left = nine_patch.sprite_lt().inner().width() as f32;
+                    let right = nine_patch.sprite_rt().inner().width() as f32;
                     let center = f32::max(0f32, size.width - left - right);
                     let (left, right) = if 0f32 < center {
                         (left, right)
@@ -431,8 +431,8 @@ impl System for RendererSystem {
                         (left * ratio, right * ratio)
                     };
 
-                    let top = nine_patch.sprite_lt().height() as f32;
-                    let bottom = nine_patch.sprite_lb().height() as f32;
+                    let top = nine_patch.sprite_lt().inner().height() as f32;
+                    let bottom = nine_patch.sprite_lb().inner().height() as f32;
                     let middle = f32::max(0f32, size.height - top - bottom);
                     let (top, bottom) = if 0f32 < middle {
                         (top, bottom)
@@ -479,22 +479,34 @@ impl System for RendererSystem {
 
                     if 0f32 < left && 0f32 < top {
                         patch_count += 1;
-                        enqueue_patch(0f32, -top, left, top, &nine_patch.sprite_lt());
+                        enqueue_patch(0f32, -top, left, top, &nine_patch.sprite_lt().inner());
                     }
 
                     if 0f32 < center && 0f32 < top {
                         patch_count += 1;
-                        enqueue_patch(left, -top, center, top, &nine_patch.sprite_ct());
+                        enqueue_patch(left, -top, center, top, &nine_patch.sprite_ct().inner());
                     }
 
                     if 0f32 < right && 0f32 < top {
                         patch_count += 1;
-                        enqueue_patch(left + center, -top, right, top, &nine_patch.sprite_rt());
+                        enqueue_patch(
+                            left + center,
+                            -top,
+                            right,
+                            top,
+                            &nine_patch.sprite_rt().inner(),
+                        );
                     }
 
                     if 0f32 < left && 0f32 < middle {
                         patch_count += 1;
-                        enqueue_patch(0f32, -(top + middle), left, middle, &nine_patch.sprite_lm());
+                        enqueue_patch(
+                            0f32,
+                            -(top + middle),
+                            left,
+                            middle,
+                            &nine_patch.sprite_lm().inner(),
+                        );
                     }
 
                     if 0f32 < center && 0f32 < middle {
@@ -504,7 +516,7 @@ impl System for RendererSystem {
                             -(top + middle),
                             center,
                             middle,
-                            &nine_patch.sprite_cm(),
+                            &nine_patch.sprite_cm().inner(),
                         );
                     }
 
@@ -515,7 +527,7 @@ impl System for RendererSystem {
                             -(top + middle),
                             right,
                             middle,
-                            &nine_patch.sprite_rm(),
+                            &nine_patch.sprite_rm().inner(),
                         );
                     }
 
@@ -526,7 +538,7 @@ impl System for RendererSystem {
                             -(top + middle + bottom),
                             left,
                             bottom,
-                            &nine_patch.sprite_lb(),
+                            &nine_patch.sprite_lb().inner(),
                         );
                     }
 
@@ -537,7 +549,7 @@ impl System for RendererSystem {
                             -(top + middle + bottom),
                             center,
                             bottom,
-                            &nine_patch.sprite_cb(),
+                            &nine_patch.sprite_cb().inner(),
                         );
                     }
 
@@ -548,7 +560,7 @@ impl System for RendererSystem {
                             -(top + middle + bottom),
                             right,
                             bottom,
-                            &nine_patch.sprite_rb(),
+                            &nine_patch.sprite_rb().inner(),
                         );
                     }
 
@@ -681,42 +693,43 @@ impl System for RendererSystem {
                         .reduce(f32::max)
                         .unwrap();
 
-                    let tile_width = renderer.tilemap.tile_width;
-                    let tile_height = renderer.tilemap.tile_height;
+                    let tilemap = renderer.tilemap.inner();
+                    let tile_width = tilemap.tile_width;
+                    let tile_height = tilemap.tile_height;
                     let inv_tile_width = 1f32 / tile_width;
                     let inv_tile_height = 1f32 / tile_height;
 
                     let range_min_x = min(
-                        renderer.tilemap.tile_count_x,
+                        tilemap.tile_count_x,
                         max(0, (aabb_min_x * inv_tile_width) as isize) as usize,
                     );
                     let range_max_x = min(
-                        renderer.tilemap.tile_count_x,
+                        tilemap.tile_count_x,
                         max(0, (aabb_max_x * inv_tile_width).ceil() as isize) as usize,
                     );
                     let range_min_y = min(
-                        renderer.tilemap.tile_count_y,
+                        tilemap.tile_count_y,
                         max(0, (aabb_min_y * inv_tile_height) as isize) as usize,
                     );
                     let range_max_y = min(
-                        renderer.tilemap.tile_count_y,
+                        tilemap.tile_count_y,
                         max(0, (aabb_max_y * inv_tile_height).ceil() as isize) as usize,
                     );
 
-                    let sprites = renderer.tilemap.palette.sprites();
+                    let palette = tilemap.palette.inner();
+                    let sprites = palette.sprites();
+                    let texture = palette.texture().inner();
                     let mut instance_count = 0;
-                    let mut per_instance_buffer = Vec::with_capacity(
-                        renderer.tilemap.tile_count_x * renderer.tilemap.tile_count_y * 20,
-                    );
+                    let mut per_instance_buffer =
+                        Vec::with_capacity(tilemap.tile_count_x * tilemap.tile_count_y * 20);
 
-                    for layer in &renderer.tilemap.layers {
+                    for layer in &tilemap.layers {
                         for y in range_min_y..range_max_y {
-                            let base_index = (renderer.tilemap.tile_count_y - 1 - y)
-                                * renderer.tilemap.tile_count_x;
+                            let base_index = (tilemap.tile_count_y - 1 - y) * tilemap.tile_count_x;
                             for x in range_min_x..range_max_x {
                                 let sprite = match layer[base_index + x] {
                                     0 => continue,
-                                    index => &sprites[index - 1],
+                                    index => sprites[index - 1].inner(),
                                 };
                                 let texel_mapping = sprite.texel_mapping();
                                 let offset_x = x as f32 * tile_width;
@@ -740,13 +753,13 @@ impl System for RendererSystem {
                                     renderer.color.b,
                                     renderer.color.a,
                                     (texel_mapping.min().0 as f32 + 0.5f32)
-                                        / renderer.tilemap.palette.texture().width() as f32,
+                                        / texture.width() as f32,
                                     (texel_mapping.min().1 as f32 + 0.5f32)
-                                        / renderer.tilemap.palette.texture().height() as f32,
+                                        / texture.height() as f32,
                                     (texel_mapping.max().0 as f32 - 0.5f32)
-                                        / renderer.tilemap.palette.texture().width() as f32,
+                                        / texture.width() as f32,
                                     (texel_mapping.max().1 as f32 - 0.5f32)
-                                        / renderer.tilemap.palette.texture().height() as f32,
+                                        / texture.height() as f32,
                                 ]);
                             }
                         }
@@ -768,10 +781,7 @@ impl System for RendererSystem {
                             req.uniform_f33(uniform.location, camera_matrix_inverse);
                         }
                         if let Some(uniform) = shader.uniform("sprite") {
-                            req.uniform_texture(
-                                uniform.location,
-                                renderer.tilemap.palette.texture(),
-                            );
+                            req.uniform_texture(uniform.location, &texture);
                         }
 
                         if let Some(attribute) = shader.attribute("pos") {
