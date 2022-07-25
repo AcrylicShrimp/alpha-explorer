@@ -1,6 +1,5 @@
-use crate::render::{LuaRcSpriteAtlasGrid, SpriteAtlasGrid};
+use crate::render::LuaRcSpriteAtlasGrid;
 use codegen::LuaRc;
-use std::sync::Arc;
 
 #[derive(LuaRc, Debug)]
 pub struct Tilemap {
@@ -9,6 +8,5 @@ pub struct Tilemap {
     pub tile_count_x: usize,
     pub tile_count_y: usize,
     pub layers: Vec<Vec<usize>>,
-    #[lua_user_type(LuaRcSpriteAtlasGrid)]
-    pub palette: Arc<SpriteAtlasGrid>,
+    pub palette: LuaRcSpriteAtlasGrid,
 }

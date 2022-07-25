@@ -10,7 +10,6 @@ use std::fmt::Display;
 use std::fs::{metadata as fs_metadata, read_to_string};
 use std::io::{Error as IOError, ErrorKind as IOErrorKind};
 use std::path::Path;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub enum SpriteAtlasError {
@@ -65,10 +64,9 @@ type AtlasMetadataJSON = HashMap<String, AtlasItemJSON>;
 
 #[derive(LuaRc, Debug)]
 pub struct SpriteAtlas {
-    #[lua_user_type(LuaTextureHandle)]
-    texture: Arc<Texture>,
+    texture: LuaTextureHandle,
     #[lua_user_func(getter=lua_get_sprites)]
-    sprites: HashMap<String, Arc<Sprite>>,
+    sprites: HashMap<String, LuaRcSprite>,
 }
 
 unsafe impl Send for SpriteAtlas {}
@@ -96,7 +94,7 @@ impl SpriteAtlas {
 
         let image = open_image(image_path?)?;
         let (width, height) = image.dimensions();
-        let texture = Arc::new(match channel {
+        let texture = LuaTextureHandle::wrap(match channel {
             Some(channel) => match channel {
                 SpriteChannel::R => {
                     Texture::from_slice_r_u8(width, height, image.to_luma8().as_raw())
@@ -149,11 +147,11 @@ impl SpriteAtlas {
         })
     }
 
-    pub fn texture(&self) -> &Arc<Texture> {
+    pub fn texture(&self) -> &LuaTextureHandle {
         &self.texture
     }
 
-    pub fn sprites(&self) -> &HashMap<String, Arc<Sprite>> {
+    pub fn sprites(&self) -> &HashMap<String, LuaRcSprite> {
         &self.sprites
     }
 

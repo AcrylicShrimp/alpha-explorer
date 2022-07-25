@@ -7,7 +7,6 @@ use std::fmt::Display;
 use std::fs::metadata as fs_metadata;
 use std::io::{Error as IOError, ErrorKind as IOErrorKind};
 use std::path::Path;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub enum SpriteError {
@@ -140,8 +139,7 @@ impl<'lua> ToLua<'lua> for TexelMapping {
 #[derive(LuaRc, Debug)]
 pub struct Sprite {
     channel: SpriteChannel,
-    #[lua_user_type(LuaTextureHandle)]
-    texture: Arc<Texture>,
+    texture: LuaTextureHandle,
     texel_mapping: TexelMapping,
 }
 
@@ -212,14 +210,14 @@ impl Sprite {
 
         Ok(Self {
             channel,
-            texture: texture.into(),
+            texture: LuaTextureHandle::wrap(texture),
             texel_mapping: TexelMapping::new((0, 0), (width, height)),
         })
     }
 
-    pub fn from_atlas(texture: Arc<Texture>, texel_mapping: TexelMapping) -> Self {
+    pub fn from_atlas(texture: LuaTextureHandle, texel_mapping: TexelMapping) -> Self {
         Self {
-            channel: match texture.format().component() {
+            channel: match texture.inner().format().component() {
                 1 => SpriteChannel::R,
                 2 => SpriteChannel::RG,
                 3 => SpriteChannel::RGB,
@@ -235,7 +233,7 @@ impl Sprite {
         self.channel
     }
 
-    pub fn texture(&self) -> &Arc<Texture> {
+    pub fn texture(&self) -> &LuaTextureHandle {
         &self.texture
     }
 

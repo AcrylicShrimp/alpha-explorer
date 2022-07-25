@@ -1,7 +1,6 @@
 use crate::render::{LuaRcSprite, LuaTextureHandle, Sprite, SpriteChannel, TexelMapping, Texture};
 use codegen::LuaRc;
 use image::{open as open_image, ColorType, GenericImageView, ImageError};
-use mlua::prelude::*;
 use serde::Deserialize;
 use serde_json::{from_str, Error as JSONError};
 use std::error::Error;
@@ -9,7 +8,6 @@ use std::fmt::Display;
 use std::fs::{metadata as fs_metadata, read_to_string};
 use std::io::{Error as IOError, ErrorKind as IOErrorKind};
 use std::path::Path;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub enum SpriteAtlasGridError {
@@ -58,10 +56,8 @@ struct AtlasGridMetadataJSON {
 
 #[derive(LuaRc, Debug)]
 pub struct SpriteAtlasGrid {
-    #[lua_user_type(LuaTextureHandle)]
-    texture: Arc<Texture>,
-    #[lua_user_func(getter=lua_get_sprites)]
-    sprites: Vec<Arc<Sprite>>,
+    texture: LuaTextureHandle,
+    sprites: Vec<LuaRcSprite>,
 }
 
 unsafe impl Send for SpriteAtlasGrid {}
@@ -89,7 +85,7 @@ impl SpriteAtlasGrid {
 
         let image = open_image(image_path?)?;
         let (width, height) = image.dimensions();
-        let texture = Arc::new(match channel {
+        let texture = LuaTextureHandle::wrap(match channel {
             Some(channel) => match channel {
                 SpriteChannel::R => {
                     Texture::from_slice_r_u8(width, height, image.to_luma8().as_raw())
@@ -134,14 +130,10 @@ impl SpriteAtlasGrid {
 
         while next_y <= height {
             while next_x <= width {
-                sprites.push(
-                    Sprite::from_atlas(
-                        texture.clone(),
-                        TexelMapping::new((x, y), (next_x, next_y)),
-                    )
-                    .into(),
-                );
-
+                sprites.push(LuaRcSprite::wrap(Sprite::from_atlas(
+                    texture.clone(),
+                    TexelMapping::new((x, y), (next_x, next_y)),
+                )));
                 x = next_x;
                 next_x += metadata.grid_width;
             }
@@ -155,19 +147,11 @@ impl SpriteAtlasGrid {
         Ok(Self { texture, sprites })
     }
 
-    pub fn texture(&self) -> &Arc<Texture> {
+    pub fn texture(&self) -> &LuaTextureHandle {
         &self.texture
     }
 
-    pub fn sprites(&self) -> &Vec<Arc<Sprite>> {
+    pub fn sprites(&self) -> &Vec<LuaRcSprite> {
         &self.sprites
-    }
-
-    fn lua_get_sprites<'lua>(&self, lua: &'lua Lua) -> LuaResult<LuaValue<'lua>> {
-        self.sprites
-            .iter()
-            .map(|v| LuaRcSprite::from(v.clone()))
-            .collect::<Vec<_>>()
-            .to_lua(lua)
     }
 }

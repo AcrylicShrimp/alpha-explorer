@@ -8,7 +8,6 @@ use std::fmt::Display;
 use std::fs::{metadata as fs_metadata, read_to_string};
 use std::io::{Error as IOError, ErrorKind as IOErrorKind};
 use std::path::Path;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub enum SpriteNinePatchError {
@@ -57,26 +56,16 @@ struct NinePatchMetadataJSON {
 
 #[derive(LuaRc, Debug)]
 pub struct SpriteNinePatch {
-    #[lua_user_type(LuaTextureHandle)]
-    texture: Arc<Texture>,
-    #[lua_user_type(LuaRcSprite)]
-    sprite_lt: Arc<Sprite>,
-    #[lua_user_type(LuaRcSprite)]
-    sprite_ct: Arc<Sprite>,
-    #[lua_user_type(LuaRcSprite)]
-    sprite_rt: Arc<Sprite>,
-    #[lua_user_type(LuaRcSprite)]
-    sprite_lm: Arc<Sprite>,
-    #[lua_user_type(LuaRcSprite)]
-    sprite_cm: Arc<Sprite>,
-    #[lua_user_type(LuaRcSprite)]
-    sprite_rm: Arc<Sprite>,
-    #[lua_user_type(LuaRcSprite)]
-    sprite_lb: Arc<Sprite>,
-    #[lua_user_type(LuaRcSprite)]
-    sprite_cb: Arc<Sprite>,
-    #[lua_user_type(LuaRcSprite)]
-    sprite_rb: Arc<Sprite>,
+    texture: LuaTextureHandle,
+    sprite_lt: LuaRcSprite,
+    sprite_ct: LuaRcSprite,
+    sprite_rt: LuaRcSprite,
+    sprite_lm: LuaRcSprite,
+    sprite_cm: LuaRcSprite,
+    sprite_rm: LuaRcSprite,
+    sprite_lb: LuaRcSprite,
+    sprite_cb: LuaRcSprite,
+    sprite_rb: LuaRcSprite,
 }
 
 unsafe impl Send for SpriteNinePatch {}
@@ -104,7 +93,7 @@ impl SpriteNinePatch {
 
         let image = open_image(image_path?)?;
         let (width, height) = image.dimensions();
-        let texture = Arc::new(match channel {
+        let texture = LuaTextureHandle::wrap(match channel {
             Some(channel) => match channel {
                 SpriteChannel::R => {
                     Texture::from_slice_r_u8(width, height, image.to_luma8().as_raw())
@@ -211,43 +200,43 @@ impl SpriteNinePatch {
         })
     }
 
-    pub fn texture(&self) -> &Arc<Texture> {
+    pub fn texture(&self) -> &LuaTextureHandle {
         &self.texture
     }
 
-    pub fn sprite_lt(&self) -> &Arc<Sprite> {
+    pub fn sprite_lt(&self) -> &LuaRcSprite {
         &self.sprite_lt
     }
 
-    pub fn sprite_ct(&self) -> &Arc<Sprite> {
+    pub fn sprite_ct(&self) -> &LuaRcSprite {
         &self.sprite_ct
     }
 
-    pub fn sprite_rt(&self) -> &Arc<Sprite> {
+    pub fn sprite_rt(&self) -> &LuaRcSprite {
         &self.sprite_rt
     }
 
-    pub fn sprite_lm(&self) -> &Arc<Sprite> {
+    pub fn sprite_lm(&self) -> &LuaRcSprite {
         &self.sprite_lm
     }
 
-    pub fn sprite_cm(&self) -> &Arc<Sprite> {
+    pub fn sprite_cm(&self) -> &LuaRcSprite {
         &self.sprite_cm
     }
 
-    pub fn sprite_rm(&self) -> &Arc<Sprite> {
+    pub fn sprite_rm(&self) -> &LuaRcSprite {
         &self.sprite_rm
     }
 
-    pub fn sprite_lb(&self) -> &Arc<Sprite> {
+    pub fn sprite_lb(&self) -> &LuaRcSprite {
         &self.sprite_lb
     }
 
-    pub fn sprite_cb(&self) -> &Arc<Sprite> {
+    pub fn sprite_cb(&self) -> &LuaRcSprite {
         &self.sprite_cb
     }
 
-    pub fn sprite_rb(&self) -> &Arc<Sprite> {
+    pub fn sprite_rb(&self) -> &LuaRcSprite {
         &self.sprite_rb
     }
 }
