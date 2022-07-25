@@ -4,8 +4,8 @@ use std::env::current_dir;
 fn main() -> Result<(), EngineError> {
     run(
         "alpha-explorer",
-        640,
-        480,
+        1024,
+        768,
         false,
         current_dir()?.join("assets"),
         "assets/scripts/entry.lua",
