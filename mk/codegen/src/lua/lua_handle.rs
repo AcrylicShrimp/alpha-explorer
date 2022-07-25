@@ -28,6 +28,30 @@ pub fn lua_handle(item: TokenStream) -> TokenStream {
         #[derive(Debug, Clone)]
         pub struct #name(pub std::sync::Arc<#ty>);
 
+        impl #name {
+            pub fn wrap(inner: #ty) -> Self {
+                Self(std::sync::Arc::new(inner))
+            }
+
+            pub fn inner(&self) -> &#ty {
+                &self.0
+            }
+        }
+
+        impl std::ops::Deref for #name {
+            type Target = #ty;
+
+            fn deref(&self) -> &Self::Target {
+                self.inner()
+            }
+        }
+
+        impl From<#ty> for #name {
+            fn from(inner: #ty) -> Self {
+                Self::wrap(inner)
+            }
+        }
+
         impl From<std::sync::Arc<#ty>> for #name {
             fn from(rc: std::sync::Arc<#ty>) -> Self {
                 Self(rc)

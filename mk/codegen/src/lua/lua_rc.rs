@@ -31,23 +31,43 @@ pub fn lua_rc(item: TokenStream) -> TokenStream {
         },
         Some(&mut |_| {
             TokenStream::from(quote! {
-                let this = std::sync::Arc::<#ty_name>::from(this.clone());
+                let this = this.inner();
             })
         }),
-        None,
+        Some(&mut |_| {
+            TokenStream::from(quote! {
+                let mut this = this.inner();
+            })
+        }),
     ));
 
     TokenStream::from(quote! {
-        #[derive(Clone)]
-        pub struct #wrapper_ty_name(pub std::sync::Arc<#ty_name>);
+        #[derive(Debug, Clone)]
+        pub struct #wrapper_ty_name(pub std::sync::Arc<parking_lot::Mutex<#ty_name>>);
 
-        impl From<std::sync::Arc<#ty_name>> for #wrapper_ty_name {
-            fn from(rc: std::sync::Arc<#ty_name>) -> Self {
+        impl #wrapper_ty_name {
+            pub fn wrap(inner: #ty_name) -> Self {
+                Self(std::sync::Arc::new(parking_lot::Mutex::new(inner)))
+            }
+
+            pub fn inner(&self) -> parking_lot::MutexGuard<#ty_name> {
+                self.0.lock()
+            }
+        }
+
+        impl From<#ty_name> for #wrapper_ty_name {
+            fn from(inner: #ty_name) -> Self {
+                Self::wrap(inner)
+            }
+        }
+
+        impl From<std::sync::Arc<parking_lot::Mutex<#ty_name>>> for #wrapper_ty_name {
+            fn from(rc: std::sync::Arc<parking_lot::Mutex<#ty_name>>) -> Self {
                 Self(rc)
             }
         }
 
-        impl From<#wrapper_ty_name> for std::sync::Arc<#ty_name> {
+        impl From<#wrapper_ty_name> for std::sync::Arc<parking_lot::Mutex<#ty_name>> {
             fn from(rc: #wrapper_ty_name) -> Self {
                 rc.0
             }
