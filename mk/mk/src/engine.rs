@@ -252,8 +252,6 @@ pub fn run(
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
 
-        system_mgr.run(&rest, isize::MIN, -1);
-
         match event {
             Event::MainEventsCleared => {}
             Event::WindowEvent {
@@ -383,6 +381,8 @@ pub fn run(
             _ => return,
         }
 
+        system_mgr.run(&rest, isize::MIN, -1);
+
         {
             let screen_mgr = rest.screen_mgr();
             resize(
@@ -390,6 +390,7 @@ pub fn run(
                 screen_mgr.physical_height() as u32,
             );
         }
+
         clear();
         system_mgr.run(&rest, 0, isize::MAX);
 
