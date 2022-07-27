@@ -1,7 +1,7 @@
 use crate::render::{Color, Layer, LuaRcSpriteNinePatch, LuaShaderHandle};
 use codegen::LuaComponent;
 
-#[derive(LuaComponent, Debug)]
+#[derive(LuaComponent)]
 pub struct NinePatchRenderer {
     pub layer: Layer,
     pub order: isize,

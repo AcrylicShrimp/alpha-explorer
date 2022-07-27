@@ -1,7 +1,7 @@
 use crate::render::LuaRcSpriteAtlasGrid;
 use codegen::LuaRc;
 
-#[derive(LuaRc, Debug)]
+#[derive(LuaRc)]
 pub struct Tilemap {
     pub tile_width: f32,
     pub tile_height: f32,

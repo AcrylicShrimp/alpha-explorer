@@ -62,7 +62,7 @@ struct AtlasItemJSON {
 
 type AtlasMetadataJSON = HashMap<String, AtlasItemJSON>;
 
-#[derive(LuaRc, Debug)]
+#[derive(LuaRc)]
 pub struct SpriteAtlas {
     texture: LuaTextureHandle,
     #[lua_user_func(getter=lua_get_sprites)]

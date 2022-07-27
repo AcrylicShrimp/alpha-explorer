@@ -54,7 +54,7 @@ struct AtlasGridMetadataJSON {
     grid_height: u32,
 }
 
-#[derive(LuaRc, Debug)]
+#[derive(LuaRc)]
 pub struct SpriteAtlasGrid {
     texture: LuaTextureHandle,
     sprites: Vec<LuaRcSprite>,

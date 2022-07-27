@@ -1,7 +1,7 @@
 use crate::render::{Color, Layer, LuaRcTilemap, LuaShaderHandle};
 use codegen::LuaComponent;
 
-#[derive(LuaComponent, Debug)]
+#[derive(LuaComponent)]
 pub struct TilemapRenderer {
     pub layer: Layer,
     pub order: isize,

@@ -54,7 +54,7 @@ struct NinePatchMetadataJSON {
     bottom: u32,
 }
 
-#[derive(LuaRc, Debug)]
+#[derive(LuaRc)]
 pub struct SpriteNinePatch {
     texture: LuaTextureHandle,
     sprite_lt: LuaRcSprite,

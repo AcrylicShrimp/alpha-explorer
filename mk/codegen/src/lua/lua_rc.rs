@@ -42,7 +42,7 @@ pub fn lua_rc(item: TokenStream) -> TokenStream {
     ));
 
     TokenStream::from(quote! {
-        #[derive(Debug, Clone)]
+        #[derive(Clone)]
         pub struct #wrapper_ty_name(pub std::sync::Arc<parking_lot::Mutex<#ty_name>>);
 
         impl #wrapper_ty_name {
