@@ -4,7 +4,7 @@ use std::any::type_name;
 
 #[derive(Debug, Clone, Copy)]
 pub struct PreUpdate {
-    pub dt: f32,
+    pub dt: f64,
 }
 
 impl_event_type_lua_api!(PreUpdate);
@@ -29,7 +29,7 @@ impl UserData for PreUpdate {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Update {
-    pub dt: f32,
+    pub dt: f64,
 }
 
 impl_event_type_lua_api!(Update);
@@ -54,7 +54,7 @@ impl UserData for Update {
 
 #[derive(Debug, Clone, Copy)]
 pub struct PostUpdate {
-    pub dt: f32,
+    pub dt: f64,
 }
 
 impl_event_type_lua_api!(PostUpdate);
@@ -79,7 +79,7 @@ impl UserData for PostUpdate {
 
 #[derive(Debug, Clone, Copy)]
 pub struct PreRender {
-    pub dt: f32,
+    pub dt: f64,
 }
 
 impl_event_type_lua_api!(PreRender);
@@ -104,7 +104,7 @@ impl UserData for PreRender {
 
 #[derive(Debug, Clone, Copy)]
 pub struct PostRender {
-    pub dt: f32,
+    pub dt: f64,
 }
 
 impl_event_type_lua_api!(PostRender);

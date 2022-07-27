@@ -12,8 +12,12 @@ impl LuaApiTable for Time {
 
     fn fill_api_table(lua: &Lua, table: &LuaTable) -> LuaResult<()> {
         table.set(
+            "time",
+            lua.create_function(|lua, _: ()| use_context().time_mgr().time_f64().to_lua(lua))?,
+        )?;
+        table.set(
             "dt",
-            lua.create_function(|lua, _: ()| use_context().time_mgr().dt().to_lua(lua))?,
+            lua.create_function(|lua, _: ()| use_context().time_mgr().dt_f64().to_lua(lua))?,
         )?;
         Ok(())
     }

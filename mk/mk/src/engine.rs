@@ -146,7 +146,7 @@ pub fn run(
         context.event_mgr().dispatcher().emit(
             context.lua_mgr().lua(),
             &events::PreUpdate {
-                dt: context.time_mgr().dt(),
+                dt: context.time_mgr().dt_f64(),
             },
         );
     });
@@ -161,7 +161,7 @@ pub fn run(
         context.event_mgr().dispatcher().emit(
             context.lua_mgr().lua(),
             &events::Update {
-                dt: context.time_mgr().dt(),
+                dt: context.time_mgr().dt_f64(),
             },
         );
     });
@@ -169,7 +169,7 @@ pub fn run(
         context.event_mgr().dispatcher().emit(
             context.lua_mgr().lua(),
             &events::PostUpdate {
-                dt: context.time_mgr().dt(),
+                dt: context.time_mgr().dt_f64(),
             },
         );
     });
@@ -183,7 +183,7 @@ pub fn run(
         context.event_mgr().dispatcher().emit(
             context.lua_mgr().lua(),
             &events::PreRender {
-                dt: context.time_mgr().dt(),
+                dt: context.time_mgr().dt_f64(),
             },
         );
     });
@@ -195,7 +195,7 @@ pub fn run(
         context.event_mgr().dispatcher().emit(
             context.lua_mgr().lua(),
             &events::PostRender {
-                dt: context.time_mgr().dt(),
+                dt: context.time_mgr().dt_f64(),
             },
         );
     });

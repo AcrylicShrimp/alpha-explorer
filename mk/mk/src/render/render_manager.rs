@@ -33,8 +33,8 @@ impl RenderManager {
             &[
                 time_mgr.dt(),
                 1f32 / time_mgr.dt(),
-                time_mgr.time().elapsed().as_secs_f32(),
-                1f32 / time_mgr.time().elapsed().as_secs_f32(),
+                time_mgr.time(),
+                1f32 / time_mgr.time(),
                 screen_mgr.width() as f32,
                 screen_mgr.height() as f32,
                 1f32 / screen_mgr.width() as f32,
