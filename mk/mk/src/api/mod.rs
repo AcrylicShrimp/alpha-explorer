@@ -20,58 +20,6 @@ use crate::render::Color;
 use crate::structure::Vec2;
 use mlua::prelude::*;
 
-#[macro_export]
-macro_rules! arc_user_data {
-    ($ty:ty => $name:ident) => {
-        #[derive(Debug, Hash)]
-        pub struct $name(*const $ty);
-
-        impl $name {
-            pub fn into_inner(self) -> std::sync::Arc<$ty> {
-                std::sync::Arc::<$ty>::from(self)
-            }
-        }
-
-        impl Clone for $name {
-            fn clone(&self) -> Self {
-                unsafe {
-                    std::sync::Arc::increment_strong_count(self.0);
-                }
-
-                Self(self.0)
-            }
-        }
-
-        impl Drop for $name {
-            fn drop(&mut self) {
-                unsafe {
-                    std::sync::Arc::decrement_strong_count(self.0);
-                }
-            }
-        }
-
-        impl From<$ty> for $name {
-            fn from(value: $ty) -> Self {
-                Self(std::sync::Arc::into_raw(std::sync::Arc::new(value)))
-            }
-        }
-
-        impl From<std::sync::Arc<$ty>> for $name {
-            fn from(value: std::sync::Arc<$ty>) -> Self {
-                Self(std::sync::Arc::into_raw(value))
-            }
-        }
-
-        impl From<$name> for std::sync::Arc<$ty> {
-            fn from(value: $name) -> Self {
-                let arc = unsafe { std::sync::Arc::from_raw(value.0) };
-                std::mem::forget(value);
-                arc
-            }
-        }
-    };
-}
-
 pub fn register_api_table<'lua, T>(
     lua: &'lua Lua,
     root_table: &'lua LuaTable<'lua>,

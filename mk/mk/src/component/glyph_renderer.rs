@@ -148,9 +148,6 @@ pub struct GlyphRenderer {
     text: String,
     #[lua_hidden]
     layout: Layout,
-    // #[lua_readonly]
-    // #[lua_user_func(get=lua_get_lines)]
-    // lines: PhantomData<u32>,
 }
 
 impl GlyphRenderer {
@@ -173,7 +170,6 @@ impl GlyphRenderer {
             config: GlyphRendererConfig::default(),
             text: String::with_capacity(32),
             layout: Layout::new(CoordinateSystem::PositiveYUp),
-            // lines: PhantomData,
         }
     }
 
@@ -275,8 +271,4 @@ impl GlyphRenderer {
         self.set_text(String::from_lua(value, lua)?);
         Ok(())
     }
-
-    // fn lua_get_lines<'lua>(&self, lua: &'lua Lua) -> LuaResult<LuaValue<'lua>> {
-    //     self.layout.lines().to_lua(lua)
-    // }
 }
