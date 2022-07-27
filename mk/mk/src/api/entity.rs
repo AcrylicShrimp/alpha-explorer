@@ -360,7 +360,16 @@ impl LuaApiTable for Entity {
             "get_by_name",
             lua.create_function(|lua, name: String| {
                 let transform_mgr = use_context().transform_mgr();
-                Ok(transform_mgr.find_by_name(name).map(|indices| {
+                Ok(transform_mgr
+                    .find_by_name(name)
+                    .map(|index| Entity::new(transform_mgr.entity(index))))
+            })?,
+        )?;
+        table.set(
+            "get_all_by_name",
+            lua.create_function(|lua, name: String| {
+                let transform_mgr = use_context().transform_mgr();
+                Ok(transform_mgr.find_all_by_name(name).map(|indices| {
                     indices
                         .iter()
                         .map(|index| Entity::new(transform_mgr.entity(*index)))

@@ -127,7 +127,14 @@ impl TransformManager {
             .map(|name| name.as_str())
     }
 
-    pub fn find_by_name(&self, name: impl AsRef<str>) -> Option<&[u32]> {
+    pub fn find_by_name(&self, name: impl AsRef<str>) -> Option<u32> {
+        self.name_map
+            .get(name.as_ref())
+            .map(|indices| indices.first().cloned())
+            .flatten()
+    }
+
+    pub fn find_all_by_name(&self, name: impl AsRef<str>) -> Option<&[u32]> {
         self.name_map
             .get(name.as_ref())
             .map(|indices| indices.as_slice())
