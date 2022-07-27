@@ -10,6 +10,7 @@ mod sprite_atlas_grid;
 mod sprite_nine_patch;
 mod tilemap;
 
+use codegen::define_lua_handle;
 pub use color::*;
 // pub use glyph_manager::*;
 // pub use glyph_texture::*;
