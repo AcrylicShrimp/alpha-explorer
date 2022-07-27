@@ -1,7 +1,8 @@
 use crate::codegen_traits::LuaApiTable;
+use codegen::LuaStruct;
 use mlua::prelude::*;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(LuaStruct, Debug, Clone, Copy, PartialEq)]
 pub struct Color {
     pub r: f32,
     pub g: f32,
@@ -35,33 +36,6 @@ impl Color {
             b: 0f32,
             a: 1f32,
         }
-    }
-}
-
-impl<'lua> FromLua<'lua> for Color {
-    fn from_lua(value: LuaValue<'lua>, _lua: &'lua Lua) -> LuaResult<Self> {
-        match value {
-            LuaValue::Table(value) => Ok(Self {
-                r: value.get("r")?,
-                g: value.get("g")?,
-                b: value.get("b")?,
-                a: value.get("a")?,
-            }),
-            _ => {
-                return Err(format!("the type {} must be a {}", "Color", "table").to_lua_err());
-            }
-        }
-    }
-}
-
-impl<'lua> ToLua<'lua> for Color {
-    fn to_lua(self, lua: &'lua Lua) -> LuaResult<LuaValue<'lua>> {
-        Ok(LuaValue::Table(lua.create_table_from([
-            ("r", self.r),
-            ("g", self.g),
-            ("b", self.b),
-            ("a", self.a),
-        ])?))
     }
 }
 
