@@ -140,9 +140,9 @@ fn calculate_pair(
     let child = &mut elements[pair.child as usize];
 
     let margin_left = parent_size.width * (child.anchor.min.x - 0.5f32);
-    let margin_top = parent_size.height * (0.5f32 - child.anchor.min.y);
+    let margin_bottom = parent_size.height * (child.anchor.min.y - 0.5f32);
     let margin_right = parent_size.width * (child.anchor.max.x - 0.5f32);
-    let margin_bottom = parent_size.height * (0.5f32 - child.anchor.max.y);
+    let margin_top = parent_size.height * (child.anchor.max.y - 0.5f32);
 
     let mut entry = if let Ok(entry) = world.entry_mut(entities[pair.child as usize]) {
         entry
