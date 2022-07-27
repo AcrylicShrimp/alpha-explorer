@@ -180,12 +180,22 @@ impl System for RendererSystem {
                         let g = glyph_mgr.glyph(font, glyph.key);
                         let mut buffer = render_mgr.alloc_buffer();
 
-                        let font_width_scale = glyph.width as f32
-                            / (g.mapping.width() as usize - 2 * sdf_inset) as f32;
-                        let font_height_scale = glyph.height as f32
-                            / (g.mapping.height() as usize - 2 * sdf_inset) as f32;
-                        let glyph_width = g.mapping.width() as f32 * font_width_scale;
-                        let glyph_height = g.mapping.height() as f32 * font_height_scale;
+                        let font_width_scale = if g.mapping.width() as usize == 2 * sdf_inset {
+                            0f32
+                        } else {
+                            glyph.width as f32 / (g.mapping.width() as usize - 2 * sdf_inset) as f32
+                        };
+                        let font_height_scale = if g.mapping.height() as usize == 2 * sdf_inset {
+                            0f32
+                        } else {
+                            glyph.height as f32
+                                / (g.mapping.height() as usize - 2 * sdf_inset) as f32
+                        };
+
+                        let glyph_width =
+                            glyph.width as f32 + 2f32 * font_width_scale * sdf_inset as f32;
+                        let glyph_height =
+                            glyph.height as f32 + 2f32 * font_height_scale * sdf_inset as f32;
 
                         buffer.replace(&[
                             matrix[0],
@@ -213,10 +223,10 @@ impl System for RendererSystem {
                             color.a,
                             thickness,
                             smoothness,
-                            (g.mapping.min().0 as f32 + 0.5f32) / g.texture.width() as f32,
-                            (g.mapping.min().1 as f32 + 0.5f32) / g.texture.height() as f32,
-                            (g.mapping.max().0 as f32 - 0.5f32) / g.texture.width() as f32,
-                            (g.mapping.max().1 as f32 - 0.5f32) / g.texture.height() as f32,
+                            (g.mapping.min().0 as f32) / g.texture.width() as f32,
+                            (g.mapping.min().1 as f32) / g.texture.height() as f32,
+                            (g.mapping.max().0 as f32) / g.texture.width() as f32,
+                            (g.mapping.max().1 as f32) / g.texture.height() as f32,
                         ]);
 
                         texture_and_buffers.push((g.texture.handle(), buffer));
