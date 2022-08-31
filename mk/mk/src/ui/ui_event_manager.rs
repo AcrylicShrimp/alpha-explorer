@@ -1,11 +1,10 @@
-use crate::api::use_context;
 use crate::component::{Camera, Transform};
-use crate::emit_diagnostic_error;
-use crate::event::events::PerEntity;
+use crate::engine::use_context;
+use crate::script::event::PerEntity;
 use crate::structure::Vec2;
 use glutin::event::MouseButton;
-use legion::*;
-use mlua::{Lua, MultiValue, Result as LuaResult, ToLua, Value as LuaValue};
+use legion::{Entity, EntityStore};
+use std::sync::Arc;
 
 #[derive(Debug)]
 struct MouseDown {
@@ -16,7 +15,6 @@ struct MouseDown {
 #[derive(Debug)]
 struct MouseDrag {
     entity: Entity,
-    button: MouseButton,
 }
 
 #[derive(Default, Debug)]
@@ -37,19 +35,11 @@ impl UIEventManager {
     pub fn handle_mouse_exit(&mut self) {
         if let Some(mouse_in_entity) = self.mouse_in.take() {
             let context = use_context();
-            if let Err(err) = context.entity_event_mgr().emit(
-                context.lua_mgr().lua(),
-                &PerEntity {
-                    entity: mouse_in_entity,
-                    event: "mouse-exit".to_owned(),
-                    param: MultiValue::new(),
-                },
-            ) {
-                emit_diagnostic_error!(format!(
-                    "an error occurred while emitting event '{}': {}",
-                    "mouse-exit", err
-                ));
-            }
+            context.event_mgr().dispatcher().emit(&PerEntity {
+                entity: mouse_in_entity,
+                event: "mouse-exit".to_owned(),
+                param: Arc::new(()),
+            })
         }
         self.last_mouse_position = None;
     }
@@ -80,82 +70,40 @@ impl UIEventManager {
             Some(entity) => {
                 if let Some(mouse_in_entity) = self.mouse_in {
                     if entity != mouse_in_entity {
-                        if let Err(err) = context.entity_event_mgr().emit(
-                            context.lua_mgr().lua(),
-                            &PerEntity {
-                                entity: mouse_in_entity,
-                                event: "mouse-exit".to_owned(),
-                                param: MultiValue::new(),
-                            },
-                        ) {
-                            emit_diagnostic_error!(format!(
-                                "an error occurred while emitting event '{}': {}",
-                                "mouse-exit", err
-                            ));
-                        }
-                        if let Err(err) = context.entity_event_mgr().emit(
-                            context.lua_mgr().lua(),
-                            &PerEntity {
-                                entity: entity,
-                                event: "mouse-enter".to_owned(),
-                                param: MultiValue::new(),
-                            },
-                        ) {
-                            emit_diagnostic_error!(format!(
-                                "an error occurred while emitting event '{}': {}",
-                                "mouse-enter", err
-                            ));
-                        }
-                    }
-                } else {
-                    if let Err(err) = context.entity_event_mgr().emit(
-                        context.lua_mgr().lua(),
-                        &PerEntity {
+                        context.event_mgr().dispatcher().emit(&PerEntity {
+                            entity: mouse_in_entity,
+                            event: "mouse-exit".to_owned(),
+                            param: Arc::new(()),
+                        });
+                        context.event_mgr().dispatcher().emit(&PerEntity {
                             entity: entity,
                             event: "mouse-enter".to_owned(),
-                            param: MultiValue::new(),
-                        },
-                    ) {
-                        emit_diagnostic_error!(format!(
-                            "an error occurred while emitting event '{}': {}",
-                            "mouse-enter", err
-                        ));
+                            param: Arc::new(()),
+                        });
                     }
+                } else {
+                    context.event_mgr().dispatcher().emit(&PerEntity {
+                        entity: entity,
+                        event: "mouse-enter".to_owned(),
+                        param: Arc::new(()),
+                    });
                 }
 
                 self.mouse_in = Some(entity);
 
-                if let Err(err) = context.entity_event_mgr().emit(
-                    context.lua_mgr().lua(),
-                    &PerEntity {
-                        entity: entity,
-                        event: "mouse-move".to_owned(),
-                        param: MultiValue::from_vec(vec![LuaEventMouseMove { x, y }
-                            .to_lua(context.lua_mgr().lua())
-                            .unwrap()]),
-                    },
-                ) {
-                    emit_diagnostic_error!(format!(
-                        "an error occurred while emitting event '{}': {}",
-                        "mouse-move", err
-                    ));
-                }
+                context.event_mgr().dispatcher().emit(&PerEntity {
+                    entity: entity,
+                    event: "mouse-move".to_owned(),
+                    param: Arc::new(EventMouseMove { x, y }),
+                });
             }
             None => {
                 if let Some(mouse_in_entity) = self.mouse_in.take() {
-                    if let Err(err) = context.entity_event_mgr().emit(
-                        context.lua_mgr().lua(),
-                        &PerEntity {
-                            entity: mouse_in_entity,
-                            event: "mouse-exit".to_owned(),
-                            param: MultiValue::new(),
-                        },
-                    ) {
-                        emit_diagnostic_error!(format!(
-                            "an error occurred while emitting event '{}': {}",
-                            "mouse-exit", err
-                        ));
-                    }
+                    context.event_mgr().dispatcher().emit(&PerEntity {
+                        entity: mouse_in_entity,
+                        event: "mouse-exit".to_owned(),
+                        param: Arc::new(()),
+                    });
                 }
             }
         }
@@ -166,35 +114,22 @@ impl UIEventManager {
                 .and_then(|entity| Some((entity, mouse_down.button)))
         }) {
             Some((entity, mouse_button)) if self.mouse_drag.is_none() => {
-                self.mouse_drag = Some(MouseDrag {
-                    entity,
-                    button: mouse_button,
-                });
+                self.mouse_drag = Some(MouseDrag { entity });
 
-                if let Err(err) = context.entity_event_mgr().emit(
-                    context.lua_mgr().lua(),
-                    &PerEntity {
-                        entity,
-                        event: "drag-begin".to_owned(),
-                        param: MultiValue::from_vec(vec![LuaEventDragBegin {
-                            x,
-                            y,
-                            button: match mouse_button {
-                                MouseButton::Left => "left",
-                                MouseButton::Right => "right",
-                                MouseButton::Middle => "middle",
-                                MouseButton::Other(_) => "other",
-                            },
-                        }
-                        .to_lua(context.lua_mgr().lua())
-                        .unwrap()]),
-                    },
-                ) {
-                    emit_diagnostic_error!(format!(
-                        "an error occurred while emitting event '{}': {}",
-                        "drag-begin", err
-                    ));
-                }
+                context.event_mgr().dispatcher().emit(&PerEntity {
+                    entity,
+                    event: "drag-begin".to_owned(),
+                    param: Arc::new(EventDragBegin {
+                        x,
+                        y,
+                        button: match mouse_button {
+                            MouseButton::Left => "left",
+                            MouseButton::Right => "right",
+                            MouseButton::Middle => "middle",
+                            MouseButton::Other(_) => "other",
+                        },
+                    }),
+                });
             }
             _ => {}
         }
@@ -207,19 +142,11 @@ impl UIEventManager {
 
         if let Some(mouse_drag) = self.mouse_drag.take() {
             let context = use_context();
-            if let Err(err) = context.entity_event_mgr().emit(
-                context.lua_mgr().lua(),
-                &PerEntity {
-                    entity: mouse_drag.entity,
-                    event: "drag-end".to_owned(),
-                    param: MultiValue::new(),
-                },
-            ) {
-                emit_diagnostic_error!(format!(
-                    "an error occurred while emitting event '{}': {}",
-                    "drag-end", err
-                ));
-            }
+            context.event_mgr().dispatcher().emit(&PerEntity {
+                entity: mouse_drag.entity,
+                event: "drag-end".to_owned(),
+                param: Arc::new(()),
+            });
         }
 
         let last_mouse_position = match &self.last_mouse_position {
@@ -227,19 +154,11 @@ impl UIEventManager {
             None => {
                 if let Some(focus_entity) = self.focus.take() {
                     let context = use_context();
-                    if let Err(err) = context.entity_event_mgr().emit(
-                        context.lua_mgr().lua(),
-                        &PerEntity {
-                            entity: focus_entity,
-                            event: "focus-out".to_owned(),
-                            param: MultiValue::new(),
-                        },
-                    ) {
-                        emit_diagnostic_error!(format!(
-                            "an error occurred while emitting event '{}': {}",
-                            "focus-out", err
-                        ));
-                    }
+                    context.event_mgr().dispatcher().emit(&PerEntity {
+                        entity: focus_entity,
+                        event: "focus-out".to_owned(),
+                        param: Arc::new(()),
+                    });
                 }
                 return;
             }
@@ -280,60 +199,34 @@ impl UIEventManager {
 
                 if let Some(focus_entity) = self.focus {
                     if entity != focus_entity {
-                        if let Err(err) = context.entity_event_mgr().emit(
-                            context.lua_mgr().lua(),
-                            &PerEntity {
-                                entity: focus_entity,
-                                event: "focus-out".to_owned(),
-                                param: MultiValue::new(),
-                            },
-                        ) {
-                            emit_diagnostic_error!(format!(
-                                "an error occurred while emitting event '{}': {}",
-                                "focus-out", err
-                            ));
-                        }
-                        if let Err(err) = context.entity_event_mgr().emit(
-                            context.lua_mgr().lua(),
-                            &PerEntity {
-                                entity,
-                                event: "focus-in".to_owned(),
-                                param: MultiValue::new(),
-                            },
-                        ) {
-                            emit_diagnostic_error!(format!(
-                                "an error occurred while emitting event '{}': {}",
-                                "focus-in", err
-                            ));
-                        }
+                        context.event_mgr().dispatcher().emit(&PerEntity {
+                            entity: focus_entity,
+                            event: "focus-out".to_owned(),
+                            param: Arc::new(()),
+                        });
+                        context.event_mgr().dispatcher().emit(&PerEntity {
+                            entity,
+                            event: "focus-in".to_owned(),
+                            param: Arc::new(()),
+                        });
                         self.focus = Some(entity);
                     }
                 }
 
-                if let Err(err) = context.entity_event_mgr().emit(
-                    context.lua_mgr().lua(),
-                    &PerEntity {
-                        entity,
-                        event: "mouse-down".to_owned(),
-                        param: MultiValue::from_vec(vec![LuaEventMouseDown {
-                            x: last_mouse_position.x,
-                            y: last_mouse_position.y,
-                            button: match button {
-                                MouseButton::Left => "left",
-                                MouseButton::Right => "right",
-                                MouseButton::Middle => "middle",
-                                MouseButton::Other(_) => "other",
-                            },
-                        }
-                        .to_lua(context.lua_mgr().lua())
-                        .unwrap()]),
-                    },
-                ) {
-                    emit_diagnostic_error!(format!(
-                        "an error occurred while emitting event '{}': {}",
-                        "mouse-down", err
-                    ));
-                }
+                context.event_mgr().dispatcher().emit(&PerEntity {
+                    entity,
+                    event: "mouse-down".to_owned(),
+                    param: Arc::new(EventMouseDown {
+                        x: last_mouse_position.x,
+                        y: last_mouse_position.y,
+                        button: match button {
+                            MouseButton::Left => "left",
+                            MouseButton::Right => "right",
+                            MouseButton::Middle => "middle",
+                            MouseButton::Other(_) => "other",
+                        },
+                    }),
+                });
             }
             None => {
                 self.mouse_down = Some(MouseDown {
@@ -342,19 +235,11 @@ impl UIEventManager {
                 });
 
                 if let Some(focus_entity) = self.focus.take() {
-                    if let Err(err) = context.entity_event_mgr().emit(
-                        context.lua_mgr().lua(),
-                        &PerEntity {
-                            entity: focus_entity,
-                            event: "focus-out".to_owned(),
-                            param: MultiValue::new(),
-                        },
-                    ) {
-                        emit_diagnostic_error!(format!(
-                            "an error occurred while emitting event '{}': {}",
-                            "focus-out", err
-                        ));
-                    }
+                    context.event_mgr().dispatcher().emit(&PerEntity {
+                        entity: focus_entity,
+                        event: "focus-out".to_owned(),
+                        param: Arc::new(()),
+                    });
                 }
             }
         }
@@ -368,28 +253,18 @@ impl UIEventManager {
             None => {
                 if let Some(mouse_drag) = self.mouse_drag.take() {
                     let context = use_context();
-                    if let Err(err) = context.entity_event_mgr().emit(
-                        context.lua_mgr().lua(),
-                        &PerEntity {
-                            entity: mouse_drag.entity,
-                            event: "drag-end".to_owned(),
-                            param: MultiValue::from_vec(vec![LuaEventDragEnd {
-                                button: match button {
-                                    MouseButton::Left => "left",
-                                    MouseButton::Right => "right",
-                                    MouseButton::Middle => "middle",
-                                    MouseButton::Other(_) => "other",
-                                },
-                            }
-                            .to_lua(context.lua_mgr().lua())
-                            .unwrap()]),
-                        },
-                    ) {
-                        emit_diagnostic_error!(format!(
-                            "an error occurred while emitting event '{}': {}",
-                            "drag-end", err
-                        ));
-                    }
+                    context.event_mgr().dispatcher().emit(&PerEntity {
+                        entity: mouse_drag.entity,
+                        event: "drag-end".to_owned(),
+                        param: Arc::new(EventDragEnd {
+                            button: match button {
+                                MouseButton::Left => "left",
+                                MouseButton::Right => "right",
+                                MouseButton::Middle => "middle",
+                                MouseButton::Other(_) => "other",
+                            },
+                        }),
+                    });
                 }
                 return;
             }
@@ -424,185 +299,92 @@ impl UIEventManager {
         match entity {
             Some(entity) => {
                 if let Some(mouse_drag) = self.mouse_drag.take() {
-                    if let Err(err) = context.entity_event_mgr().emit(
-                        context.lua_mgr().lua(),
-                        &PerEntity {
-                            entity,
-                            event: "drop".to_owned(),
-                            param: MultiValue::from_vec(vec![LuaEventDrop {
-                                from: crate::api::Entity::new(mouse_drag.entity),
-                                button: match button {
-                                    MouseButton::Left => "left",
-                                    MouseButton::Right => "right",
-                                    MouseButton::Middle => "middle",
-                                    MouseButton::Other(_) => "other",
-                                },
-                            }
-                            .to_lua(context.lua_mgr().lua())
-                            .unwrap()]),
-                        },
-                    ) {
-                        emit_diagnostic_error!(format!(
-                            "an error occurred while emitting event '{}': {}",
-                            "drop", err
-                        ));
-                    }
-                    if let Err(err) = context.entity_event_mgr().emit(
-                        context.lua_mgr().lua(),
-                        &PerEntity {
-                            entity: mouse_drag.entity,
-                            event: "drag-end".to_owned(),
-                            param: MultiValue::from_vec(vec![LuaEventDragEnd {
-                                button: match button {
-                                    MouseButton::Left => "left",
-                                    MouseButton::Right => "right",
-                                    MouseButton::Middle => "middle",
-                                    MouseButton::Other(_) => "other",
-                                },
-                            }
-                            .to_lua(context.lua_mgr().lua())
-                            .unwrap()]),
-                        },
-                    ) {
-                        emit_diagnostic_error!(format!(
-                            "an error occurred while emitting event '{}': {}",
-                            "drag-end", err
-                        ));
-                    }
-                }
-
-                if let Err(err) = context.entity_event_mgr().emit(
-                    context.lua_mgr().lua(),
-                    &PerEntity {
+                    context.event_mgr().dispatcher().emit(&PerEntity {
                         entity,
-                        event: "mouse-up".to_owned(),
-                        param: MultiValue::from_vec(vec![LuaEventMouseUp {
+                        event: "drop".to_owned(),
+                        param: Arc::new(EventDrop {
+                            from: crate::script::entity::Entity::new(mouse_drag.entity),
                             button: match button {
                                 MouseButton::Left => "left",
                                 MouseButton::Right => "right",
                                 MouseButton::Middle => "middle",
                                 MouseButton::Other(_) => "other",
                             },
-                        }
-                        .to_lua(context.lua_mgr().lua())
-                        .unwrap()]),
-                    },
-                ) {
-                    emit_diagnostic_error!(format!(
-                        "an error occurred while emitting event '{}': {}",
-                        "mouse-up", err
-                    ));
+                        }),
+                    });
+                    context.event_mgr().dispatcher().emit(&PerEntity {
+                        entity: mouse_drag.entity,
+                        event: "drag-end".to_owned(),
+                        param: Arc::new(EventDragEnd {
+                            button: match button {
+                                MouseButton::Left => "left",
+                                MouseButton::Right => "right",
+                                MouseButton::Middle => "middle",
+                                MouseButton::Other(_) => "other",
+                            },
+                        }),
+                    });
                 }
+
+                context.event_mgr().dispatcher().emit(&PerEntity {
+                    entity,
+                    event: "mouse-up".to_owned(),
+                    param: Arc::new(EventMouseUp {
+                        button: match button {
+                            MouseButton::Left => "left",
+                            MouseButton::Right => "right",
+                            MouseButton::Middle => "middle",
+                            MouseButton::Other(_) => "other",
+                        },
+                    }),
+                });
             }
             None => {
                 if let Some(mouse_drag) = self.mouse_drag.take() {
-                    if let Err(err) = context.entity_event_mgr().emit(
-                        context.lua_mgr().lua(),
-                        &PerEntity {
-                            entity: mouse_drag.entity,
-                            event: "drag-end".to_owned(),
-                            param: MultiValue::from_vec(vec![LuaEventDragEnd {
-                                button: match button {
-                                    MouseButton::Left => "left",
-                                    MouseButton::Right => "right",
-                                    MouseButton::Middle => "middle",
-                                    MouseButton::Other(_) => "other",
-                                },
-                            }
-                            .to_lua(context.lua_mgr().lua())
-                            .unwrap()]),
-                        },
-                    ) {
-                        emit_diagnostic_error!(format!(
-                            "an error occurred while emitting event '{}': {}",
-                            "drag-end", err
-                        ));
-                    }
+                    context.event_mgr().dispatcher().emit(&PerEntity {
+                        entity: mouse_drag.entity,
+                        event: "drag-end".to_owned(),
+                        param: Arc::new(EventDragEnd {
+                            button: match button {
+                                MouseButton::Left => "left",
+                                MouseButton::Right => "right",
+                                MouseButton::Middle => "middle",
+                                MouseButton::Other(_) => "other",
+                            },
+                        }),
+                    });
                 }
             }
         }
     }
 }
 
-pub struct LuaEventMouseDown {
+pub struct EventMouseDown {
     pub x: f32,
     pub y: f32,
     pub button: &'static str,
 }
 
-impl<'lua> ToLua<'lua> for LuaEventMouseDown {
-    fn to_lua(self, lua: &'lua Lua) -> LuaResult<LuaValue<'lua>> {
-        let table = lua.create_table()?;
-        table.set("x", self.x)?;
-        table.set("y", self.y)?;
-        table.set("button", self.button)?;
-        Ok(LuaValue::Table(table))
-    }
-}
-pub struct LuaEventMouseUp {
+pub struct EventMouseUp {
     pub button: &'static str,
 }
 
-impl<'lua> ToLua<'lua> for LuaEventMouseUp {
-    fn to_lua(self, lua: &'lua Lua) -> LuaResult<LuaValue<'lua>> {
-        let table = lua.create_table()?;
-        table.set("button", self.button)?;
-        Ok(LuaValue::Table(table))
-    }
-}
-
-pub struct LuaEventMouseMove {
+pub struct EventMouseMove {
     pub x: f32,
     pub y: f32,
 }
 
-impl<'lua> ToLua<'lua> for LuaEventMouseMove {
-    fn to_lua(self, lua: &'lua Lua) -> LuaResult<LuaValue<'lua>> {
-        let table = lua.create_table()?;
-        table.set("x", self.x)?;
-        table.set("y", self.y)?;
-        Ok(LuaValue::Table(table))
-    }
-}
-
-pub struct LuaEventDragBegin {
+pub struct EventDragBegin {
     pub x: f32,
     pub y: f32,
     pub button: &'static str,
 }
 
-impl<'lua> ToLua<'lua> for LuaEventDragBegin {
-    fn to_lua(self, lua: &'lua Lua) -> LuaResult<LuaValue<'lua>> {
-        let table = lua.create_table()?;
-        table.set("x", self.x)?;
-        table.set("y", self.y)?;
-        table.set("button", self.button)?;
-        Ok(LuaValue::Table(table))
-    }
-}
-
-pub struct LuaEventDragEnd {
+pub struct EventDragEnd {
     pub button: &'static str,
 }
 
-impl<'lua> ToLua<'lua> for LuaEventDragEnd {
-    fn to_lua(self, lua: &'lua Lua) -> LuaResult<LuaValue<'lua>> {
-        let table = lua.create_table()?;
-        table.set("button", self.button)?;
-        Ok(LuaValue::Table(table))
-    }
-}
-
-pub struct LuaEventDrop {
-    pub from: crate::api::Entity,
+pub struct EventDrop {
+    pub from: crate::script::entity::Entity,
     pub button: &'static str,
-}
-
-impl<'lua> ToLua<'lua> for LuaEventDrop {
-    fn to_lua(self, lua: &'lua Lua) -> LuaResult<LuaValue<'lua>> {
-        let table = lua.create_table()?;
-        table.set("from", self.from)?;
-        table.set("button", self.button)?;
-        Ok(LuaValue::Table(table))
-    }
 }

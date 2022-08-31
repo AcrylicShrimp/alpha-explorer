@@ -1,7 +1,6 @@
 use super::typed_event_listener::TypedEventListener;
-use crate::emit_diagnostic_error;
+use crate::{emit_diagnostic_error, script::ScriptManager};
 use downcast_rs::{impl_downcast, Downcast};
-use mlua::prelude::*;
 use parking_lot::Mutex;
 use std::any::type_name;
 
@@ -16,7 +15,7 @@ impl_downcast!(AbstractTypedEventBus);
 
 pub struct TypedEventBus<T>
 where
-    T: 'static,
+    T: 'static + Send + Sync + Clone,
 {
     listeners: Mutex<Vec<TypedEventListener<T>>>,
     added_listener_queue: Mutex<Option<Vec<TypedEventListener<T>>>>,
@@ -25,7 +24,7 @@ where
 
 impl<T> TypedEventBus<T>
 where
-    T: 'static,
+    T: 'static + Send + Sync + Clone,
 {
     pub fn new() -> Self {
         Self {
@@ -35,16 +34,16 @@ where
         }
     }
 
-    pub fn handle<'lua>(&self, lua: &'lua Lua, event: &T)
+    pub fn handle(&self, script_mgr: &ScriptManager, event: &T)
     where
-        T: Clone + ToLua<'lua>,
+        T: 'static + Send + Sync + Clone,
     {
         // Prevent deadlock
         if let Some(mut listeners) = self.listeners.try_lock() {
             let mut index = 0;
 
             while index < listeners.len() {
-                if let Err(err) = listeners[index].listen(lua, event) {
+                if let Err(err) = listeners[index].listen(script_mgr, event) {
                     emit_diagnostic_error!(format!(
                         "an error occurred while handing {}: {}",
                         type_name::<T>(),
@@ -96,7 +95,7 @@ where
 
 impl<T> AbstractTypedEventBus for TypedEventBus<T>
 where
-    T: 'static,
+    T: 'static + Send + Sync + Clone,
 {
     fn remove_listener(&self, hash: usize) {
         match self.listeners.try_lock() {

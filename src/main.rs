@@ -8,6 +8,6 @@ fn main() -> Result<(), EngineError> {
         768,
         false,
         current_dir()?.join("assets"),
-        "assets/scripts/entry.lua",
+        "assets/scripts/entry.rhai",
     )
 }

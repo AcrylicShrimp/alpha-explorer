@@ -1,9 +1,9 @@
-use crate::codegen_traits::LuaApiTable;
-use codegen::LuaStruct;
-use mlua::prelude::*;
-use std::ops::{Div, DivAssign, Mul, MulAssign, Neg};
+use std::{
+    fmt::Display,
+    ops::{Div, DivAssign, Mul, MulAssign, Neg},
+};
 
-#[derive(LuaStruct, Default, Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct Size {
     pub width: f32,
     pub height: f32,
@@ -16,6 +16,14 @@ impl Size {
 
     pub fn area(self) -> f32 {
         self.width * self.height
+    }
+
+    pub fn zero() -> Self {
+        Self::new(0.0, 0.0)
+    }
+
+    pub fn one() -> Self {
+        Self::new(1.0, 1.0)
     }
 }
 
@@ -77,17 +85,8 @@ impl Neg for Size {
     }
 }
 
-impl LuaApiTable for Size {
-    fn api_name() -> &'static str {
-        "Size"
-    }
-
-    #[allow(unused_variables)]
-    fn fill_api_table(lua: &Lua, table: &LuaTable) -> LuaResult<()> {
-        table.set(
-            "area",
-            lua.create_function(|lua, this: Size| Ok(this.area()))?,
-        )?;
-        Ok(())
+impl Display for Size {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Size(width={}, height={})", self.width, self.height)
     }
 }

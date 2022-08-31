@@ -1,45 +1,32 @@
-use mlua::prelude::*;
+use std::fmt::Display;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Layer(pub u64);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Layer(u64);
 
 impl Layer {
+    pub fn new(layer: u64) -> Self {
+        Self(layer)
+    }
+
+    pub fn get(self) -> u64 {
+        self.0
+    }
+
     pub fn has_overlap(lhs: Self, rhs: Self) -> bool {
         lhs.0 & rhs.0 != 0
     }
-}
 
-impl Default for Layer {
-    fn default() -> Self {
-        Self(0xFFFFFFFFFFFFFFFF)
+    pub fn none() -> Self {
+        Self(0)
+    }
+
+    pub fn all() -> Self {
+        Self(!0)
     }
 }
 
-impl<'lua> FromLua<'lua> for Layer {
-    fn from_lua(value: LuaValue<'lua>, _lua: &'lua Lua) -> LuaResult<Self> {
-        match value {
-            LuaValue::String(str) => match str.to_str()? {
-                "all" => Ok(Self(0xFFFFFFFFFFFFFFFF)),
-                "none" => Ok(Self(0)),
-                str => Err(LuaError::external(format!(
-                    "the string '{}' is invalid value for the type {}",
-                    str, "Layer"
-                ))),
-            },
-            LuaValue::Integer(layer) => Ok(Self(layer as _)),
-            _ => {
-                return Err(format!(
-                    "the type {} must be a {} or a {}",
-                    "Layer", "integer", "string"
-                )
-                .to_lua_err());
-            }
-        }
-    }
-}
-
-impl<'lua> ToLua<'lua> for Layer {
-    fn to_lua(self, _lua: &'lua Lua) -> LuaResult<LuaValue<'lua>> {
-        Ok(LuaValue::Integer(self.0 as _))
+impl Display for Layer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Layer(flags={:064b})", self.0)
     }
 }

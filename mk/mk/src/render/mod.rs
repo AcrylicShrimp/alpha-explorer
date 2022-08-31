@@ -1,6 +1,9 @@
 mod color;
 // mod glyph_manager;
 // mod glyph_texture;
+mod alpha_tile;
+mod alpha_tilemap;
+mod alpha_tileset;
 mod layer;
 mod render_manager;
 mod screen_manager;
@@ -10,10 +13,12 @@ mod sprite_atlas_grid;
 mod sprite_nine_patch;
 mod tilemap;
 
-use codegen::define_lua_handle;
 pub use color::*;
 // pub use glyph_manager::*;
 // pub use glyph_texture::*;
+pub use alpha_tile::*;
+pub use alpha_tilemap::*;
+pub use alpha_tileset::*;
 pub use layer::*;
 pub use render::*;
 pub use render_manager::*;
@@ -23,8 +28,3 @@ pub use sprite_atlas::*;
 pub use sprite_atlas_grid::*;
 pub use sprite_nine_patch::*;
 pub use tilemap::*;
-
-define_lua_handle!(fontdue::Font as LuaFontHandle);
-define_lua_handle!(Buffer as LuaBufferHandle);
-define_lua_handle!(Shader as LuaShaderHandle);
-define_lua_handle!(Texture as LuaTextureHandle);

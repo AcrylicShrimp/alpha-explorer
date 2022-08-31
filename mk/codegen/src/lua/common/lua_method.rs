@@ -1,5 +1,5 @@
 use proc_macro::TokenStream;
-use quote::quote;
+use quote::{__private::TokenStream as QuoteTokenStream, quote};
 use syn::{
     parenthesized,
     parse::{Parse, ParseStream},
@@ -33,7 +33,9 @@ impl Parse for LuaMethodParam {
     }
 }
 
-pub fn impl_lua_method(input: &DeriveInput) -> TokenStream {
+pub fn impl_lua_method(input: &DeriveInput, impl_this: Option<TokenStream>) -> TokenStream {
+    let impl_this = QuoteTokenStream::from(impl_this.unwrap_or_else(|| TokenStream::new()));
+
     let mut method_names = Vec::with_capacity(input.attrs.len());
     let mut methods = Vec::with_capacity(input.attrs.len());
 
@@ -58,6 +60,7 @@ pub fn impl_lua_method(input: &DeriveInput) -> TokenStream {
     TokenStream::from(quote! {
         #(
             methods.add_method(#method_names, |lua, this, param: LuaMultiValue| {
+                #impl_this
                 this.#methods(lua, <_>::from_lua_multi(param, lua)?)
             });
         )*

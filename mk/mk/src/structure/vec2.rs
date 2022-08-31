@@ -1,9 +1,9 @@
-use crate::codegen_traits::LuaApiTable;
-use codegen::LuaStruct;
-use mlua::prelude::*;
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
+use std::{
+    fmt::Display,
+    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
+};
 
-#[derive(LuaStruct, Default, Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct Vec2 {
     pub x: f32,
     pub y: f32,
@@ -24,6 +24,34 @@ impl Vec2 {
 
     pub fn norm(self) -> Self {
         self / self.len()
+    }
+
+    pub fn dot(lhs: Self, rhs: Self) -> f32 {
+        lhs.x * rhs.x + lhs.y * rhs.y
+    }
+
+    pub fn zero() -> Self {
+        Self::new(0.0, 0.0)
+    }
+
+    pub fn one() -> Self {
+        Self::new(1.0, 1.0)
+    }
+
+    pub fn left() -> Self {
+        Self::new(-1.0, 0.0)
+    }
+
+    pub fn right() -> Self {
+        Self::new(1.0, 0.0)
+    }
+
+    pub fn up() -> Self {
+        Self::new(0.0, 1.0)
+    }
+
+    pub fn down() -> Self {
+        Self::new(0.0, -1.0)
     }
 }
 
@@ -157,25 +185,8 @@ impl Neg for Vec2 {
     }
 }
 
-impl LuaApiTable for Vec2 {
-    fn api_name() -> &'static str {
-        "Vec2"
-    }
-
-    #[allow(unused_variables)]
-    fn fill_api_table(lua: &Lua, table: &LuaTable) -> LuaResult<()> {
-        table.set(
-            "len",
-            lua.create_function(|lua, this: Vec2| Ok(this.len()))?,
-        )?;
-        table.set(
-            "len_square",
-            lua.create_function(|lua, this: Vec2| Ok(this.len_square()))?,
-        )?;
-        table.set(
-            "norm",
-            lua.create_function(|lua, this: Vec2| Ok(this.norm()))?,
-        )?;
-        Ok(())
+impl Display for Vec2 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Vec2(x={}, y={})", self.x, self.y)
     }
 }

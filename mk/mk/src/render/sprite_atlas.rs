@@ -1,7 +1,5 @@
-use crate::render::{LuaRcSprite, LuaTextureHandle, Sprite, SpriteChannel, TexelMapping, Texture};
-use codegen::LuaRc;
+use crate::render::{Sprite, SpriteChannel, TexelMapping, Texture};
 use image::{open as open_image, ColorType, GenericImageView, ImageError};
-use mlua::prelude::*;
 use serde::Deserialize;
 use serde_json::{from_str, Error as JSONError};
 use std::collections::HashMap;
@@ -10,6 +8,7 @@ use std::fmt::Display;
 use std::fs::{metadata as fs_metadata, read_to_string};
 use std::io::{Error as IOError, ErrorKind as IOErrorKind};
 use std::path::Path;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub enum SpriteAtlasError {
@@ -62,11 +61,10 @@ struct AtlasItemJSON {
 
 type AtlasMetadataJSON = HashMap<String, AtlasItemJSON>;
 
-#[derive(LuaRc)]
+#[derive(Debug, Clone)]
 pub struct SpriteAtlas {
-    texture: LuaTextureHandle,
-    #[lua_user_func(getter=lua_get_sprites)]
-    sprites: HashMap<String, LuaRcSprite>,
+    texture: Arc<Texture>,
+    sprites: HashMap<String, Arc<Sprite>>,
 }
 
 unsafe impl Send for SpriteAtlas {}
@@ -94,7 +92,7 @@ impl SpriteAtlas {
 
         let image = open_image(image_path?)?;
         let (width, height) = image.dimensions();
-        let texture = LuaTextureHandle::wrap(match channel {
+        let texture = Arc::new(match channel {
             Some(channel) => match channel {
                 SpriteChannel::R => {
                     Texture::from_slice_r_u8(width, height, image.to_luma8().as_raw())
@@ -147,19 +145,17 @@ impl SpriteAtlas {
         })
     }
 
-    pub fn texture(&self) -> &LuaTextureHandle {
+    pub fn texture(&self) -> &Arc<Texture> {
         &self.texture
     }
 
-    pub fn sprites(&self) -> &HashMap<String, LuaRcSprite> {
+    pub fn sprites(&self) -> &HashMap<String, Arc<Sprite>> {
         &self.sprites
     }
+}
 
-    fn lua_get_sprites<'lua>(&self, lua: &'lua Lua) -> LuaResult<LuaValue<'lua>> {
-        self.sprites
-            .iter()
-            .map(|(k, v)| (k.clone(), LuaRcSprite::from(v.clone())))
-            .collect::<HashMap<_, _>>()
-            .to_lua(lua)
+impl Display for SpriteAtlas {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "SpriteAtlas(sprites={})", self.sprites().len())
     }
 }

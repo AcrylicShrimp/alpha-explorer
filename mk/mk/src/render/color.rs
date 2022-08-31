@@ -1,8 +1,9 @@
-use crate::codegen_traits::LuaApiTable;
-use codegen::LuaStruct;
-use mlua::prelude::*;
+use std::{
+    fmt::Display,
+    ops::{Mul, MulAssign},
+};
 
-#[derive(LuaStruct, Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Color {
     pub r: f32,
     pub g: f32,
@@ -11,21 +12,20 @@ pub struct Color {
 }
 
 impl Color {
-    pub fn new() -> Self {
+    pub fn from_rgb(r: f32, g: f32, b: f32) -> Self {
+        Self { r, g, b, a: 1f32 }
+    }
+
+    pub fn from_rgba(r: f32, g: f32, b: f32, a: f32) -> Self {
+        Self { r, g, b, a }
+    }
+
+    pub fn transparent() -> Self {
         Self {
             r: 0f32,
             g: 0f32,
             b: 0f32,
             a: 0f32,
-        }
-    }
-
-    pub fn white() -> Self {
-        Self {
-            r: 1f32,
-            g: 1f32,
-            b: 1f32,
-            a: 1f32,
         }
     }
 
@@ -37,34 +37,99 @@ impl Color {
             a: 1f32,
         }
     }
-}
 
-impl LuaApiTable for Color {
-    fn api_name() -> &'static str {
-        "Color"
+    pub fn red() -> Self {
+        Self {
+            r: 1f32,
+            g: 0f32,
+            b: 0f32,
+            a: 1f32,
+        }
     }
 
-    fn fill_api_table(lua: &Lua, table: &LuaTable) -> LuaResult<()> {
-        table.set(
-            "rgb",
-            LuaValue::Function(lua.create_function(|_lua, (r, g, b): (f32, f32, f32)| {
-                Ok(Color { r, g, b, a: 1f32 })
-            })?),
-        )?;
-        table.set(
-            "rgba",
-            LuaValue::Function(lua.create_function(
-                |_lua, (r, g, b, a): (f32, f32, f32, f32)| Ok(Color { r, g, b, a }),
-            )?),
-        )?;
-        table.set(
-            "white",
-            LuaValue::Function(lua.create_function(|_lua, ()| Ok(Color::white()))?),
-        )?;
-        table.set(
-            "black",
-            LuaValue::Function(lua.create_function(|_lua, ()| Ok(Color::black()))?),
-        )?;
-        Ok(())
+    pub fn green() -> Self {
+        Self {
+            r: 0f32,
+            g: 1f32,
+            b: 0f32,
+            a: 1f32,
+        }
+    }
+
+    pub fn blue() -> Self {
+        Self {
+            r: 0f32,
+            g: 0f32,
+            b: 1f32,
+            a: 1f32,
+        }
+    }
+
+    pub fn yellow() -> Self {
+        Self {
+            r: 1f32,
+            g: 1f32,
+            b: 0f32,
+            a: 1f32,
+        }
+    }
+
+    pub fn magenta() -> Self {
+        Self {
+            r: 1f32,
+            g: 0f32,
+            b: 1f32,
+            a: 1f32,
+        }
+    }
+
+    pub fn cyan() -> Self {
+        Self {
+            r: 0f32,
+            g: 1f32,
+            b: 1f32,
+            a: 1f32,
+        }
+    }
+
+    pub fn white() -> Self {
+        Self {
+            r: 1f32,
+            g: 1f32,
+            b: 1f32,
+            a: 1f32,
+        }
+    }
+}
+
+impl Mul for Color {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        Self {
+            r: self.r * rhs.r,
+            g: self.g * rhs.g,
+            b: self.b * rhs.b,
+            a: self.a * rhs.a,
+        }
+    }
+}
+
+impl MulAssign for Color {
+    fn mul_assign(&mut self, rhs: Self) {
+        self.r *= rhs.r;
+        self.g *= rhs.g;
+        self.b *= rhs.b;
+        self.a *= rhs.a;
+    }
+}
+
+impl Display for Color {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Color(r={}, g={}, b={}, a={})",
+            self.r, self.g, self.b, self.a
+        )
     }
 }

@@ -1,0 +1,15 @@
+[package]
+name = "high_lexer"
+version = "0.0.1"
+authors = ["AcrylicShrimp <led789zxpp@naver.com>"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+diagnostic = { path = "../mk_script_diagnostic" }
+lazy_static = "1"
+low_lexer = { path = "../mk_script_low_lexer" }
+parking_lot = "0.12"
+span = { path = "../mk_script_span" }
+str_interner = { path = "../mk_script_str_interner" }

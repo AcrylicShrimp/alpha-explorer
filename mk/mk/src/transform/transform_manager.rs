@@ -1,5 +1,6 @@
 use crate::transform::{Transform, TransformFlattener};
 use legion::Entity;
+use smartstring::alias::String as SmartString;
 use std::collections::HashMap;
 
 #[derive(Debug)]
@@ -7,8 +8,8 @@ pub struct TransformManager {
     transforms: Vec<Transform>,
     entities: Vec<Entity>,
     childrens: Vec<Vec<u32>>,
-    names: Vec<Option<String>>,
-    name_map: HashMap<String, Vec<u32>>,
+    names: Vec<Option<SmartString>>,
+    name_map: HashMap<SmartString, Vec<u32>>,
     world_matrices: Vec<f32>,
     flattener: TransformFlattener,
     removed_indices: Vec<u32>,
@@ -86,7 +87,7 @@ impl TransformManager {
         }
     }
 
-    pub fn set_name(&mut self, index: u32, name: Option<String>) {
+    pub fn set_name(&mut self, index: u32, name: Option<SmartString>) {
         if let Some(name) = &self.names[index as usize] {
             if let Some(indices) = self.name_map.get_mut(name) {
                 if let Some(index) = indices.iter().position(|&transform| transform == index) {

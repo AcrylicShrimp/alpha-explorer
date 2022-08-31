@@ -1,9 +1,13 @@
-use crate::event::{AbstractTypedEventBus, TypedEventBus, TypedEventListener};
-use mlua::prelude::*;
+use crate::{
+    engine::use_context,
+    event::{AbstractTypedEventBus, TypedEventBus, TypedEventListener},
+};
 use parking_lot::Mutex;
-use std::any::TypeId;
-use std::collections::{hash_map::Entry, HashMap};
-use std::sync::Arc;
+use std::{
+    any::TypeId,
+    collections::{hash_map::Entry, HashMap},
+    sync::Arc,
+};
 
 #[derive(Default)]
 pub struct EventDispatcher {
@@ -19,7 +23,7 @@ impl EventDispatcher {
 
     pub fn add_listener<T>(&self, listener: TypedEventListener<T>) -> usize
     where
-        T: 'static,
+        T: 'static + Send + Sync + Clone,
     {
         match self.event_buses.lock().entry(TypeId::of::<T>()) {
             Entry::Occupied(event_bus) => event_bus
@@ -45,10 +49,13 @@ impl EventDispatcher {
         }
     }
 
-    pub fn emit<'lua, T>(&self, lua: &'lua Lua, event: &T)
+    pub fn emit<T>(&self, event: &T)
     where
-        T: 'static + Clone + ToLua<'lua>,
+        T: 'static + Send + Sync + Clone,
     {
+        let script_mgr = use_context().script_mgr();
+        let script_mgr = &*script_mgr;
+
         if let Some(event_bus) = {
             let event_buses = self.event_buses.lock();
             event_buses.get(&TypeId::of::<T>()).cloned()
@@ -56,7 +63,7 @@ impl EventDispatcher {
             event_bus
                 .downcast_ref::<TypedEventBus<T>>()
                 .unwrap()
-                .handle(lua, event);
+                .handle(script_mgr, event);
         }
     }
 }

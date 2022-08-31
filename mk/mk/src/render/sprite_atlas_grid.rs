@@ -1,5 +1,4 @@
-use crate::render::{LuaRcSprite, LuaTextureHandle, Sprite, SpriteChannel, TexelMapping, Texture};
-use codegen::LuaRc;
+use crate::render::{Sprite, SpriteChannel, TexelMapping, Texture};
 use image::{open as open_image, ColorType, GenericImageView, ImageError};
 use serde::Deserialize;
 use serde_json::{from_str, Error as JSONError};
@@ -8,6 +7,7 @@ use std::fmt::Display;
 use std::fs::{metadata as fs_metadata, read_to_string};
 use std::io::{Error as IOError, ErrorKind as IOErrorKind};
 use std::path::Path;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub enum SpriteAtlasGridError {
@@ -54,10 +54,10 @@ struct AtlasGridMetadataJSON {
     grid_height: u32,
 }
 
-#[derive(LuaRc)]
+#[derive(Debug, Clone)]
 pub struct SpriteAtlasGrid {
-    texture: LuaTextureHandle,
-    sprites: Vec<LuaRcSprite>,
+    texture: Arc<Texture>,
+    sprites: Vec<Arc<Sprite>>,
 }
 
 unsafe impl Send for SpriteAtlasGrid {}
@@ -85,7 +85,7 @@ impl SpriteAtlasGrid {
 
         let image = open_image(image_path?)?;
         let (width, height) = image.dimensions();
-        let texture = LuaTextureHandle::wrap(match channel {
+        let texture = Arc::new(match channel {
             Some(channel) => match channel {
                 SpriteChannel::R => {
                     Texture::from_slice_r_u8(width, height, image.to_luma8().as_raw())
@@ -130,7 +130,7 @@ impl SpriteAtlasGrid {
 
         while next_y <= height {
             while next_x <= width {
-                sprites.push(LuaRcSprite::wrap(Sprite::from_atlas(
+                sprites.push(Arc::new(Sprite::from_atlas(
                     texture.clone(),
                     TexelMapping::new((x, y), (next_x, next_y)),
                 )));
@@ -147,11 +147,17 @@ impl SpriteAtlasGrid {
         Ok(Self { texture, sprites })
     }
 
-    pub fn texture(&self) -> &LuaTextureHandle {
+    pub fn texture(&self) -> &Arc<Texture> {
         &self.texture
     }
 
-    pub fn sprites(&self) -> &Vec<LuaRcSprite> {
+    pub fn sprites(&self) -> &Vec<Arc<Sprite>> {
         &self.sprites
+    }
+}
+
+impl Display for SpriteAtlasGrid {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "SpriteAtlasGrid(sprites={})", self.sprites().len())
     }
 }

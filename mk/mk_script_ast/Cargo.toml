@@ -1,0 +1,11 @@
+[package]
+name = "ast"
+version = "0.0.1"
+authors = ["AcrylicShrimp <led789zxpp@naver.com>"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+high_lexer = { path = "../mk_script_high_lexer" }
+span = { path = "../mk_script_span" }

@@ -1,9 +1,10 @@
-use crate::api::LuaManager;
 use crate::asset::AssetManager;
-use crate::event::{EntityEventManager, EventManager};
+use crate::audio::AudioManager;
+use crate::event::EventManager;
 use crate::glyph::GlyphManager;
 use crate::input::InputManager;
 use crate::render::{RenderManager, ScreenManager};
+use crate::script::{ModuleCacheManager, ScriptManager};
 use crate::system::SystemManager;
 use crate::time::TimeManager;
 use crate::transform::TransformManager;
@@ -11,7 +12,7 @@ use crate::ui::{UIEventManager, UIManager};
 use crate::EngineError;
 use legion::World;
 use std::cell::{Ref, RefCell, RefMut};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 pub struct EngineContextWithoutSystemManager {
@@ -19,11 +20,12 @@ pub struct EngineContextWithoutSystemManager {
     time_mgr: RefCell<TimeManager>,
     input_mgr: RefCell<InputManager>,
     screen_mgr: RefCell<ScreenManager>,
+    audio_mgr: AudioManager,
     asset_mgr: RefCell<AssetManager>,
     transform_mgr: RefCell<TransformManager>,
-    lua_mgr: LuaManager,
     event_mgr: EventManager,
-    entity_event_mgr: RefCell<EntityEventManager>,
+    script_mgr: RefCell<ScriptManager>,
+    module_cache_mgr: RefCell<ModuleCacheManager>,
     glyph_mgr: RefCell<GlyphManager>,
     render_mgr: RefCell<RenderManager>,
     ui_mgr: RefCell<UIManager>,
@@ -31,17 +33,26 @@ pub struct EngineContextWithoutSystemManager {
 }
 
 impl EngineContextWithoutSystemManager {
-    pub fn new(screen_width: u32, screen_height: u32, asset_mgr_base: PathBuf) -> Self {
+    pub fn new(
+        screen_width: u32,
+        screen_height: u32,
+        asset_mgr_base: PathBuf,
+        script_mgr_base: impl AsRef<Path>,
+    ) -> Self {
+        let mut module_cache_mgr = ModuleCacheManager::new();
+        let script_mgr = ScriptManager::new(&mut module_cache_mgr, script_mgr_base);
+
         Self {
             world: World::default().into(),
             time_mgr: TimeManager::new().into(),
             input_mgr: InputManager::new().into(),
             screen_mgr: ScreenManager::new(screen_width, screen_height).into(),
+            audio_mgr: AudioManager::new(),
             asset_mgr: AssetManager::new(asset_mgr_base).into(),
             transform_mgr: TransformManager::new().into(),
-            lua_mgr: LuaManager::new(),
             event_mgr: EventManager::new(),
-            entity_event_mgr: EntityEventManager::new().into(),
+            script_mgr: script_mgr.into(),
+            module_cache_mgr: module_cache_mgr.into(),
             glyph_mgr: GlyphManager::new(128f32, 8usize, 48usize, 0.5f32).into(),
             render_mgr: RenderManager::new().into(),
             ui_mgr: UIManager::new().into(),
@@ -81,6 +92,10 @@ impl EngineContextWithoutSystemManager {
         self.screen_mgr.borrow_mut()
     }
 
+    pub fn audio_mgr(&self) -> &AudioManager {
+        &self.audio_mgr
+    }
+
     pub fn asset_mgr(&self) -> Ref<AssetManager> {
         self.asset_mgr.borrow()
     }
@@ -97,20 +112,24 @@ impl EngineContextWithoutSystemManager {
         self.transform_mgr.borrow_mut()
     }
 
-    pub fn lua_mgr(&self) -> &LuaManager {
-        &self.lua_mgr
-    }
-
     pub fn event_mgr(&self) -> &EventManager {
         &self.event_mgr
     }
 
-    pub fn entity_event_mgr(&self) -> Ref<EntityEventManager> {
-        self.entity_event_mgr.borrow()
+    pub fn script_mgr(&self) -> Ref<ScriptManager> {
+        self.script_mgr.borrow()
     }
 
-    pub fn entity_event_mgr_mut(&self) -> RefMut<EntityEventManager> {
-        self.entity_event_mgr.borrow_mut()
+    pub fn script_mgr_mut(&self) -> RefMut<ScriptManager> {
+        self.script_mgr.borrow_mut()
+    }
+
+    pub fn module_cache_mgr(&self) -> Ref<ModuleCacheManager> {
+        self.module_cache_mgr.borrow()
+    }
+
+    pub fn module_cache_mgr_mut(&self) -> RefMut<ModuleCacheManager> {
+        self.module_cache_mgr.borrow_mut()
     }
 
     pub fn glyph_mgr(&self) -> Ref<GlyphManager> {
@@ -162,6 +181,7 @@ impl EngineContext {
         screen_width: u32,
         screen_height: u32,
         asset_mgr_base: PathBuf,
+        script_mgr_base: impl AsRef<Path>,
     ) -> Result<Self, EngineError> {
         Ok(Self {
             system_mgr: SystemManager::default(),
@@ -169,6 +189,7 @@ impl EngineContext {
                 screen_width,
                 screen_height,
                 asset_mgr_base,
+                script_mgr_base,
             )),
         })
     }

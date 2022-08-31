@@ -91,6 +91,7 @@ pub fn impl_lua_userdata(
     let mut field_setters = Vec::with_capacity(input.fields.len());
 
     for field in fields {
+        let field_ty = &field.ty;
         let field_name = if let Some(ident) = &field.ident {
             ident
         } else {
@@ -152,18 +153,17 @@ pub fn impl_lua_userdata(
                     }
                 } else if let Some(ty) = &lua_user_type {
                     quote! {
-                        <#ty>::from(this.#field_name.clone()).to_lua(lua)
+                        <#ty as mlua::ToLua>::to_lua(<#ty>::from(this.#field_name.clone()), lua)
                     }
                 } else {
                     quote! {
-                        this.#field_name.clone().to_lua(lua)
+                        <#field_ty as mlua::ToLua>::to_lua(this.#field_name.clone(), lua)
                     }
                 },
             });
         }
 
         if codegen_this_setter.is_some() && !lua_readonly {
-            let field_ty = &field.ty;
             field_setters.push(FieldSetter {
                 lua_field_name: lua_field_name.clone(),
                 tokens: if let Some(setter) = lua_user_func.setter {
@@ -188,6 +188,14 @@ pub fn impl_lua_userdata(
         .map(|codegen_this_getter| QuoteTokenStream::from(codegen_this_getter(input)));
     let impl_this_setter = codegen_this_setter
         .map(|codegen_this_setter| QuoteTokenStream::from(codegen_this_setter(input)));
+
+    let impl_lua_method = QuoteTokenStream::from(impl_lua_method(
+        derive,
+        impl_this_setter
+            .clone()
+            .or(impl_this_getter.clone())
+            .map(|impl_this| TokenStream::from(impl_this)),
+    ));
 
     let impl_metamethod_index = impl_this_getter.map(|impl_this_getter|{
         let mut lua_field_names = Vec::with_capacity(field_getters.len());
@@ -245,8 +253,6 @@ pub fn impl_lua_userdata(
             }
         })
         .unwrap_or_else(|| quote! {});
-
-    let impl_lua_method = QuoteTokenStream::from(impl_lua_method(derive));
 
     TokenStream::from(quote! {
         impl mlua::UserData for #ty_name {

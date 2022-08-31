@@ -1,6 +1,6 @@
 use super::UILayoutCalculator;
-use crate::api::use_context;
 use crate::component::{Camera, Size, Transform, UIScaleMode, UIScaler};
+use crate::engine::use_context;
 use crate::structure::Vec2;
 use crate::ui::UIElement;
 use legion::{Entity, EntityStore, IntoQuery};
@@ -115,11 +115,13 @@ impl UIManager {
                     Ok(size) => size,
                     Err(_) => continue,
                 };
-                let transform = transform_mgr.transform(transform.index());
+                let matrix = transform_mgr.transform_world_matrix(transform.index());
                 let mut world_to_local = [0f32; 9];
                 let mut camera_to_local = [0f32; 6];
 
-                transform.to_matrix_inverse(&mut world_to_local);
+                world_to_local.clone_from(&matrix);
+                crate::transform::Transform::inverse_matrix(&mut world_to_local);
+
                 camera_to_local[0] = camera_to_world[0] * world_to_local[0]
                     + camera_to_world[1] * world_to_local[3]
                     + camera_to_world[2] * world_to_local[6];

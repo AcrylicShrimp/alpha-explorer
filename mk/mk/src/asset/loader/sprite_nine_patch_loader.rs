@@ -1,5 +1,8 @@
-use crate::asset::{AssetLoadError, AssetLoader};
-use crate::render::{LuaRcSpriteNinePatch, SpriteNinePatch, SpriteNinePatchError};
+use crate::{
+    asset::{AssetLoadError, AssetLoader},
+    render::{SpriteNinePatch, SpriteNinePatchError},
+};
+use std::sync::Arc;
 
 impl From<SpriteNinePatchError> for AssetLoadError {
     fn from(err: SpriteNinePatchError) -> Self {
@@ -7,9 +10,9 @@ impl From<SpriteNinePatchError> for AssetLoadError {
     }
 }
 
-pub fn sprite_nine_patch_loader() -> AssetLoader<LuaRcSpriteNinePatch> {
+pub fn sprite_nine_patch_loader() -> AssetLoader<Arc<SpriteNinePatch>> {
     AssetLoader::new(|_asset_mgr, base, path| {
-        Ok(LuaRcSpriteNinePatch::wrap(SpriteNinePatch::from_file(
+        Ok(Arc::new(SpriteNinePatch::from_file(
             &base.join("nine-patches").join(path),
             None,
         )?))

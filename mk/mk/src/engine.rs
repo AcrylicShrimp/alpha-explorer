@@ -1,10 +1,10 @@
-use crate::api::use_context;
 use crate::asset::*;
+use crate::emit_diagnostic_info;
 use crate::event::*;
 use crate::render::*;
+use crate::script::event::DiagnosticLevel;
 use crate::system::*;
 use crate::util::*;
-use crate::{emit_diagnostic_error, emit_diagnostic_info};
 use crate::{EngineContext, EngineContextWithoutSystemManager, EngineError};
 #[cfg(debug_assertions)]
 use colored::*;
@@ -13,8 +13,17 @@ use glutin::event::{ElementState, Event, MouseButton, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::window::WindowBuilder;
 use glutin::{ContextBuilder, GlProfile};
+use std::env::current_dir;
 use std::fs::read_to_string;
+use std::mem::MaybeUninit;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
+static mut CONTEXT: MaybeUninit<Arc<EngineContextWithoutSystemManager>> = MaybeUninit::uninit();
+
+pub fn use_context() -> &'static EngineContextWithoutSystemManager {
+    unsafe { CONTEXT.assume_init_ref() }.as_ref()
+}
 
 pub fn run(
     title: &str,
@@ -24,6 +33,8 @@ pub fn run(
     asset_base: impl Into<PathBuf>,
     entry_script_path: impl AsRef<Path>,
 ) -> Result<(), EngineError> {
+    new_render::test();
+
     let event_loop = EventLoop::new();
     let gfx_context = ContextBuilder::new()
         .with_vsync(true)
@@ -41,39 +52,51 @@ pub fn run(
 
     init(|s| gfx_context.context().get_proc_address(s));
 
-    let context = EngineContext::new(width, height, asset_base.into())?;
+    let context = EngineContext::new(
+        width,
+        height,
+        asset_base.into(),
+        entry_script_path
+            .as_ref()
+            .parent()
+            .map(|path| path.to_owned())
+            .unwrap_or_else(|| current_dir().ok().unwrap_or_else(|| "/".into())),
+    )?;
     let (mut system_mgr, rest) = context.into_split();
 
-    rest.event_mgr()
-        .dispatcher()
-        .add_listener(TypedEventListener::Native(BoxId::from_box(Box::new(
-            |event: &events::PerEntity| {
-                if let Err(err) = use_context().entity_event_mgr().emit(use_context().lua_mgr().lua(), event) {
-                    emit_diagnostic_error!(format!(
-                        "an error occurred while handing entity event {{entity={:?}; event={}}}: {}",
-                        event.entity, event.event, err
-                    ));
-                }
-            },
-        ))));
-    rest.lua_mgr().init_lua(rest.clone(), "mk")?;
+    unsafe {
+        CONTEXT.write(rest.clone());
+    }
+
+    // rest.event_mgr()
+    //     .dispatcher()
+    //     .add_listener(TypedEventListener::Native(BoxId::from_box(Box::new(
+    //         |event: &crate::script::event::PerEntity| {
+    //             if let Err(err) = use_context().entity_event_mgr().emit(use_context().lua_mgr().lua(), event) {
+    //                 emit_diagnostic_error!(format!(
+    //                     "an error occurred while handing entity event {{entity={:?}; event={}}}: {}",
+    //                     event.entity, event.event, err
+    //                 ));
+    //             }
+    //         },
+    //     ))));
 
     #[cfg(debug_assertions)]
     {
-        fn set_color(level: events::DiagnosticLevel, str: String) -> ColoredString {
+        fn set_color(level: DiagnosticLevel, str: String) -> ColoredString {
             match level {
-                events::DiagnosticLevel::Debug => str.green(),
-                events::DiagnosticLevel::Info => str.blue(),
-                events::DiagnosticLevel::Warn => str.yellow(),
-                events::DiagnosticLevel::Error => str.red(),
-                events::DiagnosticLevel::Fatal => str.magenta(),
+                DiagnosticLevel::Debug => str.green(),
+                DiagnosticLevel::Info => str.blue(),
+                DiagnosticLevel::Warn => str.yellow(),
+                DiagnosticLevel::Error => str.red(),
+                DiagnosticLevel::Fatal => str.magenta(),
             }
         }
 
         rest.event_mgr()
             .dispatcher()
             .add_listener(TypedEventListener::Native(BoxId::from_box(Box::new(
-                |event: &events::Diagnostic| {
+                |event: &crate::script::event::Diagnostic| {
                     let prefix = format!("{:>6}: ", event.level.to_str());
                     let indent = prefix.len();
                     let lines = event.message.split('\n').collect::<Vec<_>>();
@@ -142,13 +165,16 @@ pub fn run(
     system_mgr.register_system(isize::MIN, |context: &EngineContextWithoutSystemManager| {
         context.time_mgr_mut().update();
     });
+    system_mgr.register_system(-15000, |context: &EngineContextWithoutSystemManager| {
+        update_audio_sources(&mut context.world_mut());
+    });
     system_mgr.register_system(-11000, |context: &EngineContextWithoutSystemManager| {
-        context.event_mgr().dispatcher().emit(
-            context.lua_mgr().lua(),
-            &events::PreUpdate {
+        context
+            .event_mgr()
+            .dispatcher()
+            .emit(&crate::script::event::PreUpdate {
                 dt: context.time_mgr().dt_f64(),
-            },
-        );
+            });
     });
     system_mgr.register_system(-10900, |context: &EngineContextWithoutSystemManager| {
         animate_sigle_animations(
@@ -158,20 +184,20 @@ pub fn run(
         );
     });
     system_mgr.register_system(-10800, |context: &EngineContextWithoutSystemManager| {
-        context.event_mgr().dispatcher().emit(
-            context.lua_mgr().lua(),
-            &events::Update {
+        context
+            .event_mgr()
+            .dispatcher()
+            .emit(&crate::script::event::Update {
                 dt: context.time_mgr().dt_f64(),
-            },
-        );
+            });
     });
     system_mgr.register_system(-10700, |context: &EngineContextWithoutSystemManager| {
-        context.event_mgr().dispatcher().emit(
-            context.lua_mgr().lua(),
-            &events::PostUpdate {
+        context
+            .event_mgr()
+            .dispatcher()
+            .emit(&crate::script::event::PostUpdate {
                 dt: context.time_mgr().dt_f64(),
-            },
-        );
+            });
     });
     system_mgr.register_system(-10600, |context: &EngineContextWithoutSystemManager| {
         context.ui_mgr_mut().update_elements();
@@ -180,24 +206,24 @@ pub fn run(
         context.transform_mgr_mut().update_world_matrices();
     });
     system_mgr.register_system(0, |context: &EngineContextWithoutSystemManager| {
-        context.event_mgr().dispatcher().emit(
-            context.lua_mgr().lua(),
-            &events::PreRender {
+        context
+            .event_mgr()
+            .dispatcher()
+            .emit(&crate::script::event::PreRender {
                 dt: context.time_mgr().dt_f64(),
-            },
-        );
+            });
     });
     system_mgr.register_system(1, |context: &EngineContextWithoutSystemManager| {
         context.render_mgr().update_uniforms(context);
     });
     system_mgr.register_system(100, RendererSystem::new());
     system_mgr.register_system(200, |context: &EngineContextWithoutSystemManager| {
-        context.event_mgr().dispatcher().emit(
-            context.lua_mgr().lua(),
-            &events::PostRender {
+        context
+            .event_mgr()
+            .dispatcher()
+            .emit(&crate::script::event::PostRender {
                 dt: context.time_mgr().dt_f64(),
-            },
-        );
+            });
     });
     system_mgr.register_system(isize::MAX, |context: &EngineContextWithoutSystemManager| {
         context.screen_mgr_mut().reset_dirty();
@@ -207,6 +233,7 @@ pub fn run(
         emit_diagnostic_info!(format!("registering asset loaders."));
 
         let mut asset_mgr = rest.asset_mgr_mut();
+        asset_mgr.register_loader(loader::audio_clip_loader());
         asset_mgr.register_loader(loader::font_loader());
         asset_mgr.register_loader(loader::shader_loader());
         asset_mgr.register_loader(loader::sprite_loader());
@@ -230,8 +257,13 @@ pub fn run(
         emit_diagnostic_info!(format!("executing entry script."));
 
         let path = entry_script_path.as_ref();
-        let lua_mgr = rest.lua_mgr();
-        lua_mgr.execute(path, read_to_string(path)?)?;
+
+        // let lua_mgr = rest.lua_mgr();
+        // lua_mgr.execute(path, read_to_string(path)?)?;
+
+        let mut script_mgr = rest.script_mgr_mut();
+        script_mgr.compile(read_to_string(path)?).unwrap();
+        script_mgr.execute().unwrap();
     }
 
     emit_diagnostic_info!(format!("engine is up and running."));
@@ -265,12 +297,12 @@ pub fn run(
                         ElementState::Pressed => {
                             rest.event_mgr()
                                 .dispatcher()
-                                .emit(rest.lua_mgr().lua(), &events::KeyDown::from_key(key));
+                                .emit(&crate::script::event::KeyDownEvent::from_key(key));
                         }
                         ElementState::Released => {
                             rest.event_mgr()
                                 .dispatcher()
-                                .emit(rest.lua_mgr().lua(), &events::KeyUp::from_key(key));
+                                .emit(&crate::script::event::KeyUpEvent::from_key(key));
                         }
                     }
                 }
@@ -283,7 +315,7 @@ pub fn run(
             } if id == window_id => {
                 rest.event_mgr()
                     .dispatcher()
-                    .emit(rest.lua_mgr().lua(), &events::PointerEnter);
+                    .emit(&crate::script::event::PointerEnter);
 
                 return;
             }
@@ -293,7 +325,7 @@ pub fn run(
             } if id == window_id => {
                 rest.event_mgr()
                     .dispatcher()
-                    .emit(rest.lua_mgr().lua(), &events::PointerExit);
+                    .emit(&crate::script::event::PointerExit);
                 rest.ui_event_mgr_mut().handle_mouse_exit();
 
                 return;
@@ -304,13 +336,12 @@ pub fn run(
             } if id == window_id => {
                 let position = position.to_logical(rest.screen_mgr().scale_factor());
 
-                rest.event_mgr().dispatcher().emit(
-                    rest.lua_mgr().lua(),
-                    &events::PointerMove {
+                rest.event_mgr()
+                    .dispatcher()
+                    .emit(&crate::script::event::PointerMove {
                         pointer_x: position.x,
                         pointer_y: position.y,
-                    },
-                );
+                    });
                 rest.ui_event_mgr_mut()
                     .handle_mouse_move(position.x as f32, position.y as f32);
 
@@ -329,21 +360,19 @@ pub fn run(
 
                 match state {
                     ElementState::Pressed => {
-                        rest.event_mgr().dispatcher().emit(
-                            rest.lua_mgr().lua(),
-                            &events::PointerDown {
+                        rest.event_mgr()
+                            .dispatcher()
+                            .emit(&crate::script::event::PointerDown {
                                 button: button_name,
-                            },
-                        );
+                            });
                         rest.ui_event_mgr_mut().handle_mouse_button_down(button);
                     }
                     ElementState::Released => {
-                        rest.event_mgr().dispatcher().emit(
-                            rest.lua_mgr().lua(),
-                            &events::PointerUp {
+                        rest.event_mgr()
+                            .dispatcher()
+                            .emit(&crate::script::event::PointerUp {
                                 button: button_name,
-                            },
-                        );
+                            });
                         rest.ui_event_mgr_mut().handle_mouse_button_up(button);
                     }
                 }

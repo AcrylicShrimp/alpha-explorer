@@ -1,5 +1,4 @@
-use crate::render::{LuaRcSprite, LuaTextureHandle, Sprite, SpriteChannel, TexelMapping, Texture};
-use codegen::LuaRc;
+use crate::render::{Sprite, SpriteChannel, TexelMapping, Texture};
 use image::{open as open_image, ColorType, GenericImageView, ImageError};
 use serde::Deserialize;
 use serde_json::{from_str, Error as JSONError};
@@ -8,6 +7,7 @@ use std::fmt::Display;
 use std::fs::{metadata as fs_metadata, read_to_string};
 use std::io::{Error as IOError, ErrorKind as IOErrorKind};
 use std::path::Path;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub enum SpriteNinePatchError {
@@ -54,18 +54,18 @@ struct NinePatchMetadataJSON {
     bottom: u32,
 }
 
-#[derive(LuaRc)]
+#[derive(Debug, Clone)]
 pub struct SpriteNinePatch {
-    texture: LuaTextureHandle,
-    sprite_lt: LuaRcSprite,
-    sprite_ct: LuaRcSprite,
-    sprite_rt: LuaRcSprite,
-    sprite_lm: LuaRcSprite,
-    sprite_cm: LuaRcSprite,
-    sprite_rm: LuaRcSprite,
-    sprite_lb: LuaRcSprite,
-    sprite_cb: LuaRcSprite,
-    sprite_rb: LuaRcSprite,
+    texture: Arc<Texture>,
+    sprite_lt: Arc<Sprite>,
+    sprite_ct: Arc<Sprite>,
+    sprite_rt: Arc<Sprite>,
+    sprite_lm: Arc<Sprite>,
+    sprite_cm: Arc<Sprite>,
+    sprite_rm: Arc<Sprite>,
+    sprite_lb: Arc<Sprite>,
+    sprite_cb: Arc<Sprite>,
+    sprite_rb: Arc<Sprite>,
 }
 
 unsafe impl Send for SpriteNinePatch {}
@@ -93,7 +93,7 @@ impl SpriteNinePatch {
 
         let image = open_image(image_path?)?;
         let (width, height) = image.dimensions();
-        let texture = LuaTextureHandle::wrap(match channel {
+        let texture = Arc::new(match channel {
             Some(channel) => match channel {
                 SpriteChannel::R => {
                     Texture::from_slice_r_u8(width, height, image.to_luma8().as_raw())
@@ -200,43 +200,49 @@ impl SpriteNinePatch {
         })
     }
 
-    pub fn texture(&self) -> &LuaTextureHandle {
+    pub fn texture(&self) -> &Arc<Texture> {
         &self.texture
     }
 
-    pub fn sprite_lt(&self) -> &LuaRcSprite {
+    pub fn sprite_lt(&self) -> &Arc<Sprite> {
         &self.sprite_lt
     }
 
-    pub fn sprite_ct(&self) -> &LuaRcSprite {
+    pub fn sprite_ct(&self) -> &Arc<Sprite> {
         &self.sprite_ct
     }
 
-    pub fn sprite_rt(&self) -> &LuaRcSprite {
+    pub fn sprite_rt(&self) -> &Arc<Sprite> {
         &self.sprite_rt
     }
 
-    pub fn sprite_lm(&self) -> &LuaRcSprite {
+    pub fn sprite_lm(&self) -> &Arc<Sprite> {
         &self.sprite_lm
     }
 
-    pub fn sprite_cm(&self) -> &LuaRcSprite {
+    pub fn sprite_cm(&self) -> &Arc<Sprite> {
         &self.sprite_cm
     }
 
-    pub fn sprite_rm(&self) -> &LuaRcSprite {
+    pub fn sprite_rm(&self) -> &Arc<Sprite> {
         &self.sprite_rm
     }
 
-    pub fn sprite_lb(&self) -> &LuaRcSprite {
+    pub fn sprite_lb(&self) -> &Arc<Sprite> {
         &self.sprite_lb
     }
 
-    pub fn sprite_cb(&self) -> &LuaRcSprite {
+    pub fn sprite_cb(&self) -> &Arc<Sprite> {
         &self.sprite_cb
     }
 
-    pub fn sprite_rb(&self) -> &LuaRcSprite {
+    pub fn sprite_rb(&self) -> &Arc<Sprite> {
         &self.sprite_rb
+    }
+}
+
+impl Display for SpriteNinePatch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "SpriteNinePatch")
     }
 }

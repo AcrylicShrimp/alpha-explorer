@@ -25,7 +25,7 @@ pub fn lua_handle(item: TokenStream) -> TokenStream {
     let name_str = name.to_string();
 
     TokenStream::from(quote! {
-        #[derive(Debug, Clone)]
+        #[derive(Clone)]
         pub struct #name(pub std::sync::Arc<#ty>);
 
         impl #name {

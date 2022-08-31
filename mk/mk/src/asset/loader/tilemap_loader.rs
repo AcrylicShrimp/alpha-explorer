@@ -1,8 +1,10 @@
-use crate::asset::{AssetLoadError, AssetLoader};
-use crate::render::*;
+use crate::{
+    asset::{AssetLoadError, AssetLoader},
+    render::Tilemap,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Error as JSONError;
-use std::fs::read_to_string;
+use std::{fs::read_to_string, sync::Arc};
 
 #[derive(Serialize, Deserialize)]
 struct TilemapJSON {
@@ -31,7 +33,7 @@ impl From<JSONError> for AssetLoadError {
     }
 }
 
-pub fn tilemap_loader() -> AssetLoader<LuaRcTilemap> {
+pub fn tilemap_loader() -> AssetLoader<Arc<Tilemap>> {
     AssetLoader::new(|asset_mgr, base, path| {
         let tilemap_json: TilemapJSON = serde_json::from_str(&read_to_string(
             &base.join("maps").join(path).with_extension("json"),
@@ -49,7 +51,7 @@ pub fn tilemap_loader() -> AssetLoader<LuaRcTilemap> {
 
         let palette = asset_mgr.load(&tilemap_json.tilesets[0].source)?;
 
-        Ok(LuaRcTilemap::wrap(Tilemap {
+        Ok(Arc::new(Tilemap {
             tile_width: tilemap_json.tilewidth as f32,
             tile_height: tilemap_json.tileheight as f32,
             tile_count_x: tilemap_json.width as usize,

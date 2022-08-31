@@ -1,8 +1,5 @@
-use codegen::LuaComponentNoWrapper;
-
-#[derive(LuaComponentNoWrapper, Debug, Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Size {
-    #[lua_hidden]
     index: u32,
     pub width: f32,
     pub height: f32,

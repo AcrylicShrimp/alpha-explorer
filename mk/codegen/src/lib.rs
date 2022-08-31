@@ -2,7 +2,7 @@ mod animation;
 mod lua;
 
 use animation::animation;
-use lua::{lua_component, lua_component_no_wrapper, lua_handle, lua_rc, lua_struct};
+use lua::{lua_component, lua_component_no_wrapper, lua_expose, lua_handle, lua_rc, lua_struct};
 use proc_macro::TokenStream;
 use proc_macro_error::*;
 
@@ -73,4 +73,10 @@ pub fn _lua_rc(item: TokenStream) -> TokenStream {
 #[proc_macro_error]
 pub fn _lua_struct(item: TokenStream) -> TokenStream {
     lua_struct(item)
+}
+
+#[proc_macro_derive(LuaExpose, attributes(no_from_lua, hidden))]
+#[proc_macro_error]
+pub fn _lua_expose(item: TokenStream) -> TokenStream {
+    lua_expose(item)
 }

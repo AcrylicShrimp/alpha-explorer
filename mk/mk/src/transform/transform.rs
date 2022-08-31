@@ -117,9 +117,7 @@ impl Transform {
         matrix[8] = 1.0;
     }
 
-    pub fn to_matrix_inverse(&self, matrix: &mut [f32; 9]) {
-        self.to_matrix(matrix);
-
+    pub fn inverse_matrix(matrix: &mut [f32; 9]) {
         let det_inv = 1f32
             / (matrix[0] * (matrix[4] * matrix[8] - matrix[7] * matrix[5])
                 - matrix[1] * (matrix[3] * matrix[8] - matrix[5] * matrix[6])
@@ -146,9 +144,7 @@ impl Transform {
         matrix[8] = m8;
     }
 
-    pub fn to_matrix_inverse_with_scale(&self, scale_x: f32, scale_y: f32, matrix: &mut [f32; 9]) {
-        self.to_matrix(matrix);
-
+    pub fn inverse_matrix_with_scale(scale_x: f32, scale_y: f32, matrix: &mut [f32; 9]) {
         matrix[0] *= scale_x;
         matrix[1] *= scale_x;
         matrix[3] *= scale_y;
@@ -184,7 +180,7 @@ impl Transform {
 impl Transform {
     pub fn world_position(index: u32, transform_mgr: &TransformManager) -> Vec2 {
         let mut transform_index = Some(index);
-        let mut position = Vec2::new(0f32, 0f32);
+        let mut position = Vec2::zero();
 
         while let Some(index) = transform_index {
             let transform = transform_mgr.transform(index);
@@ -227,7 +223,7 @@ impl Transform {
 
     pub fn world_scale(index: u32, transform_mgr: &TransformManager) -> Vec2 {
         let mut transform_index = Some(index);
-        let mut scale = Vec2::new(1f32, 1f32);
+        let mut scale = Vec2::one();
 
         while let Some(index) = transform_index {
             let transform = transform_mgr.transform(index);
@@ -307,8 +303,8 @@ impl Transform {
 impl Default for Transform {
     fn default() -> Self {
         Self {
-            position: Vec2::new(0f32, 0f32),
-            scale: Vec2::new(1f32, 1f32),
+            position: Vec2::zero(),
+            scale: Vec2::one(),
             angle: 0f32,
             flags: 0b1000_0000_0000_0000_0000_0000_0000_0000,
         }

@@ -1,5 +1,4 @@
-use crate::render::{LuaTextureHandle, Texture};
-use codegen::LuaRc;
+use crate::render::Texture;
 use image::{open as open_image, ColorType, GenericImageView, ImageError};
 use mlua::prelude::*;
 use std::error::Error;
@@ -7,6 +6,7 @@ use std::fmt::Display;
 use std::fs::metadata as fs_metadata;
 use std::io::{Error as IOError, ErrorKind as IOErrorKind};
 use std::path::Path;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub enum SpriteError {
@@ -107,6 +107,16 @@ impl TexelMapping {
     }
 }
 
+impl Display for TexelMapping {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "TexelMapping(min=({}, {}), max=({}, {}))",
+            self.min.0, self.min.1, self.max.0, self.max.1
+        )
+    }
+}
+
 impl<'lua> FromLua<'lua> for TexelMapping {
     fn from_lua(value: LuaValue<'lua>, _lua: &'lua Lua) -> LuaResult<Self> {
         match value {
@@ -136,10 +146,10 @@ impl<'lua> ToLua<'lua> for TexelMapping {
     }
 }
 
-#[derive(LuaRc, Debug)]
+#[derive(Debug, Clone)]
 pub struct Sprite {
     channel: SpriteChannel,
-    texture: LuaTextureHandle,
+    texture: Arc<Texture>,
     texel_mapping: TexelMapping,
 }
 
@@ -210,14 +220,15 @@ impl Sprite {
 
         Ok(Self {
             channel,
-            texture: LuaTextureHandle::wrap(texture),
+            texture: texture.into(),
             texel_mapping: TexelMapping::new((0, 0), (width, height)),
         })
     }
 
-    pub fn from_atlas(texture: LuaTextureHandle, texel_mapping: TexelMapping) -> Self {
+    pub fn from_atlas(texture: impl Into<Arc<Texture>>, texel_mapping: TexelMapping) -> Self {
+        let texture = texture.into();
         Self {
-            channel: match texture.inner().format().component() {
+            channel: match texture.format().component() {
                 1 => SpriteChannel::R,
                 2 => SpriteChannel::RG,
                 3 => SpriteChannel::RGB,
@@ -233,7 +244,7 @@ impl Sprite {
         self.channel
     }
 
-    pub fn texture(&self) -> &LuaTextureHandle {
+    pub fn texture(&self) -> &Arc<Texture> {
         &self.texture
     }
 
@@ -244,22 +255,18 @@ impl Sprite {
     pub fn width(&self) -> u32 {
         let lhs = self.texel_mapping.max().0;
         let rhs = self.texel_mapping.min().0;
-
-        if lhs < rhs {
-            rhs - lhs
-        } else {
-            lhs - rhs
-        }
+        rhs.abs_diff(lhs)
     }
 
     pub fn height(&self) -> u32 {
         let lhs = self.texel_mapping.max().1;
         let rhs = self.texel_mapping.min().1;
+        rhs.abs_diff(lhs)
+    }
+}
 
-        if lhs < rhs {
-            rhs - lhs
-        } else {
-            lhs - rhs
-        }
+impl Display for Sprite {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Sprite({}x{})", self.width(), self.height())
     }
 }

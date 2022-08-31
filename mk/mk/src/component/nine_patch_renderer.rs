@@ -1,21 +1,26 @@
-use crate::render::{Color, Layer, LuaRcSpriteNinePatch, LuaShaderHandle};
-use codegen::LuaComponent;
+use crate::render::{Color, Layer, Shader, SpriteNinePatch};
+use std::sync::Arc;
 
-#[derive(LuaComponent)]
 pub struct NinePatchRenderer {
     pub layer: Layer,
     pub order: isize,
     pub color: Color,
-    pub shader: LuaShaderHandle,
-    pub nine_patch: LuaRcSpriteNinePatch,
+    pub shader: Arc<Shader>,
+    pub nine_patch: Arc<SpriteNinePatch>,
 }
 
 impl NinePatchRenderer {
-    pub fn new(shader: LuaShaderHandle, nine_patch: LuaRcSpriteNinePatch) -> Self {
+    pub fn new(
+        layer: Layer,
+        order: isize,
+        color: Color,
+        shader: Arc<Shader>,
+        nine_patch: Arc<SpriteNinePatch>,
+    ) -> Self {
         Self {
-            layer: Layer::default(),
-            order: 0,
-            color: Color::white(),
+            layer,
+            order,
+            color,
             shader,
             nine_patch,
         }

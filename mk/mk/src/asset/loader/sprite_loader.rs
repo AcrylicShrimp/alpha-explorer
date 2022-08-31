@@ -1,5 +1,8 @@
-use crate::asset::{AssetLoadError, AssetLoader};
-use crate::render::{LuaRcSprite, Sprite, SpriteError};
+use crate::{
+    asset::{AssetLoadError, AssetLoader},
+    render::{Sprite, SpriteError},
+};
+use std::sync::Arc;
 
 impl From<SpriteError> for AssetLoadError {
     fn from(err: SpriteError) -> Self {
@@ -7,9 +10,9 @@ impl From<SpriteError> for AssetLoadError {
     }
 }
 
-pub fn sprite_loader() -> AssetLoader<LuaRcSprite> {
+pub fn sprite_loader() -> AssetLoader<Arc<Sprite>> {
     AssetLoader::new(|_asset_mgr, base, path| {
-        Ok(LuaRcSprite::wrap(Sprite::from_file(
+        Ok(Arc::new(Sprite::from_file(
             &base.join("sprites").join(path),
             None,
         )?))

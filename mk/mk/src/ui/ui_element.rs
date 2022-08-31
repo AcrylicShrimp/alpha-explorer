@@ -52,8 +52,8 @@ impl UIElement {
 impl Default for UIElement {
     fn default() -> Self {
         Self {
-            anchor: UIAnchor::default(),
-            margin: UIMargin::default(),
+            anchor: UIAnchor::full(),
+            margin: UIMargin::zero(),
             flags: 0b1100_0000_0000_0000_0000_0000_0000_0000,
         }
     }
