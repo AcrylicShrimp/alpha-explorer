@@ -57,6 +57,8 @@ pub enum TokenKind {
     LogNot, // "not"
     // Member access operators
     Member, // "::"
+    // Misc
+    Arrow, // =>
     Id(Symbol),
     Literal(TokenLiteral),
 }
@@ -118,6 +120,7 @@ impl TokenKind {
             Self::BitNot => "'~'",
             Self::LogNot => "'not'",
             Self::Member => "'::'",
+            Self::Arrow => "'=>'",
             Self::Id(..) => "identifier",
             Self::Literal(..) => "literal",
         }

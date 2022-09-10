@@ -50,35 +50,39 @@ impl Display for Symbol {
 }
 
 pub const EMPTY: Symbol = Symbol::from_idx_const(1);
-pub const NIL: Symbol = Symbol::from_idx_const(2);
-pub const BOOL: Symbol = Symbol::from_idx_const(3);
-pub const INT: Symbol = Symbol::from_idx_const(4);
-pub const FLOAT: Symbol = Symbol::from_idx_const(5);
-pub const STRING: Symbol = Symbol::from_idx_const(6);
-pub const LIST: Symbol = Symbol::from_idx_const(7);
-pub const DICT: Symbol = Symbol::from_idx_const(8);
-pub const NOT: Symbol = Symbol::from_idx_const(9);
-pub const AND: Symbol = Symbol::from_idx_const(10);
-pub const OR: Symbol = Symbol::from_idx_const(11);
-pub const AS: Symbol = Symbol::from_idx_const(12);
-pub const LET: Symbol = Symbol::from_idx_const(13);
-pub const BREAK: Symbol = Symbol::from_idx_const(14);
-pub const CONTINUE: Symbol = Symbol::from_idx_const(15);
-pub const RETURN: Symbol = Symbol::from_idx_const(16);
-pub const IF: Symbol = Symbol::from_idx_const(17);
-pub const ELSE: Symbol = Symbol::from_idx_const(18);
-pub const FOR: Symbol = Symbol::from_idx_const(19);
-pub const IN: Symbol = Symbol::from_idx_const(20);
-pub const MATCH: Symbol = Symbol::from_idx_const(21);
-pub const FN: Symbol = Symbol::from_idx_const(22);
-pub const TYPE: Symbol = Symbol::from_idx_const(23);
-pub const USE: Symbol = Symbol::from_idx_const(24);
+pub const WILDCARD: Symbol = Symbol::from_idx_const(2);
+pub const NIL: Symbol = Symbol::from_idx_const(3);
+pub const BOOL: Symbol = Symbol::from_idx_const(4);
+pub const INT: Symbol = Symbol::from_idx_const(5);
+pub const FLOAT: Symbol = Symbol::from_idx_const(6);
+pub const STRING: Symbol = Symbol::from_idx_const(7);
+pub const LIST: Symbol = Symbol::from_idx_const(8);
+pub const DICT: Symbol = Symbol::from_idx_const(9);
+pub const NOT: Symbol = Symbol::from_idx_const(10);
+pub const AND: Symbol = Symbol::from_idx_const(11);
+pub const OR: Symbol = Symbol::from_idx_const(12);
+pub const AS: Symbol = Symbol::from_idx_const(13);
+pub const LET: Symbol = Symbol::from_idx_const(14);
+pub const BREAK: Symbol = Symbol::from_idx_const(15);
+pub const CONTINUE: Symbol = Symbol::from_idx_const(16);
+pub const RETURN: Symbol = Symbol::from_idx_const(17);
+pub const IF: Symbol = Symbol::from_idx_const(18);
+pub const ELSE: Symbol = Symbol::from_idx_const(19);
+pub const LOOP: Symbol = Symbol::from_idx_const(20);
+pub const WHILE: Symbol = Symbol::from_idx_const(21);
+pub const FOR: Symbol = Symbol::from_idx_const(22);
+pub const IN: Symbol = Symbol::from_idx_const(23);
+pub const MATCH: Symbol = Symbol::from_idx_const(24);
+pub const FN: Symbol = Symbol::from_idx_const(25);
+pub const TYPE: Symbol = Symbol::from_idx_const(26);
+pub const FROM: Symbol = Symbol::from_idx_const(27);
+pub const USE: Symbol = Symbol::from_idx_const(28);
 
 lazy_static! {
     pub(crate) static ref STR_INTERNER: Mutex<StrInterner> = StrInterner::with_prefilled(&[
-        "", "nil", "bool", "int", "float", "string", "list", "dict", "not", "and", "or", "as",
-        "let", "break", "continue", "return", "if", "else", "for", "in", "match", "fn", "type",
-        "use",
+        "", "_", "nil", "bool", "int", "float", "string", "list", "dict", "not", "and", "or", "as",
+        "let", "break", "continue", "return", "if", "else", "loop", "while", "for", "in", "match",
+        "fn", "type", "from", "use",
     ])
     .into();
 }

@@ -1,8 +1,8 @@
 [package]
-name = "mk_script"
-version = "0.1.0"
-edition = "2021"
+name = "parser"
+version = "0.0.1"
 authors = ["AcrylicShrimp <led789zxpp@naver.com>"]
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -10,7 +10,5 @@ authors = ["AcrylicShrimp <led789zxpp@naver.com>"]
 ast = { path = "../mk_script_ast" }
 diagnostic = { path = "../mk_script_diagnostic" }
 high_lexer = { path = "../mk_script_high_lexer" }
-low_lexer = { path = "../mk_script_low_lexer" }
-parser = { path = "../mk_script_parser" }
 span = { path = "../mk_script_span" }
 str_interner = { path = "../mk_script_str_interner" }

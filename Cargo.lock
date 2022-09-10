@@ -1421,6 +1421,7 @@ dependencies = [
  "diagnostic",
  "high_lexer",
  "low_lexer",
+ "parser",
  "span",
  "str_interner",
 ]
@@ -1779,6 +1780,17 @@ dependencies = [
  "redox_syscall",
  "smallvec",
  "windows-sys",
+]
+
+[[package]]
+name = "parser"
+version = "0.0.1"
+dependencies = [
+ "ast",
+ "diagnostic",
+ "high_lexer",
+ "span",
+ "str_interner",
 ]
 
 [[package]]

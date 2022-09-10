@@ -42,6 +42,10 @@ impl Token {
                 TokenKind::Assign => TokenKind::Eq,
                 _ => return None,
             },
+            TokenKind::Eq => match next.kind {
+                TokenKind::Gt => TokenKind::Arrow,
+                _ => return None,
+            },
             TokenKind::Lt => match next.kind {
                 TokenKind::Assign => TokenKind::Le,
                 TokenKind::Lt => TokenKind::Shl,
@@ -123,7 +127,6 @@ impl Token {
             | TokenKind::AssignBitXor
             | TokenKind::AssignBitNot
             | TokenKind::RngInclusive
-            | TokenKind::Eq
             | TokenKind::Ne
             | TokenKind::Le
             | TokenKind::Ge
@@ -131,6 +134,7 @@ impl Token {
             | TokenKind::LogAnd
             | TokenKind::LogNot
             | TokenKind::Member
+            | TokenKind::Arrow
             | TokenKind::Literal(..)
             | TokenKind::Id(..) => return None,
         };

@@ -1,0 +1,137 @@
+
+# comment
+
+# let
+
+let a;
+let a = "abc";
+
+# if
+
+if a == b {
+
+} else if a == c {
+
+} else {
+
+}
+
+# infinite loop
+
+loop {
+
+}
+
+# while loop
+
+while a == b {
+
+}
+
+# for-each loop
+
+for a in b {
+
+}
+
+for a, b, c, d in b {
+
+}
+
+# match
+
+match a {
+  _ => {
+
+  }
+  123 => {
+
+  }
+  "abc" => {
+
+  }
+  a => {
+    
+  }
+  a::b => {
+
+  }
+  a::b::c => {
+
+  }
+  a, b => {
+
+  }
+  a, b, c => {
+
+  }
+  a if a == 1 => {
+    
+  }
+  a, b if a == b => {
+
+  }
+  a, b, c if a == b and b == c => {
+
+  }
+  1 | 2 | Enum::A => {
+
+  }
+  [a: test, b: 123] => {
+    
+  }
+  _ => {
+
+  }
+}
+
+# function definition
+
+fn a(a, b, c) {
+  print(a, b, c);
+}
+
+# types
+
+a = nil;
+a = bool(a); a = true; a = false;
+a = int(a); a = -1; a = 0; a = 1;
+a = float(a); a = -1.0; a = 0.0; a = 1.0;
+a = string(a); a = "";
+a = list(a); a = [a, b, c, d];
+a = dict(a); a = [a: a, b: b, c: c]; a = [[a]: a, [b]: b, [c]: c];
+a = |a, b, c| {
+  print(a, b, c);
+};
+
+# method call
+
+a.a();
+
+# method definition
+
+fn test(self) for nil {
+  print(self);
+}
+
+# type creation
+
+type Queue from dict;
+
+fn new() for Queue {
+  return [last: 0, first: -1];
+}
+
+fn push(self, elem) for Queue {
+  # ...
+}
+
+let queue = Queue::new();
+queue.push(a);
+
+# use module
+
+use "abc";
+use "mk" as mk;
+use "abc/def/ghi";
+use "abc/def/ghi" as ghi;
