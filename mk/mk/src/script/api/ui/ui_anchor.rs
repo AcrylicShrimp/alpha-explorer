@@ -1,39 +1,40 @@
-use crate::script::api::ModuleType;
+use crate::script::api::LuaApiTable;
+use mlua::prelude::*;
 
 pub type UIAnchor = crate::ui::UIAnchor;
 
-impl ModuleType for UIAnchor {
-    fn register(module: &mut rhai::Module) {
-        module.set_custom_type::<Self>("UIAnchor");
+impl LuaApiTable for UIAnchor {
+    fn create_api_table<'lua>(lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
+        let table = lua.create_table()?;
 
-        to_global!(
-            module,
-            module.set_native_fn("to_string", |lhs: &mut Self| Ok(lhs.to_string()))
-        );
-        to_global!(
-            module,
-            module.set_native_fn("to_debug", |lhs: &mut Self| Ok(format!("{:?}", lhs)))
-        );
+        table.set(
+            "new",
+            lua.create_function(|_lua, (min, max)| Ok(Self::new(min, max)))?,
+        )?;
+        table.set("full", lua.create_function(|_lua, ()| Ok(Self::full()))?)?;
 
-        module.set_getter_fn("min", |this: &mut Self| Ok(this.min));
-        module.set_getter_fn("max", |this: &mut Self| Ok(this.max));
+        Ok(table)
+    }
+}
 
-        module.set_setter_fn("min", |this: &mut Self, min| {
+impl LuaUserData for UIAnchor {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("min", |_lua, this| Ok(this.min));
+        fields.add_field_method_get("max", |_lua, this| Ok(this.max));
+
+        fields.add_field_method_set("min", |_lua, this, min| {
             this.min = min;
             Ok(())
         });
-        module.set_setter_fn("max", |this: &mut Self, max| {
+        fields.add_field_method_set("max", |_lua, this, max| {
             this.max = max;
             Ok(())
         });
+    }
 
-        module.set_sub_module("UIAnchor", {
-            let mut sub_module = rhai::Module::new();
-
-            sub_module.set_native_fn("create", |min, max| Ok(Self::new(min, max)));
-            sub_module.set_native_fn("full", || Ok(Self::full()));
-
-            sub_module
+    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
+            Ok(this.to_string())
         });
     }
 }

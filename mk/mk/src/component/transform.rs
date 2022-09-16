@@ -1,6 +1,8 @@
 use crate::engine::use_context;
+use specs::{prelude::*, Component};
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Component, Clone, Copy, PartialEq, Eq, Hash)]
+#[storage(VecStorage)]
 pub struct Transform {
     index: u32,
 }

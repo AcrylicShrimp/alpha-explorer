@@ -1,10 +1,12 @@
 use crate::{
     engine::use_context,
     event::{AbstractTypedEventBus, TypedEventBus, TypedEventListener},
+    util::BoxId,
 };
+use mlua::prelude::*;
 use parking_lot::Mutex;
 use std::{
-    any::TypeId,
+    any::{Any, TypeId},
     collections::{hash_map::Entry, HashMap},
     sync::Arc,
 };
@@ -21,10 +23,7 @@ impl EventDispatcher {
         }
     }
 
-    pub fn add_listener<T>(&self, listener: TypedEventListener<T>) -> usize
-    where
-        T: 'static + Send + Sync + Clone,
-    {
+    pub fn add_listener<T>(&self, listener: TypedEventListener<T>) -> usize {
         match self.event_buses.lock().entry(TypeId::of::<T>()) {
             Entry::Occupied(event_bus) => event_bus
                 .get()
@@ -40,21 +39,22 @@ impl EventDispatcher {
         }
     }
 
-    pub fn remove_listener<T>(&self, hash: usize)
+    pub fn remove_listener<T>(&self, hash: usize) -> Option<BoxId<dyn Any>>
     where
         T: 'static,
     {
         if let Some(event_bus) = self.event_buses.lock().get(&TypeId::of::<T>()) {
-            event_bus.remove_listener(hash);
+            event_bus.remove_listener(hash)
+        } else {
+            None
         }
     }
 
-    pub fn emit<T>(&self, event: &T)
+    pub fn emit<'lua, T>(&self, event: &T)
     where
-        T: 'static + Send + Sync + Clone,
+        T: 'static + Clone + ToLua<'lua>,
     {
         let script_mgr = use_context().script_mgr();
-        let script_mgr = &*script_mgr;
 
         if let Some(event_bus) = {
             let event_buses = self.event_buses.lock();
@@ -63,7 +63,7 @@ impl EventDispatcher {
             event_bus
                 .downcast_ref::<TypedEventBus<T>>()
                 .unwrap()
-                .handle(script_mgr, event);
+                .handle(&script_mgr, event);
         }
     }
 }

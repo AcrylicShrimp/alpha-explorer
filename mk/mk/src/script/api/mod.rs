@@ -1,71 +1,64 @@
-use rhai::{Dynamic, EvalAltResult, Module, FLOAT, INT};
+use mlua::prelude::*;
 
-macro_rules! to_global {
-    ($module:ident, $f:expr) => {{
-        let hash = $f;
-        $module.update_fn_namespace(hash, rhai::FnNamespace::Global);
-    }};
+trait IntoShared {
+    type Shared;
+    fn into_shared(self) -> Self::Shared;
 }
 
-#[allow(dead_code)]
-fn extract_int(dynamic: Dynamic) -> Result<INT, Box<EvalAltResult>> {
-    if dynamic.is::<INT>() {
-        Ok(dynamic.as_int().unwrap())
-    } else if dynamic.is::<FLOAT>() {
-        Ok(dynamic.as_float().unwrap() as INT)
-    } else {
-        Err(format!("expected i64 or f32, got {}", dynamic.type_name()).into())
-    }
-}
+macro_rules! define_shared_type {
+    ($name:ident, $ty:ty) => {
+        #[derive(Clone)]
+        pub struct $name(std::sync::Arc<$ty>);
 
-#[allow(dead_code)]
-fn extract_float(dynamic: Dynamic) -> Result<FLOAT, Box<EvalAltResult>> {
-    if dynamic.is::<INT>() {
-        Ok(dynamic.as_int().unwrap() as FLOAT)
-    } else if dynamic.is::<FLOAT>() {
-        Ok(dynamic.as_float().unwrap())
-    } else {
-        Err(format!("expected i64 or f32, got {}", dynamic.type_name()).into())
-    }
-}
+        impl $name {
+            pub fn new(inner: $ty) -> Self {
+                Self(std::sync::Arc::new(inner))
+            }
 
-trait ModuleType {
-    fn register(module: &mut Module);
-}
+            pub fn wrap(inner: std::sync::Arc<$ty>) -> Self {
+                Self(inner)
+            }
 
-trait OptionToDynamic {
-    fn to_dynamic(self) -> Dynamic;
-}
+            pub fn inner(&self) -> std::sync::Arc<$ty> {
+                self.0.clone()
+            }
 
-impl<T> OptionToDynamic for Option<T>
-where
-    T: 'static + Clone + Send + Sync,
-{
-    fn to_dynamic(self) -> Dynamic {
-        match self {
-            Some(value) => Dynamic::from(value),
-            None => Dynamic::from(()),
+            pub fn into_inner(self) -> std::sync::Arc<$ty> {
+                self.0
+            }
         }
-    }
-}
 
-trait DynamicToOption {
-    fn to_option<T>(self) -> Option<T>
-    where
-        T: 'static + Clone + Send + Sync;
-}
+        impl std::ops::Deref for $name {
+            type Target = std::sync::Arc<$ty>;
 
-impl DynamicToOption for Dynamic {
-    fn to_option<T>(self) -> Option<T>
-    where
-        T: 'static + Clone + Send + Sync,
-    {
-        if self.is::<()>() {
-            None
-        } else {
-            Some(self.cast())
+            fn deref(&self) -> &Self::Target {
+                &self.0
+            }
         }
-    }
+
+        impl crate::script::api::IntoShared for $ty {
+            type Shared = $name;
+
+            fn into_shared(self) -> Self::Shared {
+                $name::new(self)
+            }
+        }
+
+        impl crate::script::api::IntoShared for std::sync::Arc<$ty> {
+            type Shared = $name;
+
+            fn into_shared(self) -> Self::Shared {
+                $name::wrap(self)
+            }
+        }
+
+        #[allow(dead_code)]
+        type Inner = $ty;
+    };
+}
+
+pub trait LuaApiTable {
+    fn create_api_table<'lua>(lua: &'lua Lua) -> LuaResult<LuaTable<'lua>>;
 }
 
 pub mod asset;
@@ -73,26 +66,37 @@ pub mod audio;
 pub mod component;
 pub mod entity;
 pub mod event;
+pub mod glyph;
 pub mod render;
 pub mod screen;
 pub mod structure;
 pub mod time;
 pub mod ui;
 
-pub fn build_module() -> Module {
-    let mut module = Module::new();
-    module.set_id("__builtin__");
+pub struct Module;
 
-    asset::AssetModule::register(&mut module);
-    audio::AudioModule::register(&mut module);
-    component::ComponentModule::register(&mut module);
-    entity::EntityModule::register(&mut module);
-    event::EventModule::register(&mut module);
-    render::RenderModule::register(&mut module);
-    screen::ScreenModule::register(&mut module);
-    structure::StructureModule::register(&mut module);
-    time::TimeModule::register(&mut module);
-    ui::UIModule::register(&mut module);
+impl LuaApiTable for Module {
+    fn create_api_table<'lua>(lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
+        let table = lua.create_table()?;
 
-    module
+        table.set("asset", asset::AssetModule::create_api_table(lua)?)?;
+        table.set("audio", audio::AudioModule::create_api_table(lua)?)?;
+        table.set(
+            "component",
+            component::ComponentModule::create_api_table(lua)?,
+        )?;
+        table.set("entity", entity::EntityModule::create_api_table(lua)?)?;
+        table.set("event", event::EventModule::create_api_table(lua)?)?;
+        table.set("glyph", glyph::GlyphModule::create_api_table(lua)?)?;
+        table.set("render", render::RenderModule::create_api_table(lua)?)?;
+        table.set("screen", screen::ScreenModule::create_api_table(lua)?)?;
+        table.set(
+            "structure",
+            structure::StructureModule::create_api_table(lua)?,
+        )?;
+        table.set("time", time::TimeModule::create_api_table(lua)?)?;
+        table.set("ui", ui::UIModule::create_api_table(lua)?)?;
+
+        Ok(table)
+    }
 }

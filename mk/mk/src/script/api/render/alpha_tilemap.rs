@@ -1,55 +1,55 @@
-use crate::{
-    render::AlphaTileset,
-    script::api::{extract_float, ModuleType},
-};
-use rhai::Dynamic;
-use std::sync::Arc;
+use crate::script::api::{render::AlphaTileset, IntoShared, LuaApiTable};
+use mlua::prelude::*;
 
 pub type AlphaTilemap = crate::render::AlphaTilemap;
 
-impl ModuleType for AlphaTilemap {
-    fn register(module: &mut rhai::Module) {
-        module.set_custom_type::<Self>("AlphaTilemap");
+impl LuaApiTable for AlphaTilemap {
+    fn create_api_table<'lua>(lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
+        let table = lua.create_table()?;
 
-        to_global!(
-            module,
-            module.set_native_fn("to_string", |this: &mut Self| Ok(this.to_string()))
-        );
-        to_global!(
-            module,
-            module.set_native_fn("to_debug", |this: &mut Self| Ok(format!("{:?}", this)))
-        );
-
-        module.set_getter_fn("tile_width", |this: &mut Self| Ok(this.tile_width));
-        module.set_getter_fn("tile_height", |this: &mut Self| Ok(this.tile_height));
-        module.set_getter_fn("tile_count_x", |this: &mut Self| Ok(this.tile_count_x));
-        module.set_getter_fn("tile_count_y", |this: &mut Self| Ok(this.tile_count_y));
-        module.set_getter_fn("layer", |this: &mut Self| Ok(this.layer.clone()));
-        module.set_getter_fn("tileset", |this: &mut Self| Ok(this.tileset.clone()));
-
-        module.set_sub_module("AlphaTilemap", {
-            let mut sub_module = rhai::Module::new();
-
-            sub_module.set_native_fn(
-                "new",
-                |tile_width: Dynamic,
-                 tile_height: Dynamic,
-                 tile_count_x: usize,
-                 tile_count_y: usize,
-                 layer: Vec<usize>,
-                 tileset: Arc<AlphaTileset>| {
-                    Ok(AlphaTilemap {
-                        tile_width: extract_float(tile_width)?,
-                        tile_height: extract_float(tile_height)?,
+        table.set(
+            "new",
+            lua.create_function(
+                |_lua,
+                 (tile_width, tile_height, tile_count_x, tile_count_y, layer, tileset): (
+                    _,
+                    _,
+                    _,
+                    _,
+                    _,
+                    AlphaTileset,
+                )| {
+                    Ok(Self::new(
+                        tile_width,
+                        tile_height,
                         tile_count_x,
                         tile_count_y,
                         layer,
-                        tileset,
-                    })
+                        tileset.into_inner(),
+                    ))
                 },
-            );
+            )?,
+        )?;
 
-            sub_module
+        Ok(table)
+    }
+}
+
+impl LuaUserData for AlphaTilemap {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("tile_width", |_lua, this| Ok(this.tile_width));
+        fields.add_field_method_get("tile_height", |_lua, this| Ok(this.tile_height));
+        fields.add_field_method_get("tile_count_x", |_lua, this| Ok(this.tile_count_x));
+        fields.add_field_method_get("tile_count_y", |_lua, this| Ok(this.tile_count_y));
+        fields.add_field_method_get("layer", |_lua, this| Ok(this.layer.clone()));
+        fields.add_field_method_get("tileset", |_lua, this| {
+            Ok(this.tileset.clone().into_shared())
+        });
+    }
+
+    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
+            Ok(this.to_string())
         });
     }
 }

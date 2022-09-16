@@ -1,10 +1,5 @@
-use crate::script::api::ModuleType;
-use std::sync::Arc;
+use mlua::prelude::*;
 
-pub type Font = Arc<fontdue::Font>;
+define_shared_type!(Font, fontdue::Font);
 
-impl ModuleType for Font {
-    fn register(module: &mut rhai::Module) {
-        module.set_custom_type::<Font>("Font");
-    }
-}
+impl LuaUserData for Font {}

@@ -1,10 +1,5 @@
-use crate::script::api::ModuleType;
-use std::sync::Arc;
+use mlua::prelude::*;
 
-pub type Buffer = Arc<render::Buffer>;
+define_shared_type!(Buffer, render::Buffer);
 
-impl ModuleType for Buffer {
-    fn register(module: &mut rhai::Module) {
-        module.set_custom_type::<Self>("Buffer");
-    }
-}
+impl LuaUserData for Buffer {}

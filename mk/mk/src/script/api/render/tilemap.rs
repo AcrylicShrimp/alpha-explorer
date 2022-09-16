@@ -1,55 +1,55 @@
-use crate::{
-    render::SpriteAtlasGrid,
-    script::api::{extract_float, ModuleType},
-};
-use rhai::Dynamic;
-use std::sync::Arc;
+use crate::script::api::{render::SpriteAtlasGrid, IntoShared, LuaApiTable};
+use mlua::prelude::*;
 
-pub type Tilemap = crate::render::Tilemap;
+define_shared_type!(Tilemap, crate::render::Tilemap);
 
-impl ModuleType for Tilemap {
-    fn register(module: &mut rhai::Module) {
-        module.set_custom_type::<Self>("Tilemap");
+impl LuaApiTable for Tilemap {
+    fn create_api_table<'lua>(lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
+        let table = lua.create_table()?;
 
-        to_global!(
-            module,
-            module.set_native_fn("to_string", |this: &mut Self| Ok(this.to_string()))
-        );
-        to_global!(
-            module,
-            module.set_native_fn("to_debug", |this: &mut Self| Ok(format!("{:?}", this)))
-        );
-
-        module.set_getter_fn("tile_width", |this: &mut Self| Ok(this.tile_width));
-        module.set_getter_fn("tile_height", |this: &mut Self| Ok(this.tile_height));
-        module.set_getter_fn("tile_count_x", |this: &mut Self| Ok(this.tile_count_x));
-        module.set_getter_fn("tile_count_y", |this: &mut Self| Ok(this.tile_count_y));
-        module.set_getter_fn("layers", |this: &mut Self| Ok(this.layers.clone()));
-        module.set_getter_fn("palette", |this: &mut Self| Ok(this.palette.clone()));
-
-        module.set_sub_module("Tilemap", {
-            let mut sub_module = rhai::Module::new();
-
-            sub_module.set_native_fn(
-                "new",
-                |tile_width: Dynamic,
-                 tile_height: Dynamic,
-                 tile_count_x: usize,
-                 tile_count_y: usize,
-                 layers: Vec<Vec<usize>>,
-                 palette: Arc<SpriteAtlasGrid>| {
-                    Ok(Self {
-                        tile_width: extract_float(tile_width)?,
-                        tile_height: extract_float(tile_height)?,
+        table.set(
+            "new",
+            lua.create_function(
+                |_lua,
+                 (tile_width, tile_height, tile_count_x, tile_count_y, layers, palette): (
+                    _,
+                    _,
+                    _,
+                    _,
+                    _,
+                    SpriteAtlasGrid,
+                )| {
+                    Ok(Self::new(crate::render::Tilemap::new(
+                        tile_width,
+                        tile_height,
                         tile_count_x,
                         tile_count_y,
                         layers,
-                        palette,
-                    })
+                        palette.into_inner(),
+                    )))
                 },
-            );
+            )?,
+        )?;
 
-            sub_module
+        Ok(table)
+    }
+}
+
+impl LuaUserData for Tilemap {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("tile_width", |_lua, this| Ok(this.tile_width));
+        fields.add_field_method_get("tile_height", |_lua, this| Ok(this.tile_height));
+        fields.add_field_method_get("tile_count_x", |_lua, this| Ok(this.tile_count_x));
+        fields.add_field_method_get("tile_count_y", |_lua, this| Ok(this.tile_count_y));
+        fields.add_field_method_get("layers", |_lua, this| Ok(this.layers.clone()));
+        fields.add_field_method_get("palette", |_lua, this| {
+            Ok(this.palette.clone().into_shared())
+        });
+    }
+
+    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
+            Ok(this.to_string())
         });
     }
 }

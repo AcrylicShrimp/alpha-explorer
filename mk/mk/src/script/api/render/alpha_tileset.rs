@@ -1,28 +1,29 @@
-use crate::{render::AlphaTile, script::api::ModuleType};
+use crate::script::api::{IntoShared, LuaApiTable};
+use mlua::prelude::*;
 
-pub type AlphaTileset = crate::render::AlphaTileset;
+define_shared_type!(AlphaTileset, crate::render::AlphaTileset);
 
-impl ModuleType for AlphaTileset {
-    fn register(module: &mut rhai::Module) {
-        module.set_custom_type::<Self>("AlphaTileset");
+impl LuaApiTable for AlphaTileset {
+    fn create_api_table<'lua>(lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
+        let table = lua.create_table()?;
 
-        to_global!(
-            module,
-            module.set_native_fn("to_string", |this: &mut Self| Ok(this.to_string()))
-        );
-        to_global!(
-            module,
-            module.set_native_fn("to_debug", |this: &mut Self| Ok(format!("{:?}", this)))
-        );
+        table.set(
+            "new",
+            lua.create_function(|_lua, tiles| Ok(Inner::new(tiles).into_shared()))?,
+        )?;
 
-        module.set_getter_fn("tiles", |this: &mut Self| Ok(this.tiles.clone()));
+        Ok(table)
+    }
+}
 
-        module.set_sub_module("AlphaTileset", {
-            let mut sub_module = rhai::Module::new();
+impl LuaUserData for AlphaTileset {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("tiles", |_lua, this| Ok(this.tiles.clone()))
+    }
 
-            sub_module.set_native_fn("create", |tiles: Vec<AlphaTile>| Ok(Self { tiles }));
-
-            sub_module
-        });
+    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
+            Ok(this.0.to_string())
+        })
     }
 }

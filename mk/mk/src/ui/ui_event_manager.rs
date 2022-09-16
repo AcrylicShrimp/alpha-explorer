@@ -3,8 +3,8 @@ use crate::engine::use_context;
 use crate::script::event::PerEntity;
 use crate::structure::Vec2;
 use glutin::event::MouseButton;
-use legion::{Entity, EntityStore};
-use std::sync::Arc;
+use mlua::prelude::*;
+use specs::prelude::*;
 
 #[derive(Debug)]
 struct MouseDown {
@@ -38,7 +38,7 @@ impl UIEventManager {
             context.event_mgr().dispatcher().emit(&PerEntity {
                 entity: mouse_in_entity,
                 event: "mouse-exit".to_owned(),
-                param: Arc::new(()),
+                param: LuaNil,
             })
         }
         self.last_mouse_position = None;
@@ -46,25 +46,21 @@ impl UIEventManager {
 
     pub fn handle_mouse_move(&mut self, x: f32, y: f32) {
         let context = use_context();
-        let entity = {
-            let world = context.world();
-            let entry = self.camera.and_then(|camera| world.entry_ref(camera).ok());
-            entry
-                .and_then(|entry| {
-                    match (
-                        entry.get_component::<Transform>(),
-                        entry.get_component::<Camera>(),
-                    ) {
-                        (Ok(transform), Ok(camera)) => Some(context.ui_mgr().raycast_element(
-                            x,
-                            y,
-                            Some((transform, camera)),
-                        )),
-                        _ => None,
-                    }
-                })
-                .unwrap_or_else(|| context.ui_mgr().raycast_element(x, y, None))
-        };
+        let world = context.world();
+        let (transform_storage, camera_storage) = (
+            world.read_storage::<Transform>(),
+            world.read_storage::<Camera>(),
+        );
+        let entity = context.ui_mgr().raycast_element(
+            x,
+            y,
+            self.camera.and_then(|camera| {
+                match (transform_storage.get(camera), camera_storage.get(camera)) {
+                    (Some(transform), Some(camera)) => Some((transform, camera)),
+                    _ => None,
+                }
+            }),
+        );
 
         match entity {
             Some(entity) => {
@@ -73,28 +69,28 @@ impl UIEventManager {
                         context.event_mgr().dispatcher().emit(&PerEntity {
                             entity: mouse_in_entity,
                             event: "mouse-exit".to_owned(),
-                            param: Arc::new(()),
+                            param: LuaNil,
                         });
                         context.event_mgr().dispatcher().emit(&PerEntity {
-                            entity: entity,
+                            entity,
                             event: "mouse-enter".to_owned(),
-                            param: Arc::new(()),
+                            param: LuaNil,
                         });
                     }
                 } else {
                     context.event_mgr().dispatcher().emit(&PerEntity {
-                        entity: entity,
+                        entity,
                         event: "mouse-enter".to_owned(),
-                        param: Arc::new(()),
+                        param: LuaNil,
                     });
                 }
 
                 self.mouse_in = Some(entity);
 
                 context.event_mgr().dispatcher().emit(&PerEntity {
-                    entity: entity,
+                    entity,
                     event: "mouse-move".to_owned(),
-                    param: Arc::new(EventMouseMove { x, y }),
+                    param: EventMouseMove { x, y },
                 });
             }
             None => {
@@ -102,7 +98,7 @@ impl UIEventManager {
                     context.event_mgr().dispatcher().emit(&PerEntity {
                         entity: mouse_in_entity,
                         event: "mouse-exit".to_owned(),
-                        param: Arc::new(()),
+                        param: LuaNil,
                     });
                 }
             }
@@ -119,7 +115,7 @@ impl UIEventManager {
                 context.event_mgr().dispatcher().emit(&PerEntity {
                     entity,
                     event: "drag-begin".to_owned(),
-                    param: Arc::new(EventDragBegin {
+                    param: EventDragBegin {
                         x,
                         y,
                         button: match mouse_button {
@@ -128,7 +124,7 @@ impl UIEventManager {
                             MouseButton::Middle => "middle",
                             MouseButton::Other(_) => "other",
                         },
-                    }),
+                    },
                 });
             }
             _ => {}
@@ -145,7 +141,7 @@ impl UIEventManager {
             context.event_mgr().dispatcher().emit(&PerEntity {
                 entity: mouse_drag.entity,
                 event: "drag-end".to_owned(),
-                param: Arc::new(()),
+                param: LuaNil,
             });
         }
 
@@ -157,38 +153,28 @@ impl UIEventManager {
                     context.event_mgr().dispatcher().emit(&PerEntity {
                         entity: focus_entity,
                         event: "focus-out".to_owned(),
-                        param: Arc::new(()),
+                        param: LuaNil,
                     });
                 }
                 return;
             }
         };
         let context = use_context();
-        let entity = {
-            let world = context.world();
-            let entry = self.camera.and_then(|camera| world.entry_ref(camera).ok());
-            entry
-                .and_then(|entry| {
-                    match (
-                        entry.get_component::<Transform>(),
-                        entry.get_component::<Camera>(),
-                    ) {
-                        (Ok(transform), Ok(camera)) => Some(context.ui_mgr().raycast_element(
-                            last_mouse_position.x,
-                            last_mouse_position.y,
-                            Some((transform, camera)),
-                        )),
-                        _ => None,
-                    }
-                })
-                .unwrap_or_else(|| {
-                    context.ui_mgr().raycast_element(
-                        last_mouse_position.x,
-                        last_mouse_position.y,
-                        None,
-                    )
-                })
-        };
+        let world = context.world();
+        let (transform_storage, camera_storage) = (
+            world.read_storage::<Transform>(),
+            world.read_storage::<Camera>(),
+        );
+        let entity = context.ui_mgr().raycast_element(
+            last_mouse_position.x,
+            last_mouse_position.y,
+            self.camera.and_then(|camera| {
+                match (transform_storage.get(camera), camera_storage.get(camera)) {
+                    (Some(transform), Some(camera)) => Some((transform, camera)),
+                    _ => None,
+                }
+            }),
+        );
 
         match entity {
             Some(entity) => {
@@ -202,12 +188,12 @@ impl UIEventManager {
                         context.event_mgr().dispatcher().emit(&PerEntity {
                             entity: focus_entity,
                             event: "focus-out".to_owned(),
-                            param: Arc::new(()),
+                            param: LuaNil,
                         });
                         context.event_mgr().dispatcher().emit(&PerEntity {
                             entity,
                             event: "focus-in".to_owned(),
-                            param: Arc::new(()),
+                            param: LuaNil,
                         });
                         self.focus = Some(entity);
                     }
@@ -216,7 +202,7 @@ impl UIEventManager {
                 context.event_mgr().dispatcher().emit(&PerEntity {
                     entity,
                     event: "mouse-down".to_owned(),
-                    param: Arc::new(EventMouseDown {
+                    param: EventMouseDown {
                         x: last_mouse_position.x,
                         y: last_mouse_position.y,
                         button: match button {
@@ -225,7 +211,7 @@ impl UIEventManager {
                             MouseButton::Middle => "middle",
                             MouseButton::Other(_) => "other",
                         },
-                    }),
+                    },
                 });
             }
             None => {
@@ -238,7 +224,7 @@ impl UIEventManager {
                     context.event_mgr().dispatcher().emit(&PerEntity {
                         entity: focus_entity,
                         event: "focus-out".to_owned(),
-                        param: Arc::new(()),
+                        param: LuaNil,
                     });
                 }
             }
@@ -256,45 +242,35 @@ impl UIEventManager {
                     context.event_mgr().dispatcher().emit(&PerEntity {
                         entity: mouse_drag.entity,
                         event: "drag-end".to_owned(),
-                        param: Arc::new(EventDragEnd {
+                        param: EventDragEnd {
                             button: match button {
                                 MouseButton::Left => "left",
                                 MouseButton::Right => "right",
                                 MouseButton::Middle => "middle",
                                 MouseButton::Other(_) => "other",
                             },
-                        }),
+                        },
                     });
                 }
                 return;
             }
         };
         let context = use_context();
-        let entity = {
-            let world = context.world();
-            let entry = self.camera.and_then(|camera| world.entry_ref(camera).ok());
-            entry
-                .and_then(|entry| {
-                    match (
-                        entry.get_component::<Transform>(),
-                        entry.get_component::<Camera>(),
-                    ) {
-                        (Ok(transform), Ok(camera)) => Some(context.ui_mgr().raycast_element(
-                            last_mouse_position.x,
-                            last_mouse_position.y,
-                            Some((transform, camera)),
-                        )),
-                        _ => None,
-                    }
-                })
-                .unwrap_or_else(|| {
-                    context.ui_mgr().raycast_element(
-                        last_mouse_position.x,
-                        last_mouse_position.y,
-                        None,
-                    )
-                })
-        };
+        let world = context.world();
+        let (transform_storage, camera_storage) = (
+            world.read_storage::<Transform>(),
+            world.read_storage::<Camera>(),
+        );
+        let entity = context.ui_mgr().raycast_element(
+            last_mouse_position.x,
+            last_mouse_position.y,
+            self.camera.and_then(|camera| {
+                match (transform_storage.get(camera), camera_storage.get(camera)) {
+                    (Some(transform), Some(camera)) => Some((transform, camera)),
+                    _ => None,
+                }
+            }),
+        );
 
         match entity {
             Some(entity) => {
@@ -302,7 +278,7 @@ impl UIEventManager {
                     context.event_mgr().dispatcher().emit(&PerEntity {
                         entity,
                         event: "drop".to_owned(),
-                        param: Arc::new(EventDrop {
+                        param: EventDrop {
                             from: crate::script::entity::Entity::new(mouse_drag.entity),
                             button: match button {
                                 MouseButton::Left => "left",
@@ -310,33 +286,33 @@ impl UIEventManager {
                                 MouseButton::Middle => "middle",
                                 MouseButton::Other(_) => "other",
                             },
-                        }),
+                        },
                     });
                     context.event_mgr().dispatcher().emit(&PerEntity {
                         entity: mouse_drag.entity,
                         event: "drag-end".to_owned(),
-                        param: Arc::new(EventDragEnd {
+                        param: EventDragEnd {
                             button: match button {
                                 MouseButton::Left => "left",
                                 MouseButton::Right => "right",
                                 MouseButton::Middle => "middle",
                                 MouseButton::Other(_) => "other",
                             },
-                        }),
+                        },
                     });
                 }
 
                 context.event_mgr().dispatcher().emit(&PerEntity {
                     entity,
                     event: "mouse-up".to_owned(),
-                    param: Arc::new(EventMouseUp {
+                    param: EventMouseUp {
                         button: match button {
                             MouseButton::Left => "left",
                             MouseButton::Right => "right",
                             MouseButton::Middle => "middle",
                             MouseButton::Other(_) => "other",
                         },
-                    }),
+                    },
                 });
             }
             None => {
@@ -344,14 +320,14 @@ impl UIEventManager {
                     context.event_mgr().dispatcher().emit(&PerEntity {
                         entity: mouse_drag.entity,
                         event: "drag-end".to_owned(),
-                        param: Arc::new(EventDragEnd {
+                        param: EventDragEnd {
                             button: match button {
                                 MouseButton::Left => "left",
                                 MouseButton::Right => "right",
                                 MouseButton::Middle => "middle",
                                 MouseButton::Other(_) => "other",
                             },
-                        }),
+                        },
                     });
                 }
             }
@@ -359,32 +335,80 @@ impl UIEventManager {
     }
 }
 
+#[derive(Clone)]
 pub struct EventMouseDown {
     pub x: f32,
     pub y: f32,
     pub button: &'static str,
 }
 
+impl LuaUserData for EventMouseDown {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("x", |_lua, this| Ok(this.x));
+        fields.add_field_method_get("y", |_lua, this| Ok(this.y));
+        fields.add_field_method_get("button", |_lua, this| Ok(this.button));
+    }
+}
+
+#[derive(Clone)]
 pub struct EventMouseUp {
     pub button: &'static str,
 }
 
+impl LuaUserData for EventMouseUp {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("button", |_lua, this| Ok(this.button));
+    }
+}
+
+#[derive(Clone)]
 pub struct EventMouseMove {
     pub x: f32,
     pub y: f32,
 }
 
+impl LuaUserData for EventMouseMove {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("x", |_lua, this| Ok(this.x));
+        fields.add_field_method_get("y", |_lua, this| Ok(this.y));
+    }
+}
+
+#[derive(Clone)]
 pub struct EventDragBegin {
     pub x: f32,
     pub y: f32,
     pub button: &'static str,
 }
 
+impl LuaUserData for EventDragBegin {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("x", |_lua, this| Ok(this.x));
+        fields.add_field_method_get("y", |_lua, this| Ok(this.y));
+        fields.add_field_method_get("button", |_lua, this| Ok(this.button));
+    }
+}
+
+#[derive(Clone)]
 pub struct EventDragEnd {
     pub button: &'static str,
 }
 
+impl LuaUserData for EventDragEnd {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("button", |_lua, this| Ok(this.button));
+    }
+}
+
+#[derive(Clone)]
 pub struct EventDrop {
     pub from: crate::script::entity::Entity,
     pub button: &'static str,
+}
+
+impl LuaUserData for EventDrop {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("from", |_lua, this| Ok(this.from));
+        fields.add_field_method_get("button", |_lua, this| Ok(this.button));
+    }
 }

@@ -1,4 +1,5 @@
-use crate::script::api::ModuleType;
+use crate::script::api::LuaApiTable;
+use mlua::prelude::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum DiagnosticLevel {
@@ -21,21 +22,21 @@ impl DiagnosticLevel {
     }
 }
 
-impl ModuleType for DiagnosticLevel {
-    fn register(module: &mut rhai::Module) {
-        module.set_custom_type::<DiagnosticLevel>("DiagnosticLevel");
+impl LuaApiTable for DiagnosticLevel {
+    fn create_api_table<'lua>(lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
+        let table = lua.create_table()?;
 
-        module.set_native_fn("enum_type", |this: &mut Self| {
-            Ok(match this {
-                DiagnosticLevel::Debug => "Debug",
-                DiagnosticLevel::Info => "Info",
-                DiagnosticLevel::Warn => "Warn",
-                DiagnosticLevel::Error => "Error",
-                DiagnosticLevel::Fatal => "Fatal",
-            })
-        });
+        table.set("Debug", DiagnosticLevel::Debug)?;
+        table.set("Info", DiagnosticLevel::Info)?;
+        table.set("Warn", DiagnosticLevel::Warn)?;
+        table.set("Error", DiagnosticLevel::Error)?;
+        table.set("Fatal", DiagnosticLevel::Fatal)?;
+
+        Ok(table)
     }
 }
+
+impl LuaUserData for DiagnosticLevel {}
 
 #[derive(Debug, Clone)]
 pub struct SubDiagnostic {
@@ -46,15 +47,13 @@ pub struct SubDiagnostic {
     pub column: u32,
 }
 
-impl ModuleType for SubDiagnostic {
-    fn register(module: &mut rhai::Module) {
-        module.set_custom_type::<SubDiagnostic>("SubDiagnostic");
-
-        module.set_getter_fn("level", |this: &mut Self| Ok(this.level));
-        module.set_getter_fn("message", |this: &mut Self| Ok(this.message.clone()));
-        module.set_getter_fn("file", |this: &mut Self| Ok(this.file.clone()));
-        module.set_getter_fn("line", |this: &mut Self| Ok(this.line));
-        module.set_getter_fn("column", |this: &mut Self| Ok(this.column));
+impl LuaUserData for SubDiagnostic {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("level", |_lua, this| Ok(this.level));
+        fields.add_field_method_get("message", |_lua, this| Ok(this.message.clone()));
+        fields.add_field_method_get("file", |_lua, this| Ok(this.file.clone()));
+        fields.add_field_method_get("line", |_lua, this| Ok(this.line));
+        fields.add_field_method_get("column", |_lua, this| Ok(this.column));
     }
 }
 
@@ -68,24 +67,31 @@ pub struct Diagnostic {
     pub column: u32,
 }
 
-impl ModuleType for Diagnostic {
-    fn register(module: &mut rhai::Module) {
-        module.set_custom_type::<Diagnostic>("Diagnostic");
-
-        module.set_getter_fn("level", |this: &mut Self| Ok(this.level));
-        module.set_getter_fn("message", |this: &mut Self| Ok(this.message.clone()));
-        module.set_getter_fn("sub_diagnostics", |this: &mut Self| {
+impl LuaUserData for Diagnostic {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("level", |_lua, this| Ok(this.level));
+        fields.add_field_method_get("message", |_lua, this| Ok(this.message.clone()));
+        fields.add_field_method_get("sub_diagnostics", |_lua, this| {
             Ok(this.sub_diagnostics.clone())
         });
-        module.set_getter_fn("file", |this: &mut Self| Ok(this.file.clone()));
-        module.set_getter_fn("line", |this: &mut Self| Ok(this.line));
-        module.set_getter_fn("column", |this: &mut Self| Ok(this.column));
+        fields.add_field_method_get("file", |_lua, this| Ok(this.file.clone()));
+        fields.add_field_method_get("line", |_lua, this| Ok(this.line));
+        fields.add_field_method_get("column", |_lua, this| Ok(this.column));
+    }
 
-        to_global!(
-            module,
-            module.set_native_fn("get_sub_diagnostic_at", |this: &mut Self, index: usize| {
-                Ok(this.sub_diagnostics.get(index).cloned())
-            })
-        );
+    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_method("sub_diagnostic", |_lua, this, index: usize| {
+            Ok(this.sub_diagnostics.get(index + 1).cloned())
+        });
+    }
+}
+
+impl LuaApiTable for Diagnostic {
+    fn create_api_table<'lua>(lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
+        let table = lua.create_table()?;
+
+        impl_event_listeners!(lua, table);
+
+        Ok(table)
     }
 }

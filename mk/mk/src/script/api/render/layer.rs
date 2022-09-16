@@ -1,36 +1,34 @@
-use crate::script::api::ModuleType;
+use crate::script::api::LuaApiTable;
+use mlua::prelude::*;
 
 pub type Layer = crate::render::Layer;
 
-impl ModuleType for Layer {
-    fn register(module: &mut rhai::Module) {
-        module.set_custom_type::<Self>("Layer");
+impl LuaApiTable for Layer {
+    fn create_api_table<'lua>(lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
+        let table = lua.create_table()?;
 
-        to_global!(
-            module,
-            module.set_native_fn("get", |this: &mut Self| Ok(this.get() as i64))
-        );
-        to_global!(
-            module,
-            module.set_native_fn("to_string", |this: &mut Self| Ok(this.to_string()))
-        );
-        to_global!(
-            module,
-            module.set_native_fn("to_debug", |this: &mut Self| Ok(format!("{:?}", this)))
-        );
+        table.set(
+            "new",
+            lua.create_function(|_lua, layer: u64| Ok(Self::new(layer)))?,
+        )?;
+        table.set("none", lua.create_function(|_lua, ()| Ok(Self::none()))?)?;
+        table.set("all", lua.create_function(|_lua, ()| Ok(Self::all()))?)?;
 
-        module.set_sub_module("Layer", {
-            let mut sub_module = rhai::Module::new();
+        table.set(
+            "has_overlap",
+            lua.create_function(|_lua, (lhs, rhs): (Self, Self)| Ok(Self::has_overlap(lhs, rhs)))?,
+        )?;
 
-            sub_module.set_native_fn("create", |layer: i64| Ok(Self::new(layer as u64)));
-            sub_module.set_native_fn("has_overlap", |lhs: Layer, rhs: Layer| {
-                Ok(Self::has_overlap(lhs, rhs))
-            });
+        Ok(table)
+    }
+}
 
-            sub_module.set_native_fn("none", || Ok(Self::none()));
-            sub_module.set_native_fn("all", || Ok(Self::all()));
-
-            sub_module
+impl LuaUserData for Layer {
+    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
+            Ok(this.to_string())
         });
+
+        methods.add_method("get", |_lua, this, ()| Ok(this.get()));
     }
 }

@@ -1,75 +1,54 @@
-use crate::script::api::ModuleType;
+use crate::script::{api::IntoShared, audio::AudioClip};
+use mlua::prelude::*;
 
 pub type ComponentAudioSource = super::Component<crate::component::AudioSource>;
 
-impl ModuleType for ComponentAudioSource {
-    fn register(module: &mut rhai::Module) {
-        module.set_custom_type::<Self>("ComponentAudioSource");
-
-        to_global!(
-            module,
-            module.set_native_fn("is_exists", |this: &mut Self| { Ok(this.is_exists()) })
-        );
-
-        to_global!(
-            module,
-            module.set_native_fn("to_string", |this: &mut Self| Ok(format!(
-                "ComponentAudioSource(entity={:?}, is_exists={})",
-                this.entity,
-                this.is_exists()
-            )))
-        );
-        to_global!(
-            module,
-            module.set_native_fn("to_debug", |this: &mut Self| Ok(format!(
-                "ComponentAudioSource(entity={:?}, is_exists={})",
-                this.entity,
-                this.is_exists()
-            )))
-        );
-
-        module.set_getter_fn("is_playing", |this: &mut Self| {
+impl LuaUserData for ComponentAudioSource {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("is_playing", |_lua, this| {
             Ok(this.with_ref(|this| this.is_playing()))
         });
-        module.set_getter_fn("volume", |this: &mut Self| {
+        fields.add_field_method_get("volume", |_lua, this| {
             Ok(this.with_ref(|this| this.volume()))
         });
-        module.set_getter_fn("clip", |this: &mut Self| {
-            Ok(this.with_ref(|this| this.clip()))
+        fields.add_field_method_get("clip", |_lua, this| {
+            Ok(this.with_ref(|this| this.clip().map(|clip| clip.into_shared())))
         });
 
-        module.set_setter_fn("volume", |this: &mut Self, volume| {
+        fields.add_field_method_set("volume", |_lua, this, volume| {
             this.with_mut(|this| {
                 this.set_volume(volume);
             });
             Ok(())
         });
-        module.set_setter_fn("clip", |this: &mut Self, _: ()| {
-            this.with_mut(|this| {
-                this.set_clip(None);
-            });
+        fields.add_field_method_set("clip", |_lua, this, clip: Option<AudioClip>| {
+            this.with_mut(|this| this.set_clip(clip.map(|clip| clip.into_inner())));
             Ok(())
         });
-        module.set_setter_fn("clip", |this: &mut Self, clip| {
-            this.with_mut(|this| {
-                this.set_clip(Some(clip));
-            });
-            Ok(())
+    }
+
+    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_method("is_exists", |_lua, this, ()| Ok(this.is_exists()));
+
+        methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
+            Ok(format!(
+                "ComponentAudioSource(entity={:?}, is_exists={})",
+                this.entity,
+                this.is_exists()
+            ))
         });
 
-        to_global!(
-            module,
-            module.set_native_fn("play", |this: &mut Self| {
-                this.with_mut(|this| this.play());
-                Ok(())
-            })
-        );
-        to_global!(
-            module,
-            module.set_native_fn("stop", |this: &mut Self| {
-                this.with_mut(|this| this.stop());
-                Ok(())
-            })
-        );
+        methods.add_method("play", |_lua, this, ()| {
+            this.with_mut(|this| {
+                this.play();
+            });
+            Ok(())
+        });
+        methods.add_method("stop", |_lua, this, ()| {
+            this.with_mut(|this| {
+                this.stop();
+            });
+            Ok(())
+        });
     }
 }

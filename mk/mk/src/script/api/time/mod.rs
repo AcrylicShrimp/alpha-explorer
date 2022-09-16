@@ -1,5 +1,5 @@
-use crate::script::api::ModuleType;
-use rhai::Module;
+use crate::script::api::LuaApiTable;
+use mlua::prelude::*;
 
 mod time;
 
@@ -7,12 +7,12 @@ pub use time::*;
 
 pub struct TimeModule;
 
-impl ModuleType for TimeModule {
-    fn register(module: &mut Module) {
-        let mut sub_module = Module::new();
+impl LuaApiTable for TimeModule {
+    fn create_api_table<'lua>(lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
+        let table = lua.create_table()?;
 
-        time::Time::register(&mut sub_module);
+        table.set("Time", time::Time::create_api_table(lua)?)?;
 
-        module.set_sub_module("time", sub_module);
+        Ok(table)
     }
 }

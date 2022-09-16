@@ -1,51 +1,35 @@
-use crate::script::api::ModuleType;
+use mlua::prelude::*;
 
 pub type ComponentCamera = super::Component<crate::component::Camera>;
 
-impl ModuleType for ComponentCamera {
-    fn register(module: &mut rhai::Module) {
-        module.set_custom_type::<Self>("ComponentCamera");
+impl LuaUserData for ComponentCamera {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("layer", |_lua, this| Ok(this.with_ref(|this| this.layer)));
+        fields.add_field_method_get("order", |_lua, this| Ok(this.with_ref(|this| this.order)));
 
-        to_global!(
-            module,
-            module.set_native_fn("is_exists", |this: &mut Self| { Ok(this.is_exists()) })
-        );
-
-        to_global!(
-            module,
-            module.set_native_fn("to_string", |this: &mut Self| Ok(format!(
-                "ComponentCamera(entity={:?}, is_exists={})",
-                this.entity,
-                this.is_exists()
-            )))
-        );
-        to_global!(
-            module,
-            module.set_native_fn("to_debug", |this: &mut Self| Ok(format!(
-                "ComponentCamera(entity={:?}, is_exists={})",
-                this.entity,
-                this.is_exists()
-            )))
-        );
-
-        module.set_getter_fn("layer", |this: &mut Self| {
-            Ok(this.with_ref(|this| this.layer))
-        });
-        module.set_getter_fn("order", |this: &mut Self| {
-            Ok(this.with_ref(|this| this.order))
-        });
-
-        module.set_setter_fn("layer", |this: &mut Self, layer| {
+        fields.add_field_method_set("layer", |_lua, this, layer| {
             this.with_mut(|this| {
                 this.layer = layer;
             });
             Ok(())
         });
-        module.set_setter_fn("order", |this: &mut Self, order| {
+        fields.add_field_method_set("order", |_lua, this, order| {
             this.with_mut(|this| {
                 this.order = order;
             });
             Ok(())
+        });
+    }
+
+    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_method("is_exists", |_lua, this, ()| Ok(this.is_exists()));
+
+        methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
+            Ok(format!(
+                "ComponentCamera(entity={:?}, is_exists={})",
+                this.entity,
+                this.is_exists()
+            ))
         });
     }
 }

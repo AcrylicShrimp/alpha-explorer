@@ -1,11 +1,11 @@
 use super::EntityBuilderParam;
 use crate::{
-    component::GlyphLayoutConfig,
+    glyph::GlyphLayoutConfig,
     render::{Color, Layer, Shader},
-    script::api::extract_float,
 };
+use anyhow::Context;
 use fontdue::Font;
-use rhai::{EvalAltResult, ImmutableString, INT};
+use mlua::prelude::*;
 use std::sync::Arc;
 
 pub struct GlyphRendererParams {
@@ -17,68 +17,55 @@ pub struct GlyphRendererParams {
     pub smoothness: f32,
     pub font: Arc<Font>,
     pub font_size: f32,
-    pub text: Option<ImmutableString>,
+    pub text: Option<String>,
     pub config: Option<GlyphLayoutConfig>,
 }
 
 impl EntityBuilderParam for GlyphRendererParams {
-    fn from_table(mut table: rhai::Map) -> Result<Self, Box<EvalAltResult>> {
+    fn from_table<'lua>(table: LuaTable<'lua>) -> LuaResult<Self> {
         Ok(Self {
             layer: table
-                .remove("layer")
-                .ok_or_else(|| "the field 'layer' is not specified")?
-                .try_cast()
-                .ok_or_else(|| "the field 'layer' is not valid type")?,
+                .get("layer")
+                .with_context(|| "invalid value for 'layer' of GlyphRendererParams")
+                .to_lua_err()?,
             order: table
-                .remove("order")
-                .ok_or_else(|| "the field 'order' is not specified")?
-                .try_cast::<INT>()
-                .ok_or_else(|| "the field 'order' is not valid type")? as _,
+                .get("order")
+                .with_context(|| "invalid value for 'order' of GlyphRendererParams")
+                .to_lua_err()?,
             color: table
-                .remove("color")
-                .ok_or_else(|| "the field 'color' is not specified")?
-                .try_cast()
-                .ok_or_else(|| "the field 'color' is not valid type")?,
+                .get("color")
+                .with_context(|| "invalid value for 'color' of GlyphRendererParams")
+                .to_lua_err()?,
             shader: table
-                .remove("shader")
-                .ok_or_else(|| "the field 'shader' is not specified")?
-                .try_cast()
-                .ok_or_else(|| "the field 'shader' is not valid type")?,
-            thickness: extract_float(
-                table
-                    .remove("thickness")
-                    .ok_or_else(|| "the field 'thickness' is not specified")?,
-            )?,
-            smoothness: extract_float(
-                table
-                    .remove("smoothness")
-                    .ok_or_else(|| "the field 'smoothness' is not specified")?,
-            )?,
+                .get::<_, crate::script::api::render::Shader>("shader")
+                .with_context(|| "invalid value for 'shader' of GlyphRendererParams")
+                .to_lua_err()?
+                .into_inner(),
+            thickness: table
+                .get("thickness")
+                .with_context(|| "invalid value for 'thickness' of GlyphRendererParams")
+                .to_lua_err()?,
+            smoothness: table
+                .get("smoothness")
+                .with_context(|| "invalid value for 'smoothness' of GlyphRendererParams")
+                .to_lua_err()?,
             font: table
-                .remove("font")
-                .ok_or_else(|| "the field 'font' is not specified")?
-                .try_cast()
-                .ok_or_else(|| "the field 'font' is not valid type")?,
-            font_size: extract_float(
-                table
-                    .remove("font_size")
-                    .ok_or_else(|| "the field 'font_size' is not specified")?,
-            )?,
+                .get::<_, crate::script::api::render::Font>("font")
+                .with_context(|| "invalid value for 'font' of GlyphRendererParams")
+                .to_lua_err()?
+                .into_inner(),
+            font_size: table
+                .get("font_size")
+                .with_context(|| "invalid value for 'font_size' of GlyphRendererParams")
+                .to_lua_err()?,
             text: table
-                .remove("text")
-                .map(|text| {
-                    text.try_cast()
-                        .ok_or_else(|| "the field 'text' is not valid type")
-                })
-                .transpose()?,
+                .get("text")
+                .with_context(|| "invalid value for 'text' of GlyphRendererParams")
+                .to_lua_err()?,
             config: table
-                .remove("config")
-                .map(|config| {
-                    config
-                        .try_cast()
-                        .ok_or_else(|| "the field 'config' is not valid type")
-                })
-                .transpose()?,
+                .get("config")
+                .with_context(|| "invalid value for 'config' of GlyphRendererParams")
+                .to_lua_err()?,
         })
     }
 }

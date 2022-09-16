@@ -1,5 +1,6 @@
-use crate::script::api::ModuleType;
+use crate::script::api::LuaApiTable;
 use glutin::event::VirtualKeyCode;
+use mlua::prelude::*;
 
 fn keycode_to_str(keycode: VirtualKeyCode) -> &'static str {
     match keycode {
@@ -182,11 +183,19 @@ impl KeyDownEvent {
     }
 }
 
-impl ModuleType for KeyDownEvent {
-    fn register(module: &mut rhai::Module) {
-        impl_event_type!(module, KeyDownEvent);
+impl LuaApiTable for KeyDownEvent {
+    fn create_api_table<'lua>(lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
+        let table = lua.create_table()?;
 
-        module.set_getter_fn("key", |this: &mut Self| Ok(this.key));
+        impl_event_listeners!(lua, table);
+
+        Ok(table)
+    }
+}
+
+impl LuaUserData for KeyDownEvent {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("key", |_lua, this| Ok(this.key));
     }
 }
 
@@ -203,31 +212,51 @@ impl KeyUpEvent {
     }
 }
 
-impl ModuleType for KeyUpEvent {
-    fn register(module: &mut rhai::Module) {
-        impl_event_type!(module, KeyUpEvent);
+impl LuaApiTable for KeyUpEvent {
+    fn create_api_table<'lua>(lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
+        let table = lua.create_table()?;
 
-        module.set_getter_fn("key", |this: &mut Self| Ok(this.key));
+        impl_event_listeners!(lua, table);
+
+        Ok(table)
+    }
+}
+
+impl LuaUserData for KeyUpEvent {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("key", |_lua, this| Ok(this.key));
     }
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct PointerEnter;
 
-impl ModuleType for PointerEnter {
-    fn register(module: &mut rhai::Module) {
-        impl_event_type!(module, PointerEnter);
+impl LuaApiTable for PointerEnter {
+    fn create_api_table<'lua>(lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
+        let table = lua.create_table()?;
+
+        impl_event_listeners!(lua, table);
+
+        Ok(table)
     }
 }
+
+impl LuaUserData for PointerEnter {}
 
 #[derive(Debug, Clone, Copy)]
 pub struct PointerExit;
 
-impl ModuleType for PointerExit {
-    fn register(module: &mut rhai::Module) {
-        impl_event_type!(module, PointerExit);
+impl LuaApiTable for PointerExit {
+    fn create_api_table<'lua>(lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
+        let table = lua.create_table()?;
+
+        impl_event_listeners!(lua, table);
+
+        Ok(table)
     }
 }
+
+impl LuaUserData for PointerExit {}
 
 #[derive(Debug, Clone, Copy)]
 pub struct PointerMove {
@@ -235,12 +264,20 @@ pub struct PointerMove {
     pub pointer_y: f64,
 }
 
-impl ModuleType for PointerMove {
-    fn register(module: &mut rhai::Module) {
-        impl_event_type!(module, PointerMove);
+impl LuaApiTable for PointerMove {
+    fn create_api_table<'lua>(lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
+        let table = lua.create_table()?;
 
-        module.set_getter_fn("pointer_x", |this: &mut Self| Ok(this.pointer_x));
-        module.set_getter_fn("pointer_y", |this: &mut Self| Ok(this.pointer_y));
+        impl_event_listeners!(lua, table);
+
+        Ok(table)
+    }
+}
+
+impl LuaUserData for PointerMove {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("pointer_x", |_lua, this| Ok(this.pointer_x));
+        fields.add_field_method_get("pointer_y", |_lua, this| Ok(this.pointer_y));
     }
 }
 
@@ -249,11 +286,19 @@ pub struct PointerDown {
     pub button: &'static str,
 }
 
-impl ModuleType for PointerDown {
-    fn register(module: &mut rhai::Module) {
-        impl_event_type!(module, PointerDown);
+impl LuaApiTable for PointerDown {
+    fn create_api_table<'lua>(lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
+        let table = lua.create_table()?;
 
-        module.set_getter_fn("button", |this: &mut Self| Ok(this.button));
+        impl_event_listeners!(lua, table);
+
+        Ok(table)
+    }
+}
+
+impl LuaUserData for PointerDown {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("button", |_lua, this| Ok(this.button));
     }
 }
 
@@ -262,10 +307,18 @@ pub struct PointerUp {
     pub button: &'static str,
 }
 
-impl ModuleType for PointerUp {
-    fn register(module: &mut rhai::Module) {
-        impl_event_type!(module, PointerUp);
+impl LuaApiTable for PointerUp {
+    fn create_api_table<'lua>(lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
+        let table = lua.create_table()?;
 
-        module.set_getter_fn("button", |this: &mut Self| Ok(this.button));
+        impl_event_listeners!(lua, table);
+
+        Ok(table)
+    }
+}
+
+impl LuaUserData for PointerUp {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("button", |_lua, this| Ok(this.button));
     }
 }

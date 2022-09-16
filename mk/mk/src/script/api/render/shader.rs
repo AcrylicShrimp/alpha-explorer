@@ -1,10 +1,5 @@
-use crate::script::api::ModuleType;
-use std::sync::Arc;
+use mlua::prelude::*;
 
-pub type Shader = Arc<render::Shader>;
+define_shared_type!(Shader, render::Shader);
 
-impl ModuleType for Shader {
-    fn register(module: &mut rhai::Module) {
-        module.set_custom_type::<Shader>("Shader");
-    }
-}
+impl LuaUserData for Shader {}

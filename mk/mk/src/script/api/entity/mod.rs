@@ -1,5 +1,5 @@
-use crate::script::api::ModuleType;
-use rhai::Module;
+use crate::script::api::LuaApiTable;
+use mlua::prelude::*;
 
 mod entity;
 mod entity_builder;
@@ -11,13 +11,16 @@ pub use entity_builder_params::*;
 
 pub struct EntityModule;
 
-impl ModuleType for EntityModule {
-    fn register(module: &mut Module) {
-        let mut sub_module = Module::new();
+impl LuaApiTable for EntityModule {
+    fn create_api_table<'lua>(lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
+        let table = lua.create_table()?;
 
-        entity::Entity::register(&mut sub_module);
-        entity_builder::EntityBuilder::register(&mut sub_module);
+        table.set("Entity", entity::Entity::create_api_table(lua)?)?;
+        table.set(
+            "EntityBuilder",
+            entity_builder::EntityBuilder::create_api_table(lua)?,
+        )?;
 
-        module.set_sub_module("entity", sub_module);
+        Ok(table)
     }
 }

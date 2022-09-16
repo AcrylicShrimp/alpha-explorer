@@ -1,6 +1,8 @@
 use crate::render::{Color, Layer, Shader, Sprite};
+use specs::{prelude::*, Component};
 use std::sync::Arc;
 
+#[derive(Component)]
 pub struct SpriteRenderer {
     pub layer: Layer,
     pub order: isize,

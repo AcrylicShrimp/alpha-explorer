@@ -1,111 +1,78 @@
-use super::{build_module, ModuleCacheManager};
-use crate::engine::use_context;
-use anyhow::{anyhow, Context, Result};
-use rhai::{
-    module_resolvers::FileModuleResolver, Engine, EvalAltResult, FnPtr, FuncArgs, Module,
-    ModuleResolver, NativeCallContext, Position, Scope, Shared, AST,
-};
-use std::path::{Path, PathBuf};
+use super::{LuaApiTable, Module};
+use anyhow::{Context, Result};
+use mlua::prelude::*;
 
-pub struct MkModuleResolver {
-    mk_module: Shared<Module>,
-    file_module_resolver: FileModuleResolver,
+pub trait LuaCallable<'lua, A, R> {
+    fn call(&self, lua: &'lua Lua, args: A) -> Result<R>
+    where
+        A: ToLuaMulti<'lua>,
+        R: FromLuaMulti<'lua>;
 }
 
-impl MkModuleResolver {
-    pub fn new(mk_module: Shared<Module>, base_path: impl Into<PathBuf>) -> Self {
-        Self {
-            mk_module,
-            file_module_resolver: FileModuleResolver::new_with_path(base_path),
-        }
+impl<'lua, A, R> LuaCallable<'lua, A, R> for LuaFunction<'lua>
+where
+    A: ToLuaMulti<'lua>,
+    R: FromLuaMulti<'lua>,
+{
+    fn call(&self, _lua: &'lua Lua, args: A) -> Result<R>
+    where
+        A: ToLuaMulti<'lua>,
+        R: FromLuaMulti<'lua>,
+    {
+        self.call(args)
+            .with_context(|| "failed to call lua function")
     }
 }
 
-impl ModuleResolver for MkModuleResolver {
-    fn resolve(
-        &self,
-        engine: &Engine,
-        source: Option<&str>,
-        path: &str,
-        pos: Position,
-    ) -> Result<Shared<Module>, Box<EvalAltResult>> {
-        if path == "mk" {
-            Ok(self.mk_module.clone())
-        } else {
-            match self.file_module_resolver.resolve(engine, source, path, pos) {
-                Ok(module) => {
-                    use_context()
-                        .module_cache_mgr_mut()
-                        .set_module(module.id().unwrap().into(), module.clone());
-                    Ok(module)
-                }
-                Err(err) => Err(err),
-            }
-        }
+impl<'lua, A, R> LuaCallable<'lua, A, R> for LuaThread<'lua>
+where
+    A: ToLuaMulti<'lua>,
+    R: FromLuaMulti<'lua>,
+{
+    fn call(&self, _lua: &'lua Lua, args: A) -> Result<R>
+    where
+        A: ToLuaMulti<'lua>,
+        R: FromLuaMulti<'lua>,
+    {
+        self.resume(args)
+            .with_context(|| "failed to call lua coroutine")
     }
-}
-
-struct CompiledModule {
-    ast: AST,
-    scope: Scope<'static>,
 }
 
 pub struct ScriptManager {
-    engine: Engine,
-    module: Option<CompiledModule>,
+    lua: Lua,
 }
 
 impl ScriptManager {
-    pub fn new(module_cache_mgr: &mut ModuleCacheManager, base_path: impl AsRef<Path>) -> Self {
-        let mk_module = Shared::new(build_module());
-        module_cache_mgr.set_module(mk_module.id().unwrap().into(), mk_module.clone());
+    pub fn new() -> Result<Self> {
+        let lua = Lua::new();
+        lua.globals()
+            .raw_set("mk", Module::create_api_table(&lua)?)?;
 
-        let mut engine = Engine::new();
-        engine.set_module_resolver(MkModuleResolver::new(mk_module, base_path.as_ref()));
-
-        Self {
-            engine,
-            module: None,
-        }
+        Ok(Self { lua })
     }
 
-    pub fn engine(&self) -> &Engine {
-        &self.engine
+    pub fn lua(&self) -> &Lua {
+        &self.lua
     }
 
-    pub fn compile(&mut self, script: impl AsRef<str>) -> Result<()> {
-        let scope = Scope::new();
-        let ast = self
-            .engine
-            .compile_into_self_contained(&scope, script)
-            .with_context(|| "failed to compile the entry script")?;
-
-        self.module = Some(CompiledModule { ast, scope });
-        Ok(())
+    pub fn execute(&self, chunk: impl AsRef<str>) -> Result<()> {
+        self.lua
+            .load(chunk.as_ref())
+            .set_name(chunk.as_ref())?
+            .exec()
+            .with_context(|| "unable to execute lua chunk")
     }
 
-    pub fn execute(&mut self) -> Result<()> {
-        let module = if let Some(module) = &mut self.module {
-            module
-        } else {
-            return Err(anyhow!("no entry script compiled"));
-        };
-
-        self.engine
-            .run_ast_with_scope(&mut module.scope, &module.ast)
-            .with_context(|| "failed to execute the entry script")?;
-        Ok(())
-    }
-
-    pub fn call<R>(&self, f: &FnPtr, ctx: &NativeCallContext, args: impl FuncArgs) -> Result<R>
+    pub fn call<'lua, A, R>(
+        &'lua self,
+        callable: impl LuaCallable<'lua, A, R>,
+        args: A,
+    ) -> Result<R>
     where
-        R: Clone + Send + Sync + 'static,
+        A: ToLuaMulti<'lua>,
+        R: FromLuaMulti<'lua>,
     {
-        f.call_within_context(ctx, args)
-            .map_err(|err| {
-                println!("{:?}", err);
-                err
-            })
-            .with_context(|| "failed to call the function")
+        callable.call(&self.lua, args)
     }
 }

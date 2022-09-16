@@ -5,7 +5,9 @@ use crate::render::*;
 use crate::script::event::DiagnosticLevel;
 use crate::system::*;
 use crate::util::*;
-use crate::{EngineContext, EngineContextWithoutSystemManager, EngineError};
+use crate::EngineContext;
+use anyhow::Context;
+use anyhow::Result;
 #[cfg(debug_assertions)]
 use colored::*;
 use glutin::dpi::LogicalSize;
@@ -13,15 +15,15 @@ use glutin::event::{ElementState, Event, MouseButton, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::window::WindowBuilder;
 use glutin::{ContextBuilder, GlProfile};
-use std::env::current_dir;
+use specs::RunNow;
 use std::fs::read_to_string;
 use std::mem::MaybeUninit;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-static mut CONTEXT: MaybeUninit<Arc<EngineContextWithoutSystemManager>> = MaybeUninit::uninit();
+static mut CONTEXT: MaybeUninit<Arc<EngineContext>> = MaybeUninit::uninit();
 
-pub fn use_context() -> &'static EngineContextWithoutSystemManager {
+pub fn use_context() -> &'static EngineContext {
     unsafe { CONTEXT.assume_init_ref() }.as_ref()
 }
 
@@ -32,9 +34,7 @@ pub fn run(
     resizable: bool,
     asset_base: impl Into<PathBuf>,
     entry_script_path: impl AsRef<Path>,
-) -> Result<(), EngineError> {
-    new_render::test();
-
+) -> Result<()> {
     let event_loop = EventLoop::new();
     let gfx_context = ContextBuilder::new()
         .with_vsync(true)
@@ -52,23 +52,13 @@ pub fn run(
 
     init(|s| gfx_context.context().get_proc_address(s));
 
-    let context = EngineContext::new(
-        width,
-        height,
-        asset_base.into(),
-        entry_script_path
-            .as_ref()
-            .parent()
-            .map(|path| path.to_owned())
-            .unwrap_or_else(|| current_dir().ok().unwrap_or_else(|| "/".into())),
-    )?;
-    let (mut system_mgr, rest) = context.into_split();
+    let context = Arc::new(EngineContext::new(width, height, asset_base.into())?);
 
     unsafe {
-        CONTEXT.write(rest.clone());
+        CONTEXT.write(context.clone());
     }
 
-    // rest.event_mgr()
+    // context.event_mgr()
     //     .dispatcher()
     //     .add_listener(TypedEventListener::Native(BoxId::from_box(Box::new(
     //         |event: &crate::script::event::PerEntity| {
@@ -93,14 +83,15 @@ pub fn run(
             }
         }
 
-        rest.event_mgr()
+        context
+            .event_mgr()
             .dispatcher()
             .add_listener(TypedEventListener::Native(BoxId::from_box(Box::new(
                 |event: &crate::script::event::Diagnostic| {
                     let prefix = format!("{:>6}: ", event.level.to_str());
                     let indent = prefix.len();
                     let lines = event.message.split('\n').collect::<Vec<_>>();
-                    let (&first_line, rest_lines) = lines.split_first().unwrap();
+                    let (&first_line, context_lines) = lines.split_first().unwrap();
                     let message = format!(
                         "{}{} [{}:{}:{}]",
                         set_color(event.level, prefix),
@@ -109,12 +100,12 @@ pub fn run(
                         event.line,
                         event.column
                     );
-                    let message = if rest_lines.is_empty() {
+                    let message = if context_lines.is_empty() {
                         message
                     } else {
                         [
                             message,
-                            rest_lines
+                            context_lines
                                 .iter()
                                 .map(|&line| format!("{:indent$}{}", "", line, indent = indent))
                                 .collect::<Vec<_>>()
@@ -129,7 +120,7 @@ pub fn run(
                         let prefix = format!("> {:>6}: ", sub_diagnostics.level.to_str());
                         let indent = prefix.len();
                         let lines = sub_diagnostics.message.split('\n').collect::<Vec<_>>();
-                        let (&first_line, rest_lines) = lines.split_first().unwrap();
+                        let (&first_line, context_lines) = lines.split_first().unwrap();
                         let message = format!(
                             "        {}{} [{}:{}:{}]",
                             set_color(sub_diagnostics.level, prefix),
@@ -138,12 +129,12 @@ pub fn run(
                             sub_diagnostics.line,
                             sub_diagnostics.column
                         );
-                        let message = if rest_lines.is_empty() {
+                        let message = if context_lines.is_empty() {
                             message
                         } else {
                             [
                                 message,
-                                rest_lines
+                                context_lines
                                     .iter()
                                     .map(|&line| {
                                         format!("        {:indent$}{}", "", line, indent = indent)
@@ -160,79 +151,73 @@ pub fn run(
             ))));
     }
 
-    emit_diagnostic_info!(format!("registering built-in systems."));
+    emit_diagnostic_info!(format!("configuring built-in systems."));
 
-    system_mgr.register_system(isize::MIN, |context: &EngineContextWithoutSystemManager| {
-        context.time_mgr_mut().update();
-    });
-    system_mgr.register_system(-15000, |context: &EngineContextWithoutSystemManager| {
-        update_audio_sources(&mut context.world_mut());
-    });
-    system_mgr.register_system(-11000, |context: &EngineContextWithoutSystemManager| {
-        context
-            .event_mgr()
-            .dispatcher()
-            .emit(&crate::script::event::PreUpdate {
-                dt: context.time_mgr().dt_f64(),
-            });
-    });
-    system_mgr.register_system(-10900, |context: &EngineContextWithoutSystemManager| {
-        animate_sigle_animations(
-            &mut context.world_mut(),
-            &context.time_mgr(),
-            &mut context.transform_mgr_mut(),
-        );
-    });
-    system_mgr.register_system(-10800, |context: &EngineContextWithoutSystemManager| {
-        context
-            .event_mgr()
-            .dispatcher()
-            .emit(&crate::script::event::Update {
-                dt: context.time_mgr().dt_f64(),
-            });
-    });
-    system_mgr.register_system(-10700, |context: &EngineContextWithoutSystemManager| {
-        context
-            .event_mgr()
-            .dispatcher()
-            .emit(&crate::script::event::PostUpdate {
-                dt: context.time_mgr().dt_f64(),
-            });
-    });
-    system_mgr.register_system(-10600, |context: &EngineContextWithoutSystemManager| {
-        context.ui_mgr_mut().update_elements();
-    });
-    system_mgr.register_system(-10500, |context: &EngineContextWithoutSystemManager| {
-        context.transform_mgr_mut().update_world_matrices();
-    });
-    system_mgr.register_system(0, |context: &EngineContextWithoutSystemManager| {
-        context
-            .event_mgr()
-            .dispatcher()
-            .emit(&crate::script::event::PreRender {
-                dt: context.time_mgr().dt_f64(),
-            });
-    });
-    system_mgr.register_system(1, |context: &EngineContextWithoutSystemManager| {
-        context.render_mgr().update_uniforms(context);
-    });
-    system_mgr.register_system(100, RendererSystem::new());
-    system_mgr.register_system(200, |context: &EngineContextWithoutSystemManager| {
-        context
-            .event_mgr()
-            .dispatcher()
-            .emit(&crate::script::event::PostRender {
-                dt: context.time_mgr().dt_f64(),
-            });
-    });
-    system_mgr.register_system(isize::MAX, |context: &EngineContextWithoutSystemManager| {
-        context.screen_mgr_mut().reset_dirty();
-    });
+    let mut audio_system = AudioSystem;
+    let mut render_system = RenderSystem::new();
+
+    let mut systems_pre_render = {
+        let context = context.clone();
+        move || {
+            context.time_mgr_mut().update();
+            audio_system.run_now(&context.world());
+            // animate_sigle_animations(
+            //     &mut context.world_mut(),
+            //     &context.time_mgr(),
+            //     &mut context.transform_mgr_mut(),
+            // );
+            context.ui_mgr_mut().update_elements();
+            context.transform_mgr_mut().update_world_matrices();
+
+            context
+                .event_mgr()
+                .dispatcher()
+                .emit(&crate::script::event::PreUpdate {
+                    dt: context.time_mgr().dt_f64(),
+                });
+            context
+                .event_mgr()
+                .dispatcher()
+                .emit(&crate::script::event::Update {
+                    dt: context.time_mgr().dt_f64(),
+                });
+            context
+                .event_mgr()
+                .dispatcher()
+                .emit(&crate::script::event::PostUpdate {
+                    dt: context.time_mgr().dt_f64(),
+                });
+        }
+    };
+
+    let mut systems_render = {
+        let context = context.clone();
+        move || {
+            context
+                .event_mgr()
+                .dispatcher()
+                .emit(&crate::script::event::PreRender {
+                    dt: context.time_mgr().dt_f64(),
+                });
+
+            context.render_mgr().update_uniforms(&context);
+            render_system.run_now(&context.world());
+
+            context
+                .event_mgr()
+                .dispatcher()
+                .emit(&crate::script::event::PostRender {
+                    dt: context.time_mgr().dt_f64(),
+                });
+
+            context.screen_mgr_mut().reset_dirty();
+        }
+    };
 
     {
         emit_diagnostic_info!(format!("registering asset loaders."));
 
-        let mut asset_mgr = rest.asset_mgr_mut();
+        let mut asset_mgr = context.asset_mgr_mut();
         asset_mgr.register_loader(loader::audio_clip_loader());
         asset_mgr.register_loader(loader::font_loader());
         asset_mgr.register_loader(loader::shader_loader());
@@ -247,7 +232,7 @@ pub fn run(
         emit_diagnostic_info!(format!("abjusting scale factor."));
 
         let scale_factor = gfx_context.window().scale_factor();
-        rest.screen_mgr_mut().update_scale_factor(
+        context.screen_mgr_mut().update_scale_factor(
             scale_factor,
             &LogicalSize::new(width, height).to_physical(scale_factor),
         );
@@ -257,19 +242,16 @@ pub fn run(
         emit_diagnostic_info!(format!("executing entry script."));
 
         let path = entry_script_path.as_ref();
-
-        // let lua_mgr = rest.lua_mgr();
-        // lua_mgr.execute(path, read_to_string(path)?)?;
-
-        let mut script_mgr = rest.script_mgr_mut();
-        script_mgr.compile(read_to_string(path)?).unwrap();
-        script_mgr.execute().unwrap();
+        let script_mgr = context.script_mgr();
+        script_mgr
+            .execute(read_to_string(path).with_context(|| "failed to read entry script")?)
+            .with_context(|| "failed to execute entry script")?;
     }
 
     emit_diagnostic_info!(format!("engine is up and running."));
 
     {
-        let screen_mgr = rest.screen_mgr();
+        let screen_mgr = context.screen_mgr();
         resize(
             screen_mgr.physical_width() as u32,
             screen_mgr.physical_height() as u32,
@@ -290,17 +272,19 @@ pub fn run(
                 event: WindowEvent::KeyboardInput { input, .. },
                 window_id: id,
             } if id == window_id => {
-                rest.input_mgr_mut().handle_event(&input);
+                context.input_mgr_mut().handle_event(&input);
 
                 if let Some(key) = input.virtual_keycode {
                     match input.state {
                         ElementState::Pressed => {
-                            rest.event_mgr()
+                            context
+                                .event_mgr()
                                 .dispatcher()
                                 .emit(&crate::script::event::KeyDownEvent::from_key(key));
                         }
                         ElementState::Released => {
-                            rest.event_mgr()
+                            context
+                                .event_mgr()
                                 .dispatcher()
                                 .emit(&crate::script::event::KeyUpEvent::from_key(key));
                         }
@@ -313,7 +297,8 @@ pub fn run(
                 event: WindowEvent::CursorEntered { .. },
                 window_id: id,
             } if id == window_id => {
-                rest.event_mgr()
+                context
+                    .event_mgr()
                     .dispatcher()
                     .emit(&crate::script::event::PointerEnter);
 
@@ -323,10 +308,11 @@ pub fn run(
                 event: WindowEvent::CursorLeft { .. },
                 window_id: id,
             } if id == window_id => {
-                rest.event_mgr()
+                context
+                    .event_mgr()
                     .dispatcher()
                     .emit(&crate::script::event::PointerExit);
-                rest.ui_event_mgr_mut().handle_mouse_exit();
+                context.ui_event_mgr_mut().handle_mouse_exit();
 
                 return;
             }
@@ -334,15 +320,17 @@ pub fn run(
                 event: WindowEvent::CursorMoved { position, .. },
                 window_id: id,
             } if id == window_id => {
-                let position = position.to_logical(rest.screen_mgr().scale_factor());
+                let position = position.to_logical(context.screen_mgr().scale_factor());
 
-                rest.event_mgr()
+                context
+                    .event_mgr()
                     .dispatcher()
                     .emit(&crate::script::event::PointerMove {
                         pointer_x: position.x,
                         pointer_y: position.y,
                     });
-                rest.ui_event_mgr_mut()
+                context
+                    .ui_event_mgr_mut()
                     .handle_mouse_move(position.x as f32, position.y as f32);
 
                 return;
@@ -360,20 +348,22 @@ pub fn run(
 
                 match state {
                     ElementState::Pressed => {
-                        rest.event_mgr()
+                        context
+                            .event_mgr()
                             .dispatcher()
                             .emit(&crate::script::event::PointerDown {
                                 button: button_name,
                             });
-                        rest.ui_event_mgr_mut().handle_mouse_button_down(button);
+                        context.ui_event_mgr_mut().handle_mouse_button_down(button);
                     }
                     ElementState::Released => {
-                        rest.event_mgr()
+                        context
+                            .event_mgr()
                             .dispatcher()
                             .emit(&crate::script::event::PointerUp {
                                 button: button_name,
                             });
-                        rest.ui_event_mgr_mut().handle_mouse_button_up(button);
+                        context.ui_event_mgr_mut().handle_mouse_button_up(button);
                     }
                 }
 
@@ -383,7 +373,7 @@ pub fn run(
                 event: WindowEvent::Resized(inner_size),
                 window_id: id,
             } if id == window_id => {
-                rest.screen_mgr_mut().update_size(&inner_size);
+                context.screen_mgr_mut().update_size(&inner_size);
                 gfx_context.resize(inner_size);
                 return;
             }
@@ -395,7 +385,8 @@ pub fn run(
                     },
                 window_id: id,
             } if id == window_id => {
-                rest.screen_mgr_mut()
+                context
+                    .screen_mgr_mut()
                     .update_scale_factor(scale_factor, new_inner_size);
                 gfx_context.resize(*new_inner_size);
                 return;
@@ -410,10 +401,10 @@ pub fn run(
             _ => return,
         }
 
-        system_mgr.run(&rest, isize::MIN, -1);
+        systems_pre_render();
 
         {
-            let screen_mgr = rest.screen_mgr();
+            let screen_mgr = context.screen_mgr();
             resize(
                 screen_mgr.physical_width() as u32,
                 screen_mgr.physical_height() as u32,
@@ -421,7 +412,7 @@ pub fn run(
         }
 
         clear();
-        system_mgr.run(&rest, 0, isize::MAX);
+        systems_render();
 
         gfx_context.swap_buffers().unwrap();
     });

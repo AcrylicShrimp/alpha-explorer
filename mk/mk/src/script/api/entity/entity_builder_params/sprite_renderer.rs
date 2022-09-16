@@ -1,6 +1,7 @@
 use super::EntityBuilderParam;
 use crate::render::{Color, Layer, Shader, Sprite};
-use rhai::{EvalAltResult, INT};
+use anyhow::Context;
+use mlua::prelude::*;
 use std::sync::Arc;
 
 pub struct SpriteRendererParams {
@@ -12,33 +13,30 @@ pub struct SpriteRendererParams {
 }
 
 impl EntityBuilderParam for SpriteRendererParams {
-    fn from_table(mut table: rhai::Map) -> Result<Self, Box<EvalAltResult>> {
+    fn from_table<'lua>(table: LuaTable<'lua>) -> LuaResult<Self> {
         Ok(Self {
             layer: table
-                .remove("layer")
-                .ok_or_else(|| "the field 'layer' is not specified")?
-                .try_cast()
-                .ok_or_else(|| "the field 'layer' is not valid type")?,
+                .get("layer")
+                .with_context(|| "invalid value for 'layer' of SpriteRendererParams")
+                .to_lua_err()?,
             order: table
-                .remove("order")
-                .ok_or_else(|| "the field 'order' is not specified")?
-                .try_cast::<INT>()
-                .ok_or_else(|| "the field 'order' is not valid type")? as _,
+                .get("order")
+                .with_context(|| "invalid value for 'order' of SpriteRendererParams")
+                .to_lua_err()?,
             color: table
-                .remove("color")
-                .ok_or_else(|| "the field 'color' is not specified")?
-                .try_cast()
-                .ok_or_else(|| "the field 'color' is not valid type")?,
+                .get("color")
+                .with_context(|| "invalid value for 'color' of SpriteRendererParams")
+                .to_lua_err()?,
             shader: table
-                .remove("shader")
-                .ok_or_else(|| "the field 'shader' is not specified")?
-                .try_cast()
-                .ok_or_else(|| "the field 'shader' is not valid type")?,
+                .get::<_, crate::script::api::render::Shader>("shader")
+                .with_context(|| "invalid value for 'shader' of SpriteRendererParams")
+                .to_lua_err()?
+                .into_inner(),
             sprite: table
-                .remove("sprite")
-                .ok_or_else(|| "the field 'sprite' is not specified")?
-                .try_cast()
-                .ok_or_else(|| "the field 'sprite' is not valid type")?,
+                .get::<_, crate::script::api::render::Sprite>("sprite")
+                .with_context(|| "invalid value for 'sprite' of SpriteRendererParams")
+                .to_lua_err()?
+                .into_inner(),
         })
     }
 }

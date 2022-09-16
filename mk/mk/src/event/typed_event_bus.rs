@@ -1,21 +1,22 @@
 use super::typed_event_listener::TypedEventListener;
-use crate::{emit_diagnostic_error, script::ScriptManager};
+use crate::{emit_diagnostic_error, script::ScriptManager, util::BoxId};
 use downcast_rs::{impl_downcast, Downcast};
+use mlua::prelude::*;
 use parking_lot::Mutex;
-use std::any::type_name;
+use std::any::{type_name, Any};
 
 pub trait AbstractTypedEventBus
 where
     Self: Downcast,
 {
-    fn remove_listener(&self, hash: usize);
+    fn remove_listener(&self, hash: usize) -> Option<BoxId<dyn Any>>;
 }
 
 impl_downcast!(AbstractTypedEventBus);
 
 pub struct TypedEventBus<T>
 where
-    T: 'static + Send + Sync + Clone,
+    T: 'static,
 {
     listeners: Mutex<Vec<TypedEventListener<T>>>,
     added_listener_queue: Mutex<Option<Vec<TypedEventListener<T>>>>,
@@ -24,7 +25,7 @@ where
 
 impl<T> TypedEventBus<T>
 where
-    T: 'static + Send + Sync + Clone,
+    T: 'static,
 {
     pub fn new() -> Self {
         Self {
@@ -34,9 +35,9 @@ where
         }
     }
 
-    pub fn handle(&self, script_mgr: &ScriptManager, event: &T)
+    pub fn handle<'lua>(&self, script_mgr: &'lua ScriptManager, event: &T)
     where
-        T: 'static + Send + Sync + Clone,
+        T: Clone + ToLua<'lua>,
     {
         // Prevent deadlock
         if let Some(mut listeners) = self.listeners.try_lock() {
@@ -45,7 +46,7 @@ where
             while index < listeners.len() {
                 if let Err(err) = listeners[index].listen(script_mgr, event) {
                     emit_diagnostic_error!(format!(
-                        "an error occurred while handing {}: {}",
+                        "an error occurred while handing {}: {:#}",
                         type_name::<T>(),
                         err
                     ));
@@ -93,18 +94,17 @@ where
     }
 }
 
-impl<T> AbstractTypedEventBus for TypedEventBus<T>
-where
-    T: 'static + Send + Sync + Clone,
-{
-    fn remove_listener(&self, hash: usize) {
+impl<T> AbstractTypedEventBus for TypedEventBus<T> {
+    fn remove_listener(&self, hash: usize) -> Option<BoxId<dyn Any>> {
         match self.listeners.try_lock() {
             Some(mut listeners) => {
                 if let Some(index) = listeners
                     .iter()
                     .position(|listener| listener.hash() == hash)
                 {
-                    listeners.swap_remove(index);
+                    listeners.swap_remove(index).upcast()
+                } else {
+                    None
                 }
             }
             None => {
@@ -112,6 +112,7 @@ where
                     .lock()
                     .get_or_insert_with(|| Vec::new())
                     .push(hash);
+                None
             }
         }
     }

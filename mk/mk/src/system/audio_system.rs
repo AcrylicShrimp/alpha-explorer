@@ -1,10 +1,14 @@
 use crate::component::*;
-use legion::*;
+use specs::prelude::*;
 
-pub fn update_audio_sources(world: &mut World) {
-    let mut query = <&mut AudioSource>::query();
+pub struct AudioSystem;
 
-    for source in query.iter_mut(world) {
-        source.update();
+impl<'a> System<'a> for AudioSystem {
+    type SystemData = (WriteStorage<'a, AudioSource>,);
+
+    fn run(&mut self, (mut source,): Self::SystemData) {
+        for source in (&mut source).join() {
+            source.update();
+        }
     }
 }

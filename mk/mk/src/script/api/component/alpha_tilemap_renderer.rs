@@ -1,178 +1,158 @@
-use crate::script::api::ModuleType;
+use crate::script::{
+    api::IntoShared,
+    render::{AlphaTileset, Font, Shader},
+};
+use mlua::prelude::*;
 
 pub type ComponentAlphaTilemapRenderer = super::Component<crate::component::AlphaTilemapRenderer>;
 
-impl ModuleType for ComponentAlphaTilemapRenderer {
-    fn register(module: &mut rhai::Module) {
-        module.set_custom_type::<Self>("ComponentAlphaTilemapRenderer");
-
-        to_global!(
-            module,
-            module.set_native_fn("is_exists", |this: &mut Self| { Ok(this.is_exists()) })
-        );
-
-        to_global!(
-            module,
-            module.set_native_fn("to_string", |this: &mut Self| Ok(format!(
-                "ComponentAlphaTilemapRenderer(entity={:?}, is_exists={})",
-                this.entity,
-                this.is_exists()
-            )))
-        );
-        to_global!(
-            module,
-            module.set_native_fn("to_debug", |this: &mut Self| Ok(format!(
-                "ComponentAlphaTilemapRenderer(entity={:?}, is_exists={})",
-                this.entity,
-                this.is_exists()
-            )))
-        );
-
-        module.set_getter_fn("layer", |this: &mut Self| {
-            Ok(this.with_ref(|this| this.layer))
+impl LuaUserData for ComponentAlphaTilemapRenderer {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("layer", |_lua, this| Ok(this.with_ref(|this| this.layer)));
+        fields.add_field_method_get("order", |_lua, this| Ok(this.with_ref(|this| this.order)));
+        fields.add_field_method_get("color", |_lua, this| Ok(this.with_ref(|this| this.color)));
+        fields.add_field_method_get("fore_shader", |_lua, this| {
+            Ok(this.with_ref(|this| this.fore_shader.clone().into_shared()))
         });
-        module.set_getter_fn("order", |this: &mut Self| {
-            Ok(this.with_ref(|this| this.order))
+        fields.add_field_method_get("back_shader", |_lua, this| {
+            Ok(this.with_ref(|this| this.back_shader.clone().into_shared()))
         });
-        module.set_getter_fn("color", |this: &mut Self| {
-            Ok(this.with_ref(|this| this.color))
+        fields.add_field_method_get("font", |_lua, this| {
+            Ok(this.with_ref(|this| this.font.clone().into_shared()))
         });
-        module.set_getter_fn("fore_shader", |this: &mut Self| {
-            Ok(this.with_ref(|this| this.fore_shader.clone()))
-        });
-        module.set_getter_fn("back_shader", |this: &mut Self| {
-            Ok(this.with_ref(|this| this.back_shader.clone()))
-        });
-        module.set_getter_fn("font", |this: &mut Self| {
-            Ok(this.with_ref(|this| this.font.clone()))
-        });
-        module.set_getter_fn("font_size", |this: &mut Self| {
+        fields.add_field_method_get("font_size", |_lua, this| {
             Ok(this.with_ref(|this| this.font_size))
         });
-        module.set_getter_fn("thickness", |this: &mut Self| {
+        fields.add_field_method_get("thickness", |_lua, this| {
             Ok(this.with_ref(|this| this.thickness))
         });
-        module.set_getter_fn("smoothness", |this: &mut Self| {
+        fields.add_field_method_get("smoothness", |_lua, this| {
             Ok(this.with_ref(|this| this.smoothness))
         });
-        module.set_getter_fn("tilemap", |this: &mut Self| {
+        fields.add_field_method_get("tilemap", |_lua, this| {
             Ok(this.with_ref(|this| this.tilemap.clone()))
         });
-        module.set_getter_fn("tilemap_tile_width", |this: &mut Self| {
+        fields.add_field_method_get("tilemap_tile_width", |_lua, this| {
             Ok(this.with_ref(|this| this.tilemap.tile_width))
         });
-        module.set_getter_fn("tilemap_tile_height", |this: &mut Self| {
+        fields.add_field_method_get("tilemap_tile_height", |_lua, this| {
             Ok(this.with_ref(|this| this.tilemap.tile_height))
         });
-        module.set_getter_fn("tilemap_tile_count_x", |this: &mut Self| {
+        fields.add_field_method_get("tilemap_tile_count_x", |_lua, this| {
             Ok(this.with_ref(|this| this.tilemap.tile_count_x))
         });
-        module.set_getter_fn("tilemap_tile_count_y", |this: &mut Self| {
+        fields.add_field_method_get("tilemap_tile_count_y", |_lua, this| {
             Ok(this.with_ref(|this| this.tilemap.tile_count_y))
         });
-        module.set_getter_fn("tilemap_layer", |this: &mut Self| {
+        fields.add_field_method_get("tilemap_layer", |_lua, this| {
             Ok(this.with_ref(|this| this.tilemap.layer.clone()))
         });
-        module.set_getter_fn("tilemap_tileset", |this: &mut Self| {
-            Ok(this.with_ref(|this| this.tilemap.tileset.clone()))
+        fields.add_field_method_get("tilemap_tileset", |_lua, this| {
+            Ok(this.with_ref(|this| this.tilemap.tileset.clone().into_shared()))
         });
 
-        module.set_setter_fn("layer", |this: &mut Self, layer| {
+        fields.add_field_method_set("layer", |_lua, this, layer| {
             this.with_mut(|this| {
                 this.layer = layer;
             });
             Ok(())
         });
-        module.set_setter_fn("order", |this: &mut Self, order| {
+        fields.add_field_method_set("order", |_lua, this, order| {
             this.with_mut(|this| {
                 this.order = order;
             });
             Ok(())
         });
-        module.set_setter_fn("color", |this: &mut Self, color| {
+        fields.add_field_method_set("color", |_lua, this, color| {
             this.with_mut(|this| {
                 this.color = color;
             });
             Ok(())
         });
-        module.set_setter_fn("fore_shader", |this: &mut Self, fore_shader| {
+        fields.add_field_method_set("fore_shader", |_lua, this, fore_shader: Shader| {
             this.with_mut(|this| {
-                this.fore_shader = fore_shader;
+                this.fore_shader = fore_shader.into_inner();
             });
             Ok(())
         });
-        module.set_setter_fn("back_shader", |this: &mut Self, back_shader| {
+        fields.add_field_method_set("back_shader", |_lua, this, back_shader: Shader| {
             this.with_mut(|this| {
-                this.back_shader = back_shader;
+                this.back_shader = back_shader.into_inner();
             });
             Ok(())
         });
-        module.set_setter_fn("font", |this: &mut Self, font| {
+        fields.add_field_method_set("font", |_lua, this, font: Font| {
             this.with_mut(|this| {
-                this.font = font;
+                this.font = font.into_inner();
             });
             Ok(())
         });
-        module.set_setter_fn("font_size", |this: &mut Self, font_size| {
+        fields.add_field_method_set("font_size", |_lua, this, font_size| {
             this.with_mut(|this| {
                 this.font_size = font_size;
             });
             Ok(())
         });
-        module.set_setter_fn("thickness", |this: &mut Self, thickness| {
+        fields.add_field_method_set("thickness", |_lua, this, thickness| {
             this.with_mut(|this| {
                 this.thickness = thickness;
             });
             Ok(())
         });
-        module.set_setter_fn("smoothness", |this: &mut Self, smoothness| {
+        fields.add_field_method_set("smoothness", |_lua, this, smoothness| {
             this.with_mut(|this| {
                 this.smoothness = smoothness;
             });
             Ok(())
         });
-        module.set_setter_fn("tilemap", |this: &mut Self, tilemap| {
+        fields.add_field_method_set("tilemap", |_lua, this, tilemap| {
             this.with_mut(|this| {
                 this.tilemap = tilemap;
             });
             Ok(())
         });
+    }
 
-        to_global!(
-            module,
-            module.set_native_fn(
-                "set_tilemap_tile_size",
-                |this: &mut Self, tile_width, tile_height| {
-                    this.with_mut(|this| {
-                        this.tilemap.tile_width = tile_width;
-                        this.tilemap.tile_height = tile_height;
-                    });
-                    Ok(())
-                }
-            )
-        );
-        to_global!(
-            module,
-            module.set_native_fn(
-                "set_tilemap_layer",
-                |this: &mut Self, tile_count_x, tile_count_y, layer| {
-                    this.with_mut(|this| {
-                        this.tilemap.tile_count_x = tile_count_x;
-                        this.tilemap.tile_count_y = tile_count_y;
-                        this.tilemap.layer = layer;
-                    });
-                    Ok(())
-                }
-            )
-        );
-        to_global!(
-            module,
-            module.set_native_fn("set_tilemap_tileset", |this: &mut Self, tileset| {
+    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_method("is_exists", |_lua, this, ()| Ok(this.is_exists()));
+
+        methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
+            Ok(format!(
+                "ComponentAlphaTilemapRenderer(entity={:?}, is_exists={})",
+                this.entity,
+                this.is_exists()
+            ))
+        });
+
+        methods.add_method(
+            "set_tilemap_tile_size",
+            |_lua, this, (tile_width, tile_height)| {
                 this.with_mut(|this| {
-                    this.tilemap.tileset = tileset;
+                    this.tilemap.tile_width = tile_width;
+                    this.tilemap.tile_height = tile_height;
                 });
                 Ok(())
-            })
+            },
+        );
+        methods.add_method(
+            "set_tilemap_layer",
+            |_lua, this, (tile_count_x, tile_count_y, layer)| {
+                this.with_mut(|this| {
+                    this.tilemap.tile_count_x = tile_count_x;
+                    this.tilemap.tile_count_y = tile_count_y;
+                    this.tilemap.layer = layer;
+                });
+                Ok(())
+            },
+        );
+        methods.add_method(
+            "set_tilemap_tileset",
+            |_lua, this, tileset: AlphaTileset| {
+                this.with_mut(|this| {
+                    this.tilemap.tileset = tileset.into_inner();
+                });
+                Ok(())
+            },
         );
     }
 }

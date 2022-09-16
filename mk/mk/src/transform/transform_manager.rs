@@ -1,6 +1,6 @@
 use crate::transform::{Transform, TransformFlattener};
-use legion::Entity;
 use smartstring::alias::String as SmartString;
+use specs::prelude::*;
 use std::collections::HashMap;
 
 #[derive(Debug)]
@@ -20,10 +20,9 @@ impl TransformManager {
         Self::default()
     }
 
-    pub fn alloc(&mut self, entity: Entity) -> u32 {
+    pub fn begin_alloc(&mut self) -> u32 {
         if let Some(index) = self.removed_indices.pop() {
             self.transforms[index as usize] = Transform::default();
-            self.entities[index as usize] = entity;
             self.childrens[index as usize].clear();
             self.names[index as usize] = None;
             return index;
@@ -31,12 +30,20 @@ impl TransformManager {
 
         let index = self.transforms.len() as u32;
         self.transforms.push(Transform::default());
-        self.entities.push(entity);
         self.childrens.push(Vec::new());
         self.names.push(None);
         self.world_matrices.extend_from_slice(&[0f32; 9]);
         self.flattener.push();
         index
+    }
+
+    pub fn fin_alloc(&mut self, index: u32, entity: Entity) {
+        let index = index as usize;
+        if index < self.entities.len() {
+            self.entities[index] = entity;
+        } else {
+            self.entities.push(entity);
+        }
     }
 
     pub fn dealloc(&mut self, index: u32) {

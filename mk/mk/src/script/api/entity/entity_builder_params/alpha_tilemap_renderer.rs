@@ -1,7 +1,8 @@
 use super::EntityBuilderParam;
 use crate::render::{AlphaTilemap, Color, Layer, Shader};
+use anyhow::Context;
 use fontdue::Font;
-use rhai::{EvalAltResult, INT};
+use mlua::prelude::*;
 use std::sync::Arc;
 
 pub struct AlphaTilemapRendererParams {
@@ -18,58 +19,51 @@ pub struct AlphaTilemapRendererParams {
 }
 
 impl EntityBuilderParam for AlphaTilemapRendererParams {
-    fn from_table(mut table: rhai::Map) -> Result<Self, Box<EvalAltResult>> {
+    fn from_table<'lua>(table: LuaTable<'lua>) -> LuaResult<Self> {
         Ok(Self {
             layer: table
-                .remove("layer")
-                .ok_or_else(|| "the field 'layer' is not specified")?
-                .try_cast()
-                .ok_or_else(|| "the field 'layer' is not valid type")?,
+                .get("layer")
+                .with_context(|| "invalid value for 'layer' of AlphaTilemapRendererParams")
+                .to_lua_err()?,
             order: table
-                .remove("order")
-                .ok_or_else(|| "the field 'order' is not specified")?
-                .try_cast::<INT>()
-                .ok_or_else(|| "the field 'order' is not valid type")? as _,
+                .get("order")
+                .with_context(|| "invalid value for 'order' of AlphaTilemapRendererParams")
+                .to_lua_err()?,
             color: table
-                .remove("color")
-                .ok_or_else(|| "the field 'color' is not specified")?
-                .try_cast()
-                .ok_or_else(|| "the field 'color' is not valid type")?,
+                .get("color")
+                .with_context(|| "invalid value for 'color' of AlphaTilemapRendererParams")
+                .to_lua_err()?,
             fore_shader: table
-                .remove("fore_shader")
-                .ok_or_else(|| "the field 'fore_shader' is not specified")?
-                .try_cast()
-                .ok_or_else(|| "the field 'fore_shader' is not valid type")?,
+                .get::<_, crate::script::api::render::Shader>("fore_shader")
+                .with_context(|| "invalid value for 'fore_shader' of AlphaTilemapRendererParams")
+                .to_lua_err()?
+                .into_inner(),
             back_shader: table
-                .remove("back_shader")
-                .ok_or_else(|| "the field 'back_shader' is not specified")?
-                .try_cast()
-                .ok_or_else(|| "the field 'back_shader' is not valid type")?,
+                .get::<_, crate::script::api::render::Shader>("back_shader")
+                .with_context(|| "invalid value for 'back_shader' of AlphaTilemapRendererParams")
+                .to_lua_err()?
+                .into_inner(),
             font: table
-                .remove("font")
-                .ok_or_else(|| "the field 'font' is not specified")?
-                .try_cast()
-                .ok_or_else(|| "the field 'font' is not valid type")?,
+                .get::<_, crate::script::api::render::Font>("font")
+                .with_context(|| "invalid value for 'font' of AlphaTilemapRendererParams")
+                .to_lua_err()?
+                .into_inner(),
             font_size: table
-                .remove("font_size")
-                .ok_or_else(|| "the field 'font_size' is not specified")?
-                .try_cast()
-                .ok_or_else(|| "the field 'font_size' is not valid type")?,
+                .get("font_size")
+                .with_context(|| "invalid value for 'font_size' of AlphaTilemapRendererParams")
+                .to_lua_err()?,
             thickness: table
-                .remove("thickness")
-                .ok_or_else(|| "the field 'thickness' is not specified")?
-                .try_cast()
-                .ok_or_else(|| "the field 'thickness' is not valid type")?,
+                .get("thickness")
+                .with_context(|| "invalid value for 'thickness' of AlphaTilemapRendererParams")
+                .to_lua_err()?,
             smoothness: table
-                .remove("smoothness")
-                .ok_or_else(|| "the field 'smoothness' is not specified")?
-                .try_cast()
-                .ok_or_else(|| "the field 'smoothness' is not valid type")?,
+                .get("smoothness")
+                .with_context(|| "invalid value for 'smoothness' of AlphaTilemapRendererParams")
+                .to_lua_err()?,
             tilemap: table
-                .remove("tilemap")
-                .ok_or_else(|| "the field 'tilemap' is not specified")?
-                .try_cast()
-                .ok_or_else(|| "the field 'tilemap' is not valid type")?,
+                .get("tilemap")
+                .with_context(|| "invalid value for 'tilemap' of AlphaTilemapRendererParams")
+                .to_lua_err()?,
         })
     }
 }

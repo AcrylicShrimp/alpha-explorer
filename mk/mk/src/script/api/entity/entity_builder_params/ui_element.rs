@@ -1,6 +1,7 @@
 use super::EntityBuilderParam;
 use crate::ui::{UIAnchor, UIMargin};
-use rhai::{EvalAltResult, INT};
+use anyhow::Context;
+use mlua::prelude::*;
 
 pub struct UIElementParams {
     pub anchor: UIAnchor,
@@ -10,32 +11,24 @@ pub struct UIElementParams {
 }
 
 impl EntityBuilderParam for UIElementParams {
-    fn from_table(mut table: rhai::Map) -> Result<Self, Box<EvalAltResult>> {
+    fn from_table<'lua>(table: LuaTable<'lua>) -> LuaResult<Self> {
         Ok(Self {
             anchor: table
-                .remove("anchor")
-                .ok_or_else(|| "the field 'anchor' is not specified")?
-                .try_cast()
-                .ok_or_else(|| "the field 'anchor' is not valid type")?,
+                .get("anchor")
+                .with_context(|| "invalid value for 'anchor' of UIElementParams")
+                .to_lua_err()?,
             margin: table
-                .remove("margin")
-                .ok_or_else(|| "the field 'margin' is not specified")?
-                .try_cast()
-                .ok_or_else(|| "the field 'margin' is not valid type")?,
+                .get("margin")
+                .with_context(|| "invalid value for 'margin' of UIElementParams")
+                .to_lua_err()?,
             is_interactible: table
-                .remove("is_interactible")
-                .map(|is_interactible| {
-                    is_interactible
-                        .try_cast()
-                        .ok_or_else(|| "the field 'is_interactible' is not valid type")
-                })
-                .transpose()?,
+                .get("is_interactible")
+                .with_context(|| "invalid value for 'is_interactible' of UIElementParams")
+                .to_lua_err()?,
             order_index: table
-                .remove("order_index")
-                .ok_or_else(|| "the field 'order_index' is not specified")?
-                .try_cast::<INT>()
-                .ok_or_else(|| "the field 'order_index' is not valid type")?
-                as _,
+                .get("order_index")
+                .with_context(|| "invalid value for 'order_index' of UIElementParams")
+                .to_lua_err()?,
         })
     }
 }

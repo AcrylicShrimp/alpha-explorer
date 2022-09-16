@@ -1,76 +1,47 @@
-use crate::script::api::{extract_float, ModuleType};
-use rhai::{FLOAT, INT};
+use crate::script::api::LuaApiTable;
+use mlua::prelude::*;
 
 pub type Size = crate::structure::Size;
 
-impl ModuleType for Size {
-    fn register(module: &mut rhai::Module) {
-        module.set_custom_type::<Self>("Size");
+impl LuaApiTable for Size {
+    fn create_api_table<'lua>(lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
+        let table = lua.create_table()?;
 
-        to_global!(
-            module,
-            module.set_native_fn("to_string", |lhs: &mut Self| Ok(lhs.to_string()))
-        );
-        to_global!(
-            module,
-            module.set_native_fn("to_debug", |lhs: &mut Self| Ok(format!("{:?}", lhs)))
-        );
+        table.set(
+            "new",
+            lua.create_function(|_lua, (width, height)| Ok(Self::new(width, height)))?,
+        )?;
+        table.set("zero", lua.create_function(|_lua, ()| Ok(Self::zero()))?)?;
+        table.set("one", lua.create_function(|_lua, ()| Ok(Self::one()))?)?;
 
-        module.set_getter_fn("width", |this: &mut Self| Ok(this.width));
-        module.set_getter_fn("height", |this: &mut Self| Ok(this.height));
-        module.set_getter_fn("area", |this: &mut Self| Ok(this.area()));
+        Ok(table)
+    }
+}
 
-        module.set_setter_fn("width", |this: &mut Self, width| {
-            this.width = extract_float(width)?;
-            Ok(())
+impl LuaUserData for Size {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("width", |_lua, this| Ok(this.width));
+        fields.add_field_method_get("height", |_lua, this| Ok(this.height));
+    }
+
+    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
+            Ok(this.to_string())
         });
-        module.set_setter_fn("height", |this: &mut Self, height| {
-            this.height = extract_float(height)?;
-            Ok(())
+
+        methods.add_meta_function(LuaMetaMethod::Mul, |_lua, (lhs, rhs): (Self, f32)| {
+            Ok(lhs * rhs)
+        });
+        methods.add_meta_function(LuaMetaMethod::Mul, |_lua, (lhs, rhs): (f32, Self)| {
+            Ok(lhs * rhs)
         });
 
-        to_global!(
-            module,
-            module.set_native_fn("*", |lhs: Self, rhs: INT| Ok(lhs * rhs as f32))
-        );
-        to_global!(
-            module,
-            module.set_native_fn("*", |lhs: Self, rhs: FLOAT| Ok(lhs * rhs as f32))
-        );
-        to_global!(
-            module,
-            module.set_native_fn("*", |lhs: INT, rhs: Self| Ok(lhs as f32 * rhs))
-        );
-        to_global!(
-            module,
-            module.set_native_fn("*", |lhs: FLOAT, rhs: Self| Ok(lhs as f32 * rhs))
-        );
-        to_global!(
-            module,
-            module.set_native_fn("*=", |lhs: &mut Self, rhs: INT| {
-                *lhs *= rhs as f32;
-                Ok(())
-            })
-        );
-        to_global!(
-            module,
-            module.set_native_fn("*=", |lhs: &mut Self, rhs: FLOAT| {
-                *lhs *= rhs as f32;
-                Ok(())
-            })
-        );
-
-        module.set_sub_module("Size", {
-            let mut sub_module = rhai::Module::new();
-
-            sub_module.set_native_fn("create", |width, height| {
-                Ok(Self::new(extract_float(width)?, extract_float(height)?))
-            });
-
-            sub_module.set_native_fn("zero", || Ok(Self::zero()));
-            sub_module.set_native_fn("one", || Ok(Self::one()));
-
-            sub_module
+        methods.add_meta_function(LuaMetaMethod::Div, |_lua, (lhs, rhs): (Self, f32)| {
+            Ok(lhs / rhs)
         });
+
+        methods.add_meta_function(LuaMetaMethod::Unm, |_lua, lhs: Self| Ok(-lhs));
+
+        methods.add_method("area", |_lua, this, ()| Ok(this.area()));
     }
 }

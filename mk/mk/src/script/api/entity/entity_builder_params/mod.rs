@@ -1,10 +1,10 @@
-use rhai::{EvalAltResult, Map};
+use mlua::prelude::*;
 
 pub trait EntityBuilderParam
 where
     Self: Sized,
 {
-    fn from_table(table: Map) -> Result<Self, Box<EvalAltResult>>;
+    fn from_table<'lua>(table: LuaTable<'lua>) -> LuaResult<Self>;
 }
 
 mod alpha_tilemap_renderer;

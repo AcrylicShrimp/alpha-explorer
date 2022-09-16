@@ -1,168 +1,132 @@
 use crate::{
     component::*,
     engine::use_context,
-    script::api::{component::*, ModuleType, OptionToDynamic},
+    script::api::{component::*, LuaApiTable},
 };
-use legion::{
-    world::{EntityAccessError, EntryMut, EntryRef},
-    EntityStore,
-};
-use rhai::{ImmutableString, Module};
+use mlua::prelude::*;
+use smartstring::SmartString;
+use specs::WorldExt;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Entity(pub legion::Entity);
+pub struct Entity(pub specs::Entity);
 
 impl Entity {
-    pub fn new(entity: legion::Entity) -> Self {
+    pub fn new(entity: specs::Entity) -> Self {
         Self(entity)
     }
 
-    pub fn with_ref<R>(self, f: impl FnOnce(EntryRef) -> R) -> Option<R> {
-        let world = use_context().world();
-        let entry = match world.entry_ref(self.0) {
-            Ok(entry) => entry,
-            Err(err) => match err {
-                EntityAccessError::AccessDenied => {
-                    panic!("failed to access ref of entity {:?}", self.0)
-                }
-                EntityAccessError::EntityNotFound => return None,
-            },
-        };
-        Some(f(entry))
+    pub fn with_ref<T, R>(self, f: impl FnOnce(&T) -> R) -> Option<R>
+    where
+        T: specs::Component,
+    {
+        use_context()
+            .world()
+            .read_storage::<T>()
+            .get(self.0)
+            .map(|component| f(component))
     }
 
-    pub fn with_mut<R>(self, f: impl FnOnce(EntryMut) -> R) -> Option<R> {
-        let mut world = use_context().world_mut();
-        let entry = match world.entry_mut(self.0) {
-            Ok(entry) => entry,
-            Err(err) => match err {
-                EntityAccessError::AccessDenied => {
-                    panic!("failed to access mut ref of entity {:?}", self.0)
-                }
-                EntityAccessError::EntityNotFound => return None,
-            },
-        };
-        Some(f(entry))
+    pub fn with_mut<T, R>(self, f: impl FnOnce(&mut T) -> R) -> Option<R>
+    where
+        T: specs::Component,
+    {
+        use_context()
+            .world()
+            .write_storage::<T>()
+            .get_mut(self.0)
+            .map(|component| f(component))
     }
 }
 
-impl ModuleType for Entity {
-    fn register(module: &mut Module) {
-        module.set_custom_type::<Entity>("Entity");
+impl LuaApiTable for Entity {
+    fn create_api_table<'lua>(lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
+        let table = lua.create_table()?;
 
-        module.set_getter_fn("name", |this: &mut Self| {
+        table.set(
+            "find_by_name",
+            lua.create_function(|_lua, name: LuaString| {
+                let transform_mgr = use_context().transform_mgr();
+                Ok(transform_mgr
+                    .find_by_name(name.to_str()?)
+                    .map(|index| Self::new(transform_mgr.entity(index))))
+            })?,
+        )?;
+        table.set(
+            "find_all_by_name",
+            lua.create_function(|_lua, name: LuaString| {
+                let transform_mgr = use_context().transform_mgr();
+                Ok(transform_mgr
+                    .find_all_by_name(name.to_str()?)
+                    .map(|indices| {
+                        indices
+                            .iter()
+                            .map(|index| Self::new(transform_mgr.entity(*index)))
+                            .collect::<Vec<_>>()
+                    }))
+            })?,
+        )?;
+
+        Ok(table)
+    }
+}
+
+impl LuaUserData for Entity {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("name", |_lua, this| {
             Ok(this
-                .with_ref(|this| {
-                    this.get_component::<Transform>()
-                        .ok()
-                        .map(|component| component.index())
-                })
-                .flatten()
+                .with_ref(|component: &Transform| component.index())
                 .map(|index| {
                     use_context()
                         .transform_mgr()
                         .name(index)
                         .map(|name| name.to_owned())
-                })
-                .flatten()
-                .to_dynamic())
+                }))
         });
-        module.set_setter_fn("name", |this: &mut Self, _: ()| {
-            this.with_ref(|this| {
-                this.get_component::<Transform>()
-                    .ok()
-                    .map(|component| component.index())
-            })
-            .flatten()
-            .map(|index| use_context().transform_mgr_mut().set_name(index, None));
-            Ok(())
-        });
-        module.set_setter_fn("name", |this: &mut Self, name: ImmutableString| {
-            this.with_ref(|this| {
-                this.get_component::<Transform>()
-                    .ok()
-                    .map(|component| component.index())
-            })
-            .flatten()
-            .map(|index| {
-                use_context()
-                    .transform_mgr_mut()
-                    .set_name(index, Some(name.as_str().into()))
-            });
+        fields.add_field_method_set("name", |_lua, this, name: Option<String>| {
+            this.with_ref(|component: &Transform| component.index())
+                .map(|index| {
+                    use_context()
+                        .transform_mgr_mut()
+                        .set_name(index, name.map(SmartString::from))
+                });
             Ok(())
         });
 
-        module.set_getter_fn("alpha_tilemap_renderer", |this: &mut Self| {
+        fields.add_field_method_get("alpha_tilemap_renderer", |_lua, this| {
             Ok(ComponentAlphaTilemapRenderer::new(this.0))
         });
-        module.set_getter_fn("audio_source", |this: &mut Self| {
+        fields.add_field_method_get("audio_source", |_lua, this| {
             Ok(ComponentAudioSource::new(this.0))
         });
-        module.set_getter_fn("camera", |this: &mut Self| Ok(ComponentCamera::new(this.0)));
-        module.set_getter_fn("diagnostic", |this: &mut Self| {
+        fields.add_field_method_get("camera", |_lua, this| Ok(ComponentCamera::new(this.0)));
+        fields.add_field_method_get("diagnostic", |_lua, this| {
             Ok(ComponentDiagnostic::new(this.0))
         });
-        module.set_getter_fn("glyph_renderer", |this: &mut Self| {
+        fields.add_field_method_get("glyph_renderer", |_lua, this| {
             Ok(ComponentGlyphRenderer::new(this.0))
         });
-        module.set_getter_fn("nine_patch_renderer", |this: &mut Self| {
+        fields.add_field_method_get("nine_patch_renderer", |_lua, this| {
             Ok(ComponentNinePatchRenderer::new(this.0))
         });
-        module.set_getter_fn("size", |this: &mut Self| Ok(ComponentSize::new(this.0)));
-        module.set_getter_fn("sprite_renderer", |this: &mut Self| {
+        fields.add_field_method_get("size", |_lua, this| Ok(ComponentSize::new(this.0)));
+        fields.add_field_method_get("sprite_renderer", |_lua, this| {
             Ok(ComponentSpriteRenderer::new(this.0))
         });
-        module.set_getter_fn("tilemap_renderer", |this: &mut Self| {
+        fields.add_field_method_get("tilemap_renderer", |_lua, this| {
             Ok(ComponentTilemapRenderer::new(this.0))
         });
-        module.set_getter_fn("transform", |this: &mut Self| {
-            Ok(this
-                .with_ref(|this| {
-                    this.get_component::<Transform>()
-                        .ok()
-                        .map(|component| ComponentTransform::new(component.index()))
-                })
-                .flatten()
-                .to_dynamic())
+        fields.add_field_method_get("transform", |_lua, this| {
+            Ok(this.with_ref(|component: &Transform| ComponentTransform::new(component.index())))
         });
-        module.set_getter_fn("ui_element", |this: &mut Self| {
+        fields.add_field_method_get("ui_element", |_lua, this| {
             Ok(ComponentUIElement::new(this.0))
         });
-        module.set_getter_fn("ui_scaler", |this: &mut Self| {
-            Ok(ComponentUIScaler::new(this.0))
-        });
+        fields.add_field_method_get("ui_scaler", |_lua, this| Ok(ComponentUIScaler::new(this.0)));
+    }
 
+    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
         // TODO: Implement below functions
-        to_global!(
-            module,
-            module.set_native_fn("listen", |this: &mut Self| { Ok(()) })
-        );
-        to_global!(
-            module,
-            module.set_native_fn("unlisten", |this: &mut Self| { Ok(()) })
-        );
-
-        module.set_sub_module("Entity", {
-            let mut sub_module = Module::new();
-
-            sub_module.set_native_fn("find_by_name", |name: ImmutableString| {
-                let transform_mgr = use_context().transform_mgr();
-                Ok(transform_mgr
-                    .find_by_name(name)
-                    .map(|index| Self::new(transform_mgr.entity(index)))
-                    .to_dynamic())
-            });
-            sub_module.set_native_fn("find_all_by_name", |name: ImmutableString| {
-                let transform_mgr = use_context().transform_mgr();
-                Ok(transform_mgr.find_all_by_name(name).map(|indices| {
-                    indices
-                        .iter()
-                        .map(|index| Self::new(transform_mgr.entity(*index)))
-                        .collect::<Vec<_>>()
-                }))
-            });
-
-            sub_module
-        });
+        methods.add_method("listen", |_lua, this, listener: LuaFunction| Ok(()));
+        methods.add_method("unlisten", |_lua, this, hash: usize| Ok(()));
     }
 }

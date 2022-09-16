@@ -1,21 +1,27 @@
-use crate::{engine::use_context, script::api::ModuleType};
-use rhai::Module;
+use crate::{engine::use_context, script::api::LuaApiTable};
+use mlua::prelude::*;
 
 pub struct Time;
 
-impl ModuleType for Time {
-    fn register(module: &mut Module) {
-        let mut sub_module = Module::new();
+impl LuaApiTable for Time {
+    fn create_api_table<'lua>(lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
+        let table = lua.create_table()?;
 
-        sub_module.set_native_fn("time", || {
-            let time_mgr = use_context().time_mgr();
-            Ok(time_mgr.time_f64())
-        });
-        sub_module.set_native_fn("dt", || {
-            let time_mgr = use_context().time_mgr();
-            Ok(time_mgr.dt_f64())
-        });
+        table.set(
+            "time",
+            lua.create_function(|_lua, ()| {
+                let time_mgr = use_context().time_mgr();
+                Ok(time_mgr.time_f64())
+            })?,
+        )?;
+        table.set(
+            "dt",
+            lua.create_function(|_lua, ()| {
+                let time_mgr = use_context().time_mgr();
+                Ok(time_mgr.dt_f64())
+            })?,
+        )?;
 
-        module.set_sub_module("Time", sub_module);
+        Ok(table)
     }
 }

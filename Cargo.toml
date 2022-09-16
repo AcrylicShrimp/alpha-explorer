@@ -7,3 +7,5 @@ edition = "2021"
 
 [dependencies]
 mk = { path = "mk/mk" }
+
+anyhow = { version = "1" }

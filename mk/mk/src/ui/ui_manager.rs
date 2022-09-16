@@ -1,9 +1,9 @@
 use super::UILayoutCalculator;
-use crate::component::{Camera, Size, Transform, UIScaleMode, UIScaler};
+use crate::component::{Camera, Size, Transform, UIScaler};
 use crate::engine::use_context;
 use crate::structure::Vec2;
-use crate::ui::UIElement;
-use legion::{Entity, EntityStore, IntoQuery};
+use crate::ui::{UIElement, UIScaleMode};
+use specs::prelude::*;
 use std::collections::btree_map::Entry;
 use std::collections::BTreeMap;
 
@@ -22,20 +22,27 @@ impl UIManager {
         Self::default()
     }
 
-    pub fn alloc(&mut self, entity: Entity) -> u32 {
+    pub fn begin_alloc(&mut self) -> u32 {
         if let Some(index) = self.removed_indices.pop() {
             self.elements[index as usize] = UIElement::default();
-            self.entities[index as usize] = entity;
             self.prev_order_indices[index as usize] = 0;
             return index;
         }
 
         let index = self.elements.len() as u32;
         self.elements.push(UIElement::default());
-        self.entities.push(entity);
         self.prev_order_indices.push(0);
         self.layout_calculator.push();
         index
+    }
+
+    pub fn fin_alloc(&mut self, index: u32, entity: Entity) {
+        let index = index as usize;
+        if index < self.entities.len() {
+            self.entities[index] = entity;
+        } else {
+            self.entities.push(entity);
+        }
     }
 
     pub fn dealloc(&mut self, index: u32) {
@@ -103,19 +110,19 @@ impl UIManager {
                     continue;
                 }
 
-                let entry = match world.entry_ref(self.entities[index as usize]) {
-                    Ok(entry) => entry,
-                    Err(_) => continue,
+                let entity = self.entities[index as usize];
+                let transform_index =
+                    if let Some(transform) = world.read_storage::<Transform>().get(entity) {
+                        transform.index()
+                    } else {
+                        continue;
+                    };
+                let size = if let Some(size) = world.read_storage::<Size>().get(entity) {
+                    size.size
+                } else {
+                    continue;
                 };
-                let transform = match entry.get_component::<Transform>() {
-                    Ok(transform) => transform,
-                    Err(_) => continue,
-                };
-                let size = match entry.get_component::<Size>() {
-                    Ok(size) => size,
-                    Err(_) => continue,
-                };
-                let matrix = transform_mgr.transform_world_matrix(transform.index());
+                let matrix = transform_mgr.transform_world_matrix(transform_index);
                 let mut world_to_local = [0f32; 9];
                 let mut camera_to_local = [0f32; 6];
 
@@ -172,14 +179,15 @@ impl UIManager {
                 let world = &mut *world;
                 let mut transform_mgr = context.transform_mgr_mut();
                 let transform_mgr = &mut *transform_mgr;
-                <(
-                    &UIScaler,
-                    &Transform,
-                    &mut Size,
-                    &mut crate::component::UIElement,
-                )>::query()
-                .iter_mut(world)
-                .for_each(move |(scaler, transform, size, element)| {
+
+                for (scaler, transform, size, element) in (
+                    &world.read_storage::<UIScaler>(),
+                    &world.read_storage::<Transform>(),
+                    &mut world.write_storage::<Size>(),
+                    &mut world.write_storage::<crate::component::UIElement>(),
+                )
+                    .join()
+                {
                     let new_size = match scaler.mode {
                         UIScaleMode::Constant => scaler.reference_size,
                         UIScaleMode::Stretch => crate::structure::Size::new(
@@ -224,10 +232,9 @@ impl UIManager {
                     let transform = transform_mgr.transform_mut(transform.index());
                     transform.mark_as_dirty();
                     transform.position = Vec2::new(0f32, 0f32);
-                    size.width = new_size.width;
-                    size.height = new_size.height;
-                    elements[element.index() as usize].mark_as_dirty()
-                });
+                    size.size = new_size;
+                    elements[element.index() as usize].mark_as_dirty();
+                }
             }
         }
 

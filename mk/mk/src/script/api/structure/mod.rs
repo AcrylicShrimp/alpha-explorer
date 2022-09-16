@@ -1,5 +1,5 @@
-use crate::script::api::ModuleType;
-use rhai::Module;
+use crate::script::api::LuaApiTable;
+use mlua::prelude::*;
 
 mod size;
 mod vec2;
@@ -9,13 +9,13 @@ pub use vec2::*;
 
 pub struct StructureModule;
 
-impl ModuleType for StructureModule {
-    fn register(module: &mut Module) {
-        let mut sub_module = Module::new();
+impl LuaApiTable for StructureModule {
+    fn create_api_table<'lua>(lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
+        let table = lua.create_table()?;
 
-        size::Size::register(&mut sub_module);
-        vec2::Vec2::register(&mut sub_module);
+        table.set("Size", size::Size::create_api_table(lua)?)?;
+        table.set("Vec2", vec2::Vec2::create_api_table(lua)?)?;
 
-        module.set_sub_module("structure", sub_module);
+        Ok(table)
     }
 }

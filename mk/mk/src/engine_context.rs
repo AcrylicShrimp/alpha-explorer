@@ -1,21 +1,20 @@
 use crate::asset::AssetManager;
 use crate::audio::AudioManager;
+use crate::component::register_components;
 use crate::event::EventManager;
 use crate::glyph::GlyphManager;
 use crate::input::InputManager;
 use crate::render::{RenderManager, ScreenManager};
-use crate::script::{ModuleCacheManager, ScriptManager};
-use crate::system::SystemManager;
+use crate::script::ScriptManager;
 use crate::time::TimeManager;
 use crate::transform::TransformManager;
 use crate::ui::{UIEventManager, UIManager};
-use crate::EngineError;
-use legion::World;
+use anyhow::{Context, Result};
+use specs::prelude::*;
 use std::cell::{Ref, RefCell, RefMut};
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::path::PathBuf;
 
-pub struct EngineContextWithoutSystemManager {
+pub struct EngineContext {
     world: RefCell<World>,
     time_mgr: RefCell<TimeManager>,
     input_mgr: RefCell<InputManager>,
@@ -24,26 +23,21 @@ pub struct EngineContextWithoutSystemManager {
     asset_mgr: RefCell<AssetManager>,
     transform_mgr: RefCell<TransformManager>,
     event_mgr: EventManager,
-    script_mgr: RefCell<ScriptManager>,
-    module_cache_mgr: RefCell<ModuleCacheManager>,
+    script_mgr: ScriptManager,
     glyph_mgr: RefCell<GlyphManager>,
     render_mgr: RefCell<RenderManager>,
     ui_mgr: RefCell<UIManager>,
     ui_event_mgr: RefCell<UIEventManager>,
 }
 
-impl EngineContextWithoutSystemManager {
-    pub fn new(
-        screen_width: u32,
-        screen_height: u32,
-        asset_mgr_base: PathBuf,
-        script_mgr_base: impl AsRef<Path>,
-    ) -> Self {
-        let mut module_cache_mgr = ModuleCacheManager::new();
-        let script_mgr = ScriptManager::new(&mut module_cache_mgr, script_mgr_base);
+impl EngineContext {
+    pub fn new(screen_width: u32, screen_height: u32, asset_mgr_base: PathBuf) -> Result<Self> {
+        let mut world = World::new();
 
-        Self {
-            world: World::default().into(),
+        register_components(&mut world);
+
+        Ok(Self {
+            world: world.into(),
             time_mgr: TimeManager::new().into(),
             input_mgr: InputManager::new().into(),
             screen_mgr: ScreenManager::new(screen_width, screen_height).into(),
@@ -51,13 +45,14 @@ impl EngineContextWithoutSystemManager {
             asset_mgr: AssetManager::new(asset_mgr_base).into(),
             transform_mgr: TransformManager::new().into(),
             event_mgr: EventManager::new(),
-            script_mgr: script_mgr.into(),
-            module_cache_mgr: module_cache_mgr.into(),
+            script_mgr: ScriptManager::new()
+                .with_context(|| "failed to initialize script manager")?
+                .into(),
             glyph_mgr: GlyphManager::new(128f32, 8usize, 48usize, 0.5f32).into(),
             render_mgr: RenderManager::new().into(),
             ui_mgr: UIManager::new().into(),
             ui_event_mgr: UIEventManager::new().into(),
-        }
+        })
     }
 
     pub fn world(&self) -> Ref<World> {
@@ -116,20 +111,8 @@ impl EngineContextWithoutSystemManager {
         &self.event_mgr
     }
 
-    pub fn script_mgr(&self) -> Ref<ScriptManager> {
-        self.script_mgr.borrow()
-    }
-
-    pub fn script_mgr_mut(&self) -> RefMut<ScriptManager> {
-        self.script_mgr.borrow_mut()
-    }
-
-    pub fn module_cache_mgr(&self) -> Ref<ModuleCacheManager> {
-        self.module_cache_mgr.borrow()
-    }
-
-    pub fn module_cache_mgr_mut(&self) -> RefMut<ModuleCacheManager> {
-        self.module_cache_mgr.borrow_mut()
+    pub fn script_mgr(&self) -> &ScriptManager {
+        &self.script_mgr
     }
 
     pub fn glyph_mgr(&self) -> Ref<GlyphManager> {
@@ -162,39 +145,5 @@ impl EngineContextWithoutSystemManager {
 
     pub fn ui_event_mgr_mut(&self) -> RefMut<UIEventManager> {
         self.ui_event_mgr.borrow_mut()
-    }
-}
-
-impl Drop for EngineContextWithoutSystemManager {
-    fn drop(&mut self) {
-        self.world_mut().clear();
-    }
-}
-
-pub struct EngineContext {
-    system_mgr: SystemManager,
-    context: Arc<EngineContextWithoutSystemManager>,
-}
-
-impl EngineContext {
-    pub fn new(
-        screen_width: u32,
-        screen_height: u32,
-        asset_mgr_base: PathBuf,
-        script_mgr_base: impl AsRef<Path>,
-    ) -> Result<Self, EngineError> {
-        Ok(Self {
-            system_mgr: SystemManager::default(),
-            context: Arc::new(EngineContextWithoutSystemManager::new(
-                screen_width,
-                screen_height,
-                asset_mgr_base,
-                script_mgr_base,
-            )),
-        })
-    }
-
-    pub fn into_split(self) -> (SystemManager, Arc<EngineContextWithoutSystemManager>) {
-        (self.system_mgr, self.context)
     }
 }

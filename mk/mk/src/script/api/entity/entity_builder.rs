@@ -1,12 +1,13 @@
-use super::{entity::Entity, entity_builder_params::*};
-use crate::{component::*, engine::use_context, script::api::ModuleType, structure::Vec2};
+use super::entity_builder_params::*;
+use crate::{component::*, engine::use_context, script::api::LuaApiTable, structure::Vec2};
+use mlua::prelude::*;
 use parking_lot::Mutex;
-use rhai::{ImmutableString, Map, Module};
+use specs::prelude::*;
 use std::sync::Arc;
 
 #[derive(Default)]
 pub struct EntityBuilderImpl {
-    name: Option<ImmutableString>,
+    name: Option<String>,
     transform_parent: Option<Transform>,
     transform_position: Option<Vec2>,
     transform_scale: Option<Vec2>,
@@ -31,293 +32,309 @@ impl EntityBuilder {
     pub fn new() -> Self {
         Self::default()
     }
+
+    pub fn with_mut<R>(&self, f: impl FnOnce(&mut EntityBuilderImpl) -> R) -> R {
+        f(&mut self.0.lock())
+    }
 }
 
-impl ModuleType for EntityBuilder {
-    fn register(module: &mut Module) {
-        module.set_custom_type::<EntityBuilder>("EntityBuilder");
+impl LuaApiTable for EntityBuilder {
+    fn create_api_table<'lua>(lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
+        let table = lua.create_table()?;
 
-        to_global!(
-            module,
-            module.set_native_fn("name", |this: Self, name| {
-                this.0.lock().name = Some(name);
-                Ok(this)
-            })
-        );
-        to_global!(
-            module,
-            module.set_native_fn("transform_parent", |this: Self, transform_parent| {
-                this.0.lock().transform_parent = Some(transform_parent);
-                Ok(this)
-            })
-        );
-        to_global!(
-            module,
-            module.set_native_fn("transform_position", |this: Self, transform_position| {
-                this.0.lock().transform_position = Some(transform_position);
-                Ok(this)
-            })
-        );
-        to_global!(
-            module,
-            module.set_native_fn("transform_scale", |this: Self, transform_scale| {
-                this.0.lock().transform_scale = Some(transform_scale);
-                Ok(this)
-            })
-        );
-        to_global!(
-            module,
-            module.set_native_fn("transform_angle", |this: Self, transform_angle| {
-                this.0.lock().transform_angle = Some(transform_angle);
-                Ok(this)
-            })
-        );
-        to_global!(
-            module,
-            module.set_native_fn("size", |this: Self, size| {
-                this.0.lock().size = Some(size);
-                Ok(this)
-            })
-        );
-        to_global!(
-            module,
-            module.set_native_fn("alpha_tilemap_renderer", |this: Self, params: Map| {
-                this.0.lock().alpha_tilemap_renderer_params = Some(<_>::from_table(params)?);
-                Ok(this)
-            })
-        );
-        to_global!(
-            module,
-            module.set_native_fn("audio_source", |this: Self| {
-                this.0.lock().audio_source_params = Some(<_>::default());
-                Ok(this)
-            })
-        );
-        to_global!(
-            module,
-            module.set_native_fn("audio_source", |this: Self, params: Map| {
-                this.0.lock().audio_source_params = Some(<_>::from_table(params)?);
-                Ok(this)
-            })
-        );
-        to_global!(
-            module,
-            module.set_native_fn("camera", |this: Self, params: Map| {
-                this.0.lock().camera_params = Some(<_>::from_table(params)?);
-                Ok(this)
-            })
-        );
-        to_global!(
-            module,
-            module.set_native_fn("diagnostic", |this: Self| {
-                this.0.lock().is_diagnostic = true;
-                Ok(this)
-            })
-        );
-        to_global!(
-            module,
-            module.set_native_fn("glyph_renderer", |this: Self, params: Map| {
-                this.0.lock().glyph_renderer_params = Some(<_>::from_table(params)?);
-                Ok(this)
-            })
-        );
-        to_global!(
-            module,
-            module.set_native_fn("nine_patch_renderer", |this: Self, params: Map| {
-                this.0.lock().nine_patch_renderer_params = Some(<_>::from_table(params)?);
-                Ok(this)
-            })
-        );
-        to_global!(
-            module,
-            module.set_native_fn("sprite_renderer", |this: Self, params: Map| {
-                this.0.lock().sprite_renderer_params = Some(<_>::from_table(params)?);
-                Ok(this)
-            })
-        );
-        to_global!(
-            module,
-            module.set_native_fn("ui_element", |this: Self, params: Map| {
-                this.0.lock().ui_element_params = Some(<_>::from_table(params)?);
-                Ok(this)
-            })
-        );
-        to_global!(
-            module,
-            module.set_native_fn("ui_scaler", |this: Self, params: Map| {
-                this.0.lock().ui_scaler_params = Some(<_>::from_table(params)?);
-                Ok(this)
-            })
-        );
+        table.set("new", lua.create_function(|_lua, ()| Ok(Self::new()))?)?;
 
-        to_global!(
-            module,
-            module.set_native_fn("build", |this: &mut Self| {
-                let mut this = this.0.lock();
+        Ok(table)
+    }
+}
 
-                let context = use_context();
-                let mut world = context.world_mut();
-                let entity = world.push(());
-                let mut entry = world.entry(entity).unwrap();
+impl LuaUserData for EntityBuilder {
+    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_method("name", |_lua, this, name| {
+            this.with_mut(|this| {
+                this.name = name;
+            });
+            Ok(this.clone())
+        });
+        methods.add_method("transform_parent", |_lua, this, transform_parent| {
+            this.with_mut(|this| {
+                this.transform_parent = transform_parent;
+            });
+            Ok(this.clone())
+        });
+        methods.add_method("transform_position", |_lua, this, transform_position| {
+            this.with_mut(|this| {
+                this.transform_position = transform_position;
+            });
+            Ok(this.clone())
+        });
+        methods.add_method("transform_scale", |_lua, this, transform_scale| {
+            this.with_mut(|this| {
+                this.transform_scale = transform_scale;
+            });
+            Ok(this.clone())
+        });
+        methods.add_method("transform_angle", |_lua, this, transform_angle| {
+            this.with_mut(|this| {
+                this.transform_angle = transform_angle;
+            });
+            Ok(this.clone())
+        });
+        methods.add_method("size", |_lua, this, size| {
+            this.with_mut(|this| {
+                this.size = size;
+            });
+            Ok(this.clone())
+        });
+        methods.add_method(
+            "alpha_tilemap_renderer",
+            |_lua, this, params: Option<LuaTable>| {
+                this.with_mut(|this| -> LuaResult<_> {
+                    this.alpha_tilemap_renderer_params =
+                        params.map(|params| <_>::from_table(params)).transpose()?;
+                    Ok(())
+                })?;
+                Ok(this.clone())
+            },
+        );
+        methods.add_method("audio_source", |_lua, this, params: Option<LuaTable>| {
+            this.with_mut(|this| -> LuaResult<_> {
+                this.audio_source_params =
+                    params.map(|params| <_>::from_table(params)).transpose()?;
+                Ok(())
+            })?;
+            Ok(this.clone())
+        });
+        methods.add_method("camera", |_lua, this, params: Option<LuaTable>| {
+            this.with_mut(|this| -> LuaResult<_> {
+                this.camera_params = params.map(|params| <_>::from_table(params)).transpose()?;
+                Ok(())
+            })?;
+            Ok(this.clone())
+        });
+        methods.add_method("diagnostic", |_lua, this, is_diagnostic| {
+            this.with_mut(|this| -> LuaResult<_> {
+                this.is_diagnostic = is_diagnostic;
+                Ok(())
+            })?;
+            Ok(this.clone())
+        });
+        methods.add_method("glyph_renderer", |_lua, this, params: Option<LuaTable>| {
+            this.with_mut(|this| -> LuaResult<_> {
+                this.glyph_renderer_params =
+                    params.map(|params| <_>::from_table(params)).transpose()?;
+                Ok(())
+            })?;
+            Ok(this.clone())
+        });
+        methods.add_method(
+            "nine_patch_renderer",
+            |_lua, this, params: Option<LuaTable>| {
+                this.with_mut(|this| -> LuaResult<_> {
+                    this.nine_patch_renderer_params =
+                        params.map(|params| <_>::from_table(params)).transpose()?;
+                    Ok(())
+                })?;
+                Ok(this.clone())
+            },
+        );
+        methods.add_method("sprite_renderer", |_lua, this, params: Option<LuaTable>| {
+            this.with_mut(|this| -> LuaResult<_> {
+                this.sprite_renderer_params =
+                    params.map(|params| <_>::from_table(params)).transpose()?;
+                Ok(())
+            })?;
+            Ok(this.clone())
+        });
+        methods.add_method("ui_element", |_lua, this, params: Option<LuaTable>| {
+            this.with_mut(|this| -> LuaResult<_> {
+                this.ui_element_params =
+                    params.map(|params| <_>::from_table(params)).transpose()?;
+                Ok(())
+            })?;
+            Ok(this.clone())
+        });
+        methods.add_method("ui_scaler", |_lua, this, params: Option<LuaTable>| {
+            this.with_mut(|this| -> LuaResult<_> {
+                this.ui_scaler_params = params.map(|params| <_>::from_table(params)).transpose()?;
+                Ok(())
+            })?;
+            Ok(this.clone())
+        });
 
-                let mut transform_mgr = context.transform_mgr_mut();
-                let transform = transform_mgr.alloc(entity);
-                transform_mgr
-                    .set_name(transform, this.name.take().map(|name| name.as_str().into()));
+        methods.add_method("build", |_lua, this, ()| {
+            let mut this = this.0.lock();
 
-                entry.add_component(Transform::new(transform));
+            let context = use_context();
+            let mut world = context.world_mut();
+            let mut builder = world.create_entity();
 
-                transform_mgr.set_parent(
-                    transform,
-                    this.transform_parent.map(|parent| parent.index()),
+            let mut transform_mgr = context.transform_mgr_mut();
+            let transform = transform_mgr.begin_alloc();
+            builder = builder.with(Transform::new(transform));
+
+            transform_mgr.set_name(transform, this.name.take().map(|name| name.as_str().into()));
+            transform_mgr.set_parent(
+                transform,
+                this.transform_parent.map(|parent| parent.index()),
+            );
+
+            {
+                let transform = transform_mgr.transform_mut(transform);
+                transform.mark_as_dirty();
+
+                if let Some(position) = this.transform_position {
+                    transform.position = position;
+                }
+
+                if let Some(scale) = this.transform_scale {
+                    transform.scale = scale;
+                }
+
+                if let Some(angle) = this.transform_angle {
+                    transform.angle = angle;
+                }
+            }
+
+            let mut size = Size::new(transform);
+
+            if let Some(param) = this.size.take() {
+                size.size = param;
+            }
+
+            builder = builder.with(size);
+
+            if let Some(param) = this.alpha_tilemap_renderer_params.take() {
+                let alpha_tilemap_renderer = AlphaTilemapRenderer::new(
+                    param.layer,
+                    param.order,
+                    param.color,
+                    param.fore_shader,
+                    param.back_shader,
+                    param.font,
+                    param.font_size,
+                    param.thickness,
+                    param.smoothness,
+                    param.tilemap,
+                );
+                builder = builder.with(alpha_tilemap_renderer);
+            }
+
+            if let Some(param) = this.audio_source_params.take() {
+                let mut audio_source = AudioSource::new();
+
+                if let Some(volume) = param.volume {
+                    audio_source.set_volume(volume);
+                }
+
+                audio_source.set_clip(param.clip);
+
+                builder = builder.with(audio_source);
+            }
+
+            if let Some(param) = this.camera_params.take() {
+                let camera = Camera::new(param.layer, param.order);
+                builder = builder.with(camera);
+            }
+
+            if this.is_diagnostic {
+                builder = builder.with(Diagnostic);
+            }
+
+            if let Some(param) = this.glyph_renderer_params.take() {
+                let mut glyph_renderer = GlyphRenderer::new(
+                    param.layer,
+                    param.order,
+                    param.color,
+                    param.shader,
+                    param.thickness,
+                    param.smoothness,
+                    param.font,
+                    param.font_size,
                 );
 
-                {
-                    let transform = transform_mgr.transform_mut(transform);
-                    transform.mark_as_dirty();
-
-                    if let Some(position) = this.transform_position {
-                        transform.position = position;
-                    }
-
-                    if let Some(scale) = this.transform_scale {
-                        transform.scale = scale;
-                    }
-
-                    if let Some(angle) = this.transform_angle {
-                        transform.angle = angle;
-                    }
+                if let Some(text) = param.text {
+                    glyph_renderer.set_text(text.as_str().to_owned());
                 }
 
-                let mut size = Size::new(transform);
-
-                if let Some(param) = this.size.take() {
-                    size.width = param.width;
-                    size.height = param.height;
+                if let Some(config) = param.config {
+                    glyph_renderer.set_config(config);
                 }
 
-                entry.add_component(size);
+                builder = builder.with(glyph_renderer);
+            }
 
-                if let Some(param) = this.alpha_tilemap_renderer_params.take() {
-                    let alpha_tilemap_renderer = AlphaTilemapRenderer::new(
-                        param.layer,
-                        param.order,
-                        param.color,
-                        param.fore_shader,
-                        param.back_shader,
-                        param.font,
-                        param.font_size,
-                        param.thickness,
-                        param.smoothness,
-                        param.tilemap,
-                    );
-                    entry.add_component(alpha_tilemap_renderer);
-                }
+            if let Some(param) = this.nine_patch_renderer_params.take() {
+                let nine_patch_renderer = NinePatchRenderer::new(
+                    param.layer,
+                    param.order,
+                    param.color,
+                    param.shader,
+                    param.nine_patch,
+                );
 
-                if let Some(param) = this.audio_source_params.take() {
-                    let mut audio_source = AudioSource::new();
+                builder = builder.with(nine_patch_renderer);
+            }
 
-                    if let Some(volume) = param.volume {
-                        audio_source.set_volume(volume);
-                    }
+            if let Some(param) = this.sprite_renderer_params.take() {
+                let sprite_renderer = SpriteRenderer::new(
+                    param.layer,
+                    param.order,
+                    param.color,
+                    param.shader,
+                    param.sprite,
+                );
 
-                    audio_source.set_clip(param.clip);
+                builder = builder.with(sprite_renderer);
+            }
 
-                    entry.add_component(audio_source);
-                }
+            if let Some(param) = this.tilemap_renderer_params.take() {
+                let tilemap_renderer = TilemapRenderer::new(
+                    param.layer,
+                    param.order,
+                    param.color,
+                    param.shader,
+                    param.tilemap,
+                );
 
-                if let Some(param) = this.camera_params.take() {
-                    let camera = Camera::new(param.layer, param.order);
-                    entry.add_component(camera);
-                }
+                builder = builder.with(tilemap_renderer);
+            }
 
-                if this.is_diagnostic {
-                    entry.add_component(Diagnostic);
-                }
+            let mut ui_element_index = None;
 
-                if let Some(param) = this.glyph_renderer_params.take() {
-                    let mut glyph_renderer = GlyphRenderer::new(
-                        param.layer,
-                        param.order,
-                        param.color,
-                        param.shader,
-                        param.thickness,
-                        param.smoothness,
-                        param.font,
-                        param.font_size,
-                    );
+            if let Some(param) = this.ui_element_params.take() {
+                let mut ui_mgr = context.ui_mgr_mut();
+                let index = ui_mgr.begin_alloc();
+                let ui_element = ui_mgr.element_mut(index);
+                ui_element.mark_as_dirty();
 
-                    if let Some(text) = param.text {
-                        glyph_renderer.set_text(text.as_str().to_owned());
-                    }
+                ui_element.anchor = param.anchor;
+                ui_element.margin = param.margin;
+                ui_element.set_interactible(param.is_interactible.unwrap_or(true));
+                ui_element.set_order_index(param.order_index);
 
-                    if let Some(config) = param.config {
-                        glyph_renderer.set_config(config);
-                    }
+                builder = builder.with(UIElement::new(index));
 
-                    entry.add_component(glyph_renderer);
-                }
+                ui_element_index = Some(index);
+            }
 
-                if let Some(param) = this.nine_patch_renderer_params.take() {
-                    let nine_patch_renderer = NinePatchRenderer::new(
-                        param.layer,
-                        param.order,
-                        param.color,
-                        param.shader,
-                        param.nine_patch,
-                    );
+            if let Some(param) = this.ui_scaler_params.take() {
+                let ui_scaler = UIScaler {
+                    mode: param.mode,
+                    reference_size: param.reference_size,
+                };
 
-                    entry.add_component(nine_patch_renderer);
-                }
+                builder = builder.with(ui_scaler);
+            }
 
-                if let Some(param) = this.sprite_renderer_params.take() {
-                    let sprite_renderer = SpriteRenderer::new(
-                        param.layer,
-                        param.order,
-                        param.color,
-                        param.shader,
-                        param.sprite,
-                    );
+            let entity = builder.build();
+            transform_mgr.fin_alloc(transform, entity);
 
-                    entry.add_component(sprite_renderer);
-                }
+            if let Some(index) = ui_element_index {
+                context.ui_mgr_mut().fin_alloc(index, entity);
+            }
 
-                if let Some(param) = this.tilemap_renderer_params.take() {
-                    let tilemap_renderer = TilemapRenderer::new(
-                        param.layer,
-                        param.order,
-                        param.color,
-                        param.shader,
-                        param.tilemap,
-                    );
-
-                    entry.add_component(tilemap_renderer);
-                }
-
-                if let Some(param) = this.ui_element_params.take() {
-                    let mut ui_mgr = context.ui_mgr_mut();
-                    let index = ui_mgr.alloc(entity);
-                    let ui_element = ui_mgr.element_mut(index);
-                    ui_element.mark_as_dirty();
-
-                    ui_element.anchor = param.anchor;
-                    ui_element.margin = param.margin;
-                    ui_element.set_interactible(param.is_interactible.unwrap_or(true));
-                    ui_element.set_order_index(param.order_index);
-
-                    entry.add_component(UIElement::new(index));
-                }
-
-                Ok(Entity::new(entity))
-            })
-        );
-
-        module.set_sub_module("EntityBuilder", {
-            let mut sub_module = Module::new();
-
-            sub_module.set_native_fn("create", || Ok(Self::new()));
-
-            sub_module
+            Ok(super::entity::Entity::new(entity))
         });
     }
 }

@@ -1,13 +1,10 @@
-use crate::script::api::ModuleType;
-use std::sync::Arc;
+use mlua::prelude::*;
 
-pub type Texture = Arc<render::Texture>;
+define_shared_type!(Texture, render::Texture);
 
-impl ModuleType for Texture {
-    fn register(module: &mut rhai::Module) {
-        module.set_custom_type::<Self>("Texture");
-
-        module.set_getter_fn("width", |this: &mut Self| Ok(this.width()));
-        module.set_getter_fn("height", |this: &mut Self| Ok(this.height()));
+impl LuaUserData for Texture {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("width", |_lua, this| Ok(this.width()));
+        fields.add_field_method_get("height", |_lua, this| Ok(this.height()));
     }
 }

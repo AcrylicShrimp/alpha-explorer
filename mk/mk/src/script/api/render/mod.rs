@@ -1,5 +1,5 @@
-use crate::script::api::ModuleType;
-use rhai::Module;
+use crate::script::api::LuaApiTable;
+use mlua::prelude::*;
 
 mod alpha_tile;
 mod alpha_tilemap;
@@ -13,7 +13,6 @@ mod sprite;
 mod sprite_atlas;
 mod sprite_atlas_grid;
 mod sprite_nine_patch;
-mod texel_mapping;
 mod texture;
 mod tilemap;
 
@@ -29,32 +28,36 @@ pub use sprite::*;
 pub use sprite_atlas::*;
 pub use sprite_atlas_grid::*;
 pub use sprite_nine_patch::*;
-pub use texel_mapping::*;
 pub use texture::*;
 pub use tilemap::*;
 
 pub struct RenderModule;
 
-impl ModuleType for RenderModule {
-    fn register(module: &mut Module) {
-        let mut sub_module = Module::new();
+impl LuaApiTable for RenderModule {
+    fn create_api_table<'lua>(lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
+        let table = lua.create_table()?;
 
-        alpha_tile::AlphaTile::register(&mut sub_module);
-        alpha_tilemap::AlphaTilemap::register(&mut sub_module);
-        alpha_tileset::AlphaTileset::register(&mut sub_module);
-        buffer::Buffer::register(&mut sub_module);
-        color::Color::register(&mut sub_module);
-        font::Font::register(&mut sub_module);
-        layer::Layer::register(&mut sub_module);
-        shader::Shader::register(&mut sub_module);
-        sprite::Sprite::register(&mut sub_module);
-        sprite_atlas::SpriteAtlas::register(&mut sub_module);
-        sprite_atlas_grid::SpriteAtlasGrid::register(&mut sub_module);
-        sprite_nine_patch::SpriteNinePatch::register(&mut sub_module);
-        texel_mapping::TexelMapping::register(&mut sub_module);
-        texture::Texture::register(&mut sub_module);
-        tilemap::Tilemap::register(&mut sub_module);
+        table.set("AlphaTile", alpha_tile::AlphaTile::create_api_table(lua)?)?;
+        table.set(
+            "AlphaTilemap",
+            alpha_tilemap::AlphaTilemap::create_api_table(lua)?,
+        )?;
+        table.set(
+            "AlphaTileset",
+            alpha_tileset::AlphaTileset::create_api_table(lua)?,
+        )?;
+        table.set("Color", color::Color::create_api_table(lua)?)?;
+        table.set("Layer", layer::Layer::create_api_table(lua)?)?;
+        table.set(
+            "SpriteChannel",
+            crate::render::SpriteChannel::create_api_table(lua)?,
+        )?;
+        table.set(
+            "TexelMapping",
+            crate::render::TexelMapping::create_api_table(lua)?,
+        )?;
+        table.set("Tilemap", tilemap::Tilemap::create_api_table(lua)?)?;
 
-        module.set_sub_module("render", sub_module);
+        Ok(table)
     }
 }

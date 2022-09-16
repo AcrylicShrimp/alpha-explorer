@@ -1,6 +1,8 @@
 use crate::render::{Color, Layer, Shader, Tilemap};
+use specs::{prelude::*, Component};
 use std::sync::Arc;
 
+#[derive(Component)]
 pub struct TilemapRenderer {
     pub layer: Layer,
     pub order: isize,

@@ -1,5 +1,5 @@
 use crate::render::*;
-use crate::EngineContextWithoutSystemManager;
+use crate::EngineContext;
 
 pub struct RenderManager {
     buffer_pool: Vec<Buffer>,
@@ -24,7 +24,7 @@ impl RenderManager {
         self.buffer_pool.push(buffer);
     }
 
-    pub fn update_uniforms(&self, context: &EngineContextWithoutSystemManager) {
+    pub fn update_uniforms(&self, context: &EngineContext) {
         let time_mgr = context.time_mgr();
         let screen_mgr = context.screen_mgr();
 

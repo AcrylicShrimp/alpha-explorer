@@ -1,7 +1,9 @@
 use crate::render::{AlphaTilemap, Color, Layer, Shader};
 use fontdue::Font;
+use specs::{prelude::*, Component};
 use std::sync::Arc;
 
+#[derive(Component)]
 pub struct AlphaTilemapRenderer {
     pub layer: Layer,
     pub order: isize,

@@ -1,47 +1,23 @@
-use crate::script::api::ModuleType;
+use mlua::prelude::*;
 
 pub type ComponentUIElement = super::Component<crate::component::UIElement>;
 
-impl ModuleType for ComponentUIElement {
-    fn register(module: &mut rhai::Module) {
-        module.set_custom_type::<Self>("ComponentUIElement");
-
-        to_global!(
-            module,
-            module.set_native_fn("is_exists", |this: &mut Self| { Ok(this.is_exists()) })
-        );
-
-        to_global!(
-            module,
-            module.set_native_fn("to_string", |this: &mut Self| Ok(format!(
-                "ComponentUIElement(entity={:?}, is_exists={})",
-                this.entity,
-                this.is_exists()
-            )))
-        );
-        to_global!(
-            module,
-            module.set_native_fn("to_debug", |this: &mut Self| Ok(format!(
-                "ComponentUIElement(entity={:?}, is_exists={})",
-                this.entity,
-                this.is_exists()
-            )))
-        );
-
-        module.set_getter_fn("anchor", |this: &mut Self| {
+impl LuaUserData for ComponentUIElement {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("anchor", |_lua, this| {
             Ok(this.with_ref(|this| this.with_ref(|this| this.anchor.clone())))
         });
-        module.set_getter_fn("margin", |this: &mut Self| {
+        fields.add_field_method_get("margin", |_lua, this| {
             Ok(this.with_ref(|this| this.with_ref(|this| this.margin.clone())))
         });
-        module.set_getter_fn("is_interactible", |this: &mut Self| {
+        fields.add_field_method_get("is_interactible", |_lua, this| {
             Ok(this.with_ref(|this| this.with_ref(|this| this.is_interactible())))
         });
-        module.set_getter_fn("order_index", |this: &mut Self| {
+        fields.add_field_method_get("order_index", |_lua, this| {
             Ok(this.with_ref(|this| this.with_ref(|this| this.order_index())))
         });
 
-        module.set_setter_fn("anchor", |this: &mut Self, anchor| {
+        fields.add_field_method_set("anchor", |_lua, this, anchor| {
             this.with_mut(|this| {
                 this.with_mut(|this| {
                     this.mark_as_dirty();
@@ -50,7 +26,7 @@ impl ModuleType for ComponentUIElement {
             });
             Ok(())
         });
-        module.set_setter_fn("margin", |this: &mut Self, margin| {
+        fields.add_field_method_set("margin", |_lua, this, margin| {
             this.with_mut(|this| {
                 this.with_mut(|this| {
                     this.mark_as_dirty();
@@ -59,7 +35,7 @@ impl ModuleType for ComponentUIElement {
             });
             Ok(())
         });
-        module.set_setter_fn("is_interactible", |this: &mut Self, is_interactible| {
+        fields.add_field_method_set("is_interactible", |_lua, this, is_interactible| {
             this.with_mut(|this| {
                 this.with_mut(|this| {
                     this.mark_as_dirty();
@@ -68,7 +44,7 @@ impl ModuleType for ComponentUIElement {
             });
             Ok(())
         });
-        module.set_setter_fn("order_index", |this: &mut Self, order_index| {
+        fields.add_field_method_set("order_index", |_lua, this, order_index| {
             this.with_mut(|this| {
                 this.with_mut(|this| {
                     this.mark_as_dirty();
@@ -76,6 +52,18 @@ impl ModuleType for ComponentUIElement {
                 })
             });
             Ok(())
+        });
+    }
+
+    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_method("is_exists", |_lua, this, ()| Ok(this.is_exists()));
+
+        methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
+            Ok(format!(
+                "ComponentUIElement(entity={:?}, is_exists={})",
+                this.entity,
+                this.is_exists()
+            ))
         });
     }
 }

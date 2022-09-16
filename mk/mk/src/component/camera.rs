@@ -1,5 +1,8 @@
 use crate::render::Layer;
+use specs::{prelude::*, Component};
 
+#[derive(Component)]
+#[storage(HashMapStorage)]
 pub struct Camera {
     pub layer: Layer,
     pub order: isize,

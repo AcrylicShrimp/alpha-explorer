@@ -1,6 +1,8 @@
 use crate::render::{Color, Layer, Shader, SpriteNinePatch};
+use specs::{prelude::*, Component};
 use std::sync::Arc;
 
+#[derive(Component)]
 pub struct NinePatchRenderer {
     pub layer: Layer,
     pub order: isize,

@@ -1,151 +1,67 @@
-use crate::script::api::{extract_float, ModuleType};
-use rhai::{FLOAT, INT};
+use crate::script::api::LuaApiTable;
+use mlua::prelude::*;
 
 pub type Vec2 = crate::structure::Vec2;
 
-impl ModuleType for Vec2 {
-    fn register(module: &mut rhai::Module) {
-        module.set_custom_type::<Self>("Vec2");
+impl LuaApiTable for Vec2 {
+    fn create_api_table<'lua>(lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
+        let table = lua.create_table()?;
 
-        to_global!(
-            module,
-            module.set_native_fn("to_string", |lhs: &mut Self| Ok(lhs.to_string()))
-        );
-        to_global!(
-            module,
-            module.set_native_fn("to_debug", |lhs: &mut Self| Ok(format!("{:?}", lhs)))
-        );
+        table.set(
+            "new",
+            lua.create_function(|_lua, (x, y)| Ok(Self::new(x, y)))?,
+        )?;
+        table.set("zero", lua.create_function(|_lua, ()| Ok(Self::zero()))?)?;
+        table.set("one", lua.create_function(|_lua, ()| Ok(Self::one()))?)?;
+        table.set("left", lua.create_function(|_lua, ()| Ok(Self::left()))?)?;
+        table.set("right", lua.create_function(|_lua, ()| Ok(Self::right()))?)?;
+        table.set("up", lua.create_function(|_lua, ()| Ok(Self::up()))?)?;
+        table.set("down", lua.create_function(|_lua, ()| Ok(Self::down()))?)?;
 
-        module.set_getter_fn("x", |this: &mut Self| Ok(this.x));
-        module.set_getter_fn("y", |this: &mut Self| Ok(this.y));
-        module.set_getter_fn("len", |this: &mut Self| Ok(this.len()));
-        module.set_getter_fn("len_square", |this: &mut Self| Ok(this.len_square()));
-        module.set_getter_fn("norm", |this: &mut Self| Ok(this.norm()));
+        Ok(table)
+    }
+}
 
-        module.set_setter_fn("x", |this: &mut Self, x| {
-            this.x = extract_float(x)?;
-            Ok(())
+impl LuaUserData for Vec2 {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("x", |_lua, this| Ok(this.x));
+        fields.add_field_method_get("y", |_lua, this| Ok(this.y));
+    }
+
+    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
+            Ok(this.to_string())
         });
-        module.set_setter_fn("y", |this: &mut Self, y| {
-            this.y = extract_float(y)?;
-            Ok(())
+
+        methods.add_meta_function(LuaMetaMethod::Add, |_lua, (lhs, rhs): (Self, Self)| {
+            Ok(lhs + rhs)
         });
 
-        to_global!(
-            module,
-            module.set_native_fn("+", |lhs: Self, rhs: Self| Ok(lhs + rhs))
-        );
-        to_global!(
-            module,
-            module.set_native_fn("+=", |lhs: &mut Self, rhs: Self| {
-                *lhs += rhs;
-                Ok(())
-            })
-        );
-        to_global!(module, module.set_native_fn("-", |lhs: Self| Ok(-lhs)));
-        to_global!(
-            module,
-            module.set_native_fn("-", |lhs: Self, rhs: Self| Ok(lhs - rhs))
-        );
-        to_global!(
-            module,
-            module.set_native_fn("-=", |lhs: &mut Self, rhs: Self| {
-                *lhs -= rhs;
-                Ok(())
-            })
-        );
-        to_global!(
-            module,
-            module.set_native_fn("*", |lhs: Self, rhs: Self| Ok(lhs * rhs))
-        );
-        to_global!(
-            module,
-            module.set_native_fn("*", |lhs: Self, rhs: INT| Ok(lhs * rhs as f32))
-        );
-        to_global!(
-            module,
-            module.set_native_fn("*", |lhs: Self, rhs: FLOAT| Ok(lhs * rhs as f32))
-        );
-        to_global!(
-            module,
-            module.set_native_fn("*", |lhs: INT, rhs: Self| Ok(lhs as f32 * rhs))
-        );
-        to_global!(
-            module,
-            module.set_native_fn("*", |lhs: FLOAT, rhs: Self| Ok(lhs as f32 * rhs))
-        );
-        to_global!(
-            module,
-            module.set_native_fn("*=", |lhs: &mut Self, rhs: Self| {
-                *lhs *= rhs;
-                Ok(())
-            })
-        );
-        to_global!(
-            module,
-            module.set_native_fn("*=", |lhs: &mut Self, rhs: INT| {
-                *lhs *= rhs as f32;
-                Ok(())
-            })
-        );
-        to_global!(
-            module,
-            module.set_native_fn("*=", |lhs: &mut Self, rhs: FLOAT| {
-                *lhs *= rhs as f32;
-                Ok(())
-            })
-        );
-        to_global!(
-            module,
-            module.set_native_fn("/", |lhs: Self, rhs: Self| Ok(lhs / rhs))
-        );
-        to_global!(
-            module,
-            module.set_native_fn("/", |lhs: Self, rhs: INT| Ok(lhs / rhs as f32))
-        );
-        to_global!(
-            module,
-            module.set_native_fn("/", |lhs: Self, rhs: FLOAT| Ok(lhs / rhs as f32))
-        );
-        to_global!(
-            module,
-            module.set_native_fn("/=", |lhs: &mut Self, rhs: Self| {
-                *lhs /= rhs;
-                Ok(())
-            })
-        );
-        to_global!(
-            module,
-            module.set_native_fn("/=", |lhs: &mut Self, rhs: INT| {
-                *lhs /= rhs as f32;
-                Ok(())
-            })
-        );
-        to_global!(
-            module,
-            module.set_native_fn("/=", |lhs: &mut Self, rhs: FLOAT| {
-                *lhs /= rhs as f32;
-                Ok(())
-            })
-        );
-
-        module.set_sub_module("Vec2", {
-            let mut sub_module = rhai::Module::new();
-
-            sub_module.set_native_fn("create", |x, y| {
-                Ok(Self::new(extract_float(x)?, extract_float(y)?))
-            });
-
-            sub_module.set_native_fn("dot", |lhs, rhs| Ok(Self::dot(lhs, rhs)));
-
-            sub_module.set_native_fn("zero", || Ok(Self::zero()));
-            sub_module.set_native_fn("one", || Ok(Self::one()));
-            sub_module.set_native_fn("left", || Ok(Self::left()));
-            sub_module.set_native_fn("right", || Ok(Self::right()));
-            sub_module.set_native_fn("up", || Ok(Self::up()));
-            sub_module.set_native_fn("down", || Ok(Self::down()));
-
-            sub_module
+        methods.add_meta_function(LuaMetaMethod::Sub, |_lua, (lhs, rhs): (Self, Self)| {
+            Ok(lhs - rhs)
         });
+
+        methods.add_meta_function(LuaMetaMethod::Mul, |_lua, (lhs, rhs): (Self, Self)| {
+            Ok(lhs * rhs)
+        });
+        methods.add_meta_function(LuaMetaMethod::Mul, |_lua, (lhs, rhs): (Self, f32)| {
+            Ok(lhs * rhs)
+        });
+        methods.add_meta_function(LuaMetaMethod::Mul, |_lua, (lhs, rhs): (f32, Self)| {
+            Ok(lhs * rhs)
+        });
+
+        methods.add_meta_function(LuaMetaMethod::Div, |_lua, (lhs, rhs): (Self, Self)| {
+            Ok(lhs / rhs)
+        });
+        methods.add_meta_function(LuaMetaMethod::Div, |_lua, (lhs, rhs): (Self, f32)| {
+            Ok(lhs / rhs)
+        });
+
+        methods.add_meta_function(LuaMetaMethod::Unm, |_lua, lhs: Self| Ok(-lhs));
+
+        methods.add_method("len", |_lua, this, ()| Ok(this.len()));
+        methods.add_method("len_square", |_lua, this, ()| Ok(this.len_square()));
+        methods.add_method("norm", |_lua, this, ()| Ok(this.norm()));
     }
 }

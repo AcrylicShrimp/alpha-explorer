@@ -1,3 +1,5 @@
+use specs::prelude::*;
+
 mod alpha_tilemap_renderer;
 mod audio_source;
 mod camera;
@@ -25,3 +27,19 @@ pub use tilemap_renderer::*;
 pub use transform::*;
 pub use ui_element::*;
 pub use ui_scaler::*;
+
+pub fn register_components(world: &mut World) {
+    world.register::<alpha_tilemap_renderer::AlphaTilemapRenderer>();
+    world.register::<audio_source::AudioSource>();
+    world.register::<camera::Camera>();
+    world.register::<diagnostic::Diagnostic>();
+    world.register::<glyph_renderer::GlyphRenderer>();
+    world.register::<nine_patch_renderer::NinePatchRenderer>();
+    // world.register::<single_animator::SingleAnimator>();
+    world.register::<size::Size>();
+    world.register::<sprite_renderer::SpriteRenderer>();
+    world.register::<tilemap_renderer::TilemapRenderer>();
+    world.register::<transform::Transform>();
+    world.register::<ui_element::UIElement>();
+    world.register::<ui_scaler::UIScaler>();
+}

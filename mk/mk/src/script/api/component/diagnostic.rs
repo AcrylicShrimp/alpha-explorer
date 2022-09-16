@@ -1,31 +1,19 @@
-use crate::script::api::ModuleType;
+use mlua::prelude::*;
 
 pub type ComponentDiagnostic = super::Component<crate::component::Diagnostic>;
 
-impl ModuleType for ComponentDiagnostic {
-    fn register(module: &mut rhai::Module) {
-        module.set_custom_type::<Self>("ComponentDiagnostic");
+impl LuaUserData for ComponentDiagnostic {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(_fields: &mut F) {}
 
-        to_global!(
-            module,
-            module.set_native_fn("is_exists", |this: &mut Self| { Ok(this.is_exists()) })
-        );
+    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_method("is_exists", |_lua, this, ()| Ok(this.is_exists()));
 
-        to_global!(
-            module,
-            module.set_native_fn("to_string", |this: &mut Self| Ok(format!(
+        methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
+            Ok(format!(
                 "ComponentDiagnostic(entity={:?}, is_exists={})",
                 this.entity,
                 this.is_exists()
-            )))
-        );
-        to_global!(
-            module,
-            module.set_native_fn("to_debug", |this: &mut Self| Ok(format!(
-                "ComponentDiagnostic(entity={:?}, is_exists={})",
-                this.entity,
-                this.is_exists()
-            )))
-        );
+            ))
+        });
     }
 }

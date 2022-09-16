@@ -1,84 +1,75 @@
-use crate::script::api::{extract_float, ModuleType};
+use crate::script::api::LuaApiTable;
+use mlua::prelude::*;
 
 pub type Color = crate::render::Color;
 
-impl ModuleType for Color {
-    fn register(module: &mut rhai::Module) {
-        module.set_custom_type::<Self>("Color");
+impl LuaApiTable for Color {
+    fn create_api_table<'lua>(lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
+        let table = lua.create_table()?;
 
-        to_global!(
-            module,
-            module.set_native_fn("to_string", |this: &mut Self| Ok(this.to_string()))
-        );
-        to_global!(
-            module,
-            module.set_native_fn("to_debug", |this: &mut Self| Ok(format!("{:?}", this)))
-        );
+        table.set(
+            "from_rgb",
+            lua.create_function(|_lua, (r, g, b)| Ok(Self::from_rgb(r, g, b)))?,
+        )?;
+        table.set(
+            "from_rgba",
+            lua.create_function(|_lua, (r, g, b, a)| Ok(Self::from_rgba(r, g, b, a)))?,
+        )?;
+        table.set(
+            "transparent",
+            lua.create_function(|_lua, ()| Ok(Self::transparent()))?,
+        )?;
+        table.set("black", lua.create_function(|_lua, ()| Ok(Self::black()))?)?;
+        table.set("red", lua.create_function(|_lua, ()| Ok(Self::red()))?)?;
+        table.set("green", lua.create_function(|_lua, ()| Ok(Self::green()))?)?;
+        table.set("blue", lua.create_function(|_lua, ()| Ok(Self::blue()))?)?;
+        table.set(
+            "yellow",
+            lua.create_function(|_lua, ()| Ok(Self::yellow()))?,
+        )?;
+        table.set(
+            "magenta",
+            lua.create_function(|_lua, ()| Ok(Self::magenta()))?,
+        )?;
+        table.set("cyan", lua.create_function(|_lua, ()| Ok(Self::cyan()))?)?;
+        table.set("white", lua.create_function(|_lua, ()| Ok(Self::white()))?)?;
 
-        module.set_getter_fn("r", |this: &mut Self| Ok(this.r));
-        module.set_getter_fn("g", |this: &mut Self| Ok(this.g));
-        module.set_getter_fn("b", |this: &mut Self| Ok(this.b));
-        module.set_getter_fn("a", |this: &mut Self| Ok(this.a));
+        Ok(table)
+    }
+}
 
-        module.set_setter_fn("r", |this: &mut Self, r| {
-            this.r = extract_float(r)?;
+impl LuaUserData for Color {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("r", |_lua, this| Ok(this.r));
+        fields.add_field_method_get("g", |_lua, this| Ok(this.g));
+        fields.add_field_method_get("b", |_lua, this| Ok(this.b));
+        fields.add_field_method_get("a", |_lua, this| Ok(this.a));
+
+        fields.add_field_method_set("r", |_lua, this, r| {
+            this.r = r;
             Ok(())
         });
-        module.set_setter_fn("g", |this: &mut Self, g| {
-            this.g = extract_float(g)?;
+        fields.add_field_method_set("g", |_lua, this, g| {
+            this.r = g;
             Ok(())
         });
-        module.set_setter_fn("b", |this: &mut Self, b| {
-            this.b = extract_float(b)?;
+        fields.add_field_method_set("b", |_lua, this, b| {
+            this.r = b;
             Ok(())
         });
-        module.set_setter_fn("a", |this: &mut Self, a| {
-            this.a = extract_float(a)?;
+        fields.add_field_method_set("a", |_lua, this, a| {
+            this.r = a;
             Ok(())
         });
+    }
 
-        to_global!(
-            module,
-            module.set_native_fn("*", |lhs: Self, rhs: Self| Ok(lhs * rhs))
-        );
-        to_global!(
-            module,
-            module.set_native_fn("*=", |lhs: &mut Self, rhs: Self| {
-                *lhs *= rhs;
-                Ok(())
-            })
-        );
+    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
+            Ok(this.to_string())
+        });
 
-        module.set_sub_module("Color", {
-            let mut sub_module = rhai::Module::new();
-
-            sub_module.set_native_fn("from_rgb", |r, g, b| {
-                Ok(Self::from_rgb(
-                    extract_float(r)?,
-                    extract_float(g)?,
-                    extract_float(b)?,
-                ))
-            });
-            sub_module.set_native_fn("from_rgba", |r, g, b, a| {
-                Ok(Self::from_rgba(
-                    extract_float(r)?,
-                    extract_float(g)?,
-                    extract_float(b)?,
-                    extract_float(a)?,
-                ))
-            });
-
-            sub_module.set_native_fn("transparent", || Ok(Self::transparent()));
-            sub_module.set_native_fn("black", || Ok(Self::black()));
-            sub_module.set_native_fn("red", || Ok(Self::red()));
-            sub_module.set_native_fn("green", || Ok(Self::green()));
-            sub_module.set_native_fn("blue", || Ok(Self::blue()));
-            sub_module.set_native_fn("yellow", || Ok(Self::yellow()));
-            sub_module.set_native_fn("magenta", || Ok(Self::magenta()));
-            sub_module.set_native_fn("cyan", || Ok(Self::cyan()));
-            sub_module.set_native_fn("white", || Ok(Self::white()));
-
-            sub_module
+        methods.add_meta_function(LuaMetaMethod::Mul, |_lua, (lhs, rhs): (Self, Self)| {
+            Ok(lhs * rhs)
         });
     }
 }

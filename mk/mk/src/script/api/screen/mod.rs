@@ -1,5 +1,5 @@
-use crate::script::api::ModuleType;
-use rhai::Module;
+use crate::script::api::LuaApiTable;
+use mlua::prelude::*;
 
 mod screen;
 
@@ -7,12 +7,12 @@ pub use screen::*;
 
 pub struct ScreenModule;
 
-impl ModuleType for ScreenModule {
-    fn register(module: &mut Module) {
-        let mut sub_module = Module::new();
+impl LuaApiTable for ScreenModule {
+    fn create_api_table<'lua>(lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
+        let table = lua.create_table()?;
 
-        screen::Screen::register(&mut sub_module);
+        table.set("Screen", screen::Screen::create_api_table(lua)?)?;
 
-        module.set_sub_module("screen", sub_module);
+        Ok(table)
     }
 }

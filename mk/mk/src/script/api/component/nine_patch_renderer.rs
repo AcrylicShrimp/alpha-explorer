@@ -1,78 +1,64 @@
-use crate::script::api::ModuleType;
+use crate::script::{
+    api::IntoShared,
+    render::{Shader, SpriteNinePatch},
+};
+use mlua::prelude::*;
 
 pub type ComponentNinePatchRenderer = super::Component<crate::component::NinePatchRenderer>;
 
-impl ModuleType for ComponentNinePatchRenderer {
-    fn register(module: &mut rhai::Module) {
-        module.set_custom_type::<Self>("ComponentNinePatchRenderer");
-
-        to_global!(
-            module,
-            module.set_native_fn("is_exists", |this: &mut Self| { Ok(this.is_exists()) })
-        );
-
-        to_global!(
-            module,
-            module.set_native_fn("to_string", |this: &mut Self| Ok(format!(
-                "ComponentNinePatchRenderer(entity={:?}, is_exists={})",
-                this.entity,
-                this.is_exists()
-            )))
-        );
-        to_global!(
-            module,
-            module.set_native_fn("to_debug", |this: &mut Self| Ok(format!(
-                "ComponentNinePatchRenderer(entity={:?}, is_exists={})",
-                this.entity,
-                this.is_exists()
-            )))
-        );
-
-        module.set_getter_fn("layer", |this: &mut Self| {
-            Ok(this.with_ref(|this| this.layer))
+impl LuaUserData for ComponentNinePatchRenderer {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("layer", |_lua, this| Ok(this.with_ref(|this| this.layer)));
+        fields.add_field_method_get("order", |_lua, this| Ok(this.with_ref(|this| this.order)));
+        fields.add_field_method_get("color", |_lua, this| Ok(this.with_ref(|this| this.color)));
+        fields.add_field_method_get("shader", |_lua, this| {
+            Ok(this.with_ref(|this| this.shader.clone().into_shared()))
         });
-        module.set_getter_fn("order", |this: &mut Self| {
-            Ok(this.with_ref(|this| this.order))
-        });
-        module.set_getter_fn("color", |this: &mut Self| {
-            Ok(this.with_ref(|this| this.color))
-        });
-        module.set_getter_fn("shader", |this: &mut Self| {
-            Ok(this.with_ref(|this| this.shader.clone()))
-        });
-        module.set_getter_fn("nine_patch", |this: &mut Self| {
-            Ok(this.with_ref(|this| this.nine_patch.clone()))
+        fields.add_field_method_get("nine_patch", |_lua, this| {
+            Ok(this.with_ref(|this| this.nine_patch.clone().into_shared()))
         });
 
-        module.set_setter_fn("layer", |this: &mut Self, layer| {
+        fields.add_field_method_set("layer", |_lua, this, layer| {
             this.with_mut(|this| {
                 this.layer = layer;
             });
             Ok(())
         });
-        module.set_setter_fn("order", |this: &mut Self, order| {
+        fields.add_field_method_set("order", |_lua, this, order| {
             this.with_mut(|this| {
                 this.order = order;
             });
             Ok(())
         });
-        module.set_setter_fn("color", |this: &mut Self, color| {
+        fields.add_field_method_set("color", |_lua, this, color| {
             this.with_mut(|this| {
                 this.color = color;
             });
             Ok(())
         });
-        module.set_setter_fn("shader", |this: &mut Self, shader| {
+        fields.add_field_method_set("shader", |_lua, this, shader: Shader| {
             this.with_mut(|this| {
-                this.shader = shader;
+                this.shader = shader.into_inner();
             });
             Ok(())
         });
-        module.set_setter_fn("nine_patch", |this: &mut Self, nine_patch| {
+        fields.add_field_method_set("nine_patch", |_lua, this, nine_patch: SpriteNinePatch| {
             this.with_mut(|this| {
-                this.nine_patch = nine_patch;
+                this.nine_patch = nine_patch.into_inner();
             });
             Ok(())
+        });
+    }
+
+    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_method("is_exists", |_lua, this, ()| Ok(this.is_exists()));
+
+        methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
+            Ok(format!(
+                "ComponentNinePatchRenderer(entity={:?}, is_exists={})",
+                this.entity,
+                this.is_exists()
+            ))
         });
     }
 }

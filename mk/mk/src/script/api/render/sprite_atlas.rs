@@ -1,27 +1,36 @@
-use crate::script::api::ModuleType;
-use rhai::ImmutableString;
-use std::sync::Arc;
+use crate::script::api::IntoShared;
+use mlua::prelude::*;
 
-pub type SpriteAtlas = Arc<crate::render::SpriteAtlas>;
+define_shared_type!(SpriteAtlas, crate::render::SpriteAtlas);
 
-impl ModuleType for SpriteAtlas {
-    fn register(module: &mut rhai::Module) {
-        module.set_custom_type::<Self>("SpriteAtlas");
+impl LuaUserData for SpriteAtlas {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("texture", |_lua, this| {
+            Ok(this.texture().clone().into_shared())
+        });
+        fields.add_field_method_get("sprites", |_lua, this| {
+            Ok(_lua.create_table_from(
+                this.sprites()
+                    .iter()
+                    .map(|(name, sprite)| (name.clone(), sprite.clone().into_shared())),
+            )?)
+        });
+    }
 
-        to_global!(
-            module,
-            module.set_native_fn("to_string", |this: &mut Self| Ok(this.to_string()))
-        );
-        to_global!(
-            module,
-            module.set_native_fn("to_debug", |this: &mut Self| Ok(format!("{:?}", this)))
-        );
+    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
+            Ok(this.to_string())
+        });
 
-        module.set_getter_fn("texture", |this: &mut Self| Ok(this.texture().clone()));
-        module.set_getter_fn("sprites", |this: &mut Self| Ok(this.sprites().clone()));
-
-        module.set_indexer_get_fn(|this: &mut Self, name: ImmutableString| {
-            Ok(this.sprites().get(name.as_str()).cloned())
+        methods.add_meta_method(LuaMetaMethod::Len, |_lua, this, ()| {
+            Ok(this.sprites().len())
+        });
+        methods.add_meta_method(LuaMetaMethod::Index, |_lua, this, index: LuaString| {
+            Ok(this
+                .sprites()
+                .get(index.to_str()?)
+                .cloned()
+                .map(IntoShared::into_shared))
         });
     }
 }

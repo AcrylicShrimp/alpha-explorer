@@ -1,7 +1,9 @@
 use crate::{audio::AudioClip, engine::use_context};
 use rodio::Sink;
+use specs::{prelude::*, Component};
 use std::sync::Arc;
 
+#[derive(Component)]
 pub struct AudioSource {
     volume: f32,
     clip: Option<Arc<AudioClip>>,

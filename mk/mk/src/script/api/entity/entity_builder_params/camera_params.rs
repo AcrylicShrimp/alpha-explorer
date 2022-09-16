@@ -1,6 +1,7 @@
 use super::EntityBuilderParam;
 use crate::render::Layer;
-use rhai::{EvalAltResult, INT};
+use anyhow::Context;
+use mlua::prelude::*;
 
 pub struct CameraParams {
     pub layer: Layer,
@@ -8,18 +9,16 @@ pub struct CameraParams {
 }
 
 impl EntityBuilderParam for CameraParams {
-    fn from_table(mut table: rhai::Map) -> Result<Self, Box<EvalAltResult>> {
+    fn from_table<'lua>(table: LuaTable<'lua>) -> LuaResult<Self> {
         Ok(Self {
             layer: table
-                .remove("layer")
-                .ok_or_else(|| "the field 'layer' is not specified")?
-                .try_cast()
-                .ok_or_else(|| "the field 'layer' is not valid type")?,
+                .get("layer")
+                .with_context(|| "invalid value for 'layer' of CameraParams")
+                .to_lua_err()?,
             order: table
-                .remove("order")
-                .ok_or_else(|| "the field 'order' is not specified")?
-                .try_cast::<INT>()
-                .ok_or_else(|| "the field 'order' is not valid type")? as _,
+                .get("order")
+                .with_context(|| "invalid value for 'order' of CameraParams")
+                .to_lua_err()?,
         })
     }
 }

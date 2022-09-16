@@ -1,16 +1,18 @@
-#[derive(Clone, Copy, PartialEq)]
+use specs::{prelude::*, Component};
+
+#[derive(Component)]
+#[storage(VecStorage)]
+#[derive(Clone, Copy)]
 pub struct Size {
     index: u32,
-    pub width: f32,
-    pub height: f32,
+    pub size: crate::structure::Size,
 }
 
 impl Size {
     pub fn new(index: u32) -> Self {
         Self {
             index,
-            width: 0f32,
-            height: 0f32,
+            size: crate::structure::Size::zero(),
         }
     }
 

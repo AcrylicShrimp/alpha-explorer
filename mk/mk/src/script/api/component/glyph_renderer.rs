@@ -1,250 +1,106 @@
-use crate::script::api::ModuleType;
-use rhai::ImmutableString;
+use crate::script::{
+    api::IntoShared,
+    render::{Font, Shader},
+};
+use mlua::prelude::*;
 
 pub type ComponentGlyphRenderer = super::Component<crate::component::GlyphRenderer>;
 
-impl ModuleType for ComponentGlyphRenderer {
-    fn register(module: &mut rhai::Module) {
-        module.set_custom_type::<Self>("ComponentGlyphRenderer");
-
-        to_global!(
-            module,
-            module.set_native_fn("is_exists", |this: &mut Self| { Ok(this.is_exists()) })
-        );
-
-        to_global!(
-            module,
-            module.set_native_fn("to_string", |this: &mut Self| Ok(format!(
-                "ComponentGlyphRenderer(entity={:?}, is_exists={})",
-                this.entity,
-                this.is_exists()
-            )))
-        );
-        to_global!(
-            module,
-            module.set_native_fn("to_debug", |this: &mut Self| Ok(format!(
-                "ComponentGlyphRenderer(entity={:?}, is_exists={})",
-                this.entity,
-                this.is_exists()
-            )))
-        );
-
-        module.set_getter_fn("layer", |this: &mut Self| {
-            Ok(this.with_ref(|this| this.layer))
+impl LuaUserData for ComponentGlyphRenderer {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("layer", |_lua, this| Ok(this.with_ref(|this| this.layer)));
+        fields.add_field_method_get("order", |_lua, this| Ok(this.with_ref(|this| this.order)));
+        fields.add_field_method_get("color", |_lua, this| Ok(this.with_ref(|this| this.color)));
+        fields.add_field_method_get("shader", |_lua, this| {
+            Ok(this.with_ref(|this| this.shader.clone().into_shared()))
         });
-        module.set_getter_fn("order", |this: &mut Self| {
-            Ok(this.with_ref(|this| this.order))
-        });
-        module.set_getter_fn("color", |this: &mut Self| {
-            Ok(this.with_ref(|this| this.color))
-        });
-        module.set_getter_fn("shader", |this: &mut Self| {
-            Ok(this.with_ref(|this| this.shader.clone()))
-        });
-        module.set_getter_fn("thickness", |this: &mut Self| {
+        fields.add_field_method_get("thickness", |_lua, this| {
             Ok(this.with_ref(|this| this.thickness))
         });
-        module.set_getter_fn("smoothness", |this: &mut Self| {
+        fields.add_field_method_get("smoothness", |_lua, this| {
             Ok(this.with_ref(|this| this.smoothness))
         });
-        module.set_getter_fn("font", |this: &mut Self| {
-            Ok(this.with_ref(|this| this.font().clone()))
+        fields.add_field_method_get("font", |_lua, this| {
+            Ok(this.with_ref(|this| this.font().clone().into_shared()))
         });
-        module.set_getter_fn("font_size", |this: &mut Self| {
+        fields.add_field_method_get("font_size", |_lua, this| {
             Ok(this.with_ref(|this| this.font_size()))
         });
-        module.set_getter_fn("text", |this: &mut Self| {
+        fields.add_field_method_get("text", |_lua, this| {
             Ok(this.with_ref(|this| this.text().to_owned()))
         });
-        module.set_getter_fn("config", |this: &mut Self| {
+        fields.add_field_method_get("config", |_lua, this| {
             Ok(this.with_ref(|this| this.config().clone()))
         });
 
-        module.set_setter_fn("layer", |this: &mut Self, layer| {
+        fields.add_field_method_set("layer", |_lua, this, layer| {
             this.with_mut(|this| {
                 this.layer = layer;
             });
             Ok(())
         });
-        module.set_setter_fn("order", |this: &mut Self, order| {
+        fields.add_field_method_set("order", |_lua, this, order| {
             this.with_mut(|this| {
                 this.order = order;
             });
             Ok(())
         });
-        module.set_setter_fn("color", |this: &mut Self, color| {
+        fields.add_field_method_set("color", |_lua, this, color| {
             this.with_mut(|this| {
                 this.color = color;
             });
             Ok(())
         });
-        module.set_setter_fn("shader", |this: &mut Self, shader| {
+        fields.add_field_method_set("shader", |_lua, this, shader: Shader| {
             this.with_mut(|this| {
-                this.shader = shader;
+                this.shader = shader.into_inner();
             });
             Ok(())
         });
-        module.set_setter_fn("thickness", |this: &mut Self, thickness| {
+        fields.add_field_method_set("thickness", |_lua, this, thickness| {
             this.with_mut(|this| {
                 this.thickness = thickness;
             });
             Ok(())
         });
-        module.set_setter_fn("smoothness", |this: &mut Self, smoothness| {
+        fields.add_field_method_set("smoothness", |_lua, this, smoothness| {
             this.with_mut(|this| {
                 this.smoothness = smoothness;
             });
             Ok(())
         });
-        module.set_setter_fn("font", |this: &mut Self, font| {
-            this.with_mut(|this| {
-                this.set_font(font);
-            });
+        fields.add_field_method_set("font", |_lua, this, font: Font| {
+            this.with_mut(|this| this.set_font(font.into_inner()));
             Ok(())
         });
-        module.set_setter_fn("font_size", |this: &mut Self, font_size| {
-            this.with_mut(|this| {
-                this.set_font_size(font_size);
-            });
+        fields.add_field_method_set("font_size", |_lua, this, font_size| {
+            this.with_mut(|this| this.set_font_size(font_size));
             Ok(())
         });
-        module.set_setter_fn("text", |this: &mut Self, text: ImmutableString| {
-            this.with_mut(|this| {
-                this.set_text(text.into_owned());
-            });
+        fields.add_field_method_set("text", |_lua, this, text: LuaString| {
+            let text = text.to_str()?.to_owned();
+            this.with_mut(|this| this.set_text(text));
             Ok(())
         });
-        module.set_setter_fn("config", |this: &mut Self, config| {
-            this.with_mut(|this| {
-                this.set_config(config);
-            });
+        fields.add_field_method_set("config", |_lua, this, config| {
+            this.with_mut(|this| this.set_config(config));
             Ok(())
         });
     }
-}
 
-pub type GlyphLayoutConfig = crate::component::GlyphLayoutConfig;
+    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_method("is_exists", |_lua, this, ()| Ok(this.is_exists()));
 
-impl ModuleType for GlyphLayoutConfig {
-    fn register(module: &mut rhai::Module) {
-        module.set_custom_type::<Self>("GlyphLayoutConfig");
-
-        module.set_getter_fn("horizontal_align", |this: &mut Self| {
-            Ok(this.horizontal_align)
-        });
-        module.set_getter_fn("vertical_align", |this: &mut Self| Ok(this.vertical_align));
-        module.set_getter_fn("wrap_style", |this: &mut Self| Ok(this.wrap_style));
-        module.set_getter_fn("wrap_hard_breaks", |this: &mut Self| {
-            Ok(this.wrap_hard_breaks)
+        methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
+            Ok(format!(
+                "ComponentGlyphRenderer(entity={:?}, is_exists={})",
+                this.entity,
+                this.is_exists()
+            ))
         });
 
-        module.set_setter_fn("horizontal_align", |this: &mut Self, horizontal_align| {
-            this.horizontal_align = horizontal_align;
-            Ok(())
-        });
-        module.set_setter_fn("vertical_align", |this: &mut Self, vertical_align| {
-            this.vertical_align = vertical_align;
-            Ok(())
-        });
-        module.set_setter_fn("wrap_style", |this: &mut Self, wrap_style| {
-            this.wrap_style = wrap_style;
-            Ok(())
-        });
-        module.set_setter_fn("wrap_hard_breaks", |this: &mut Self, wrap_hard_breaks| {
-            this.wrap_hard_breaks = wrap_hard_breaks;
-            Ok(())
-        });
-
-        module.set_sub_module("GlyphLayoutConfig", {
-            let mut sub_module = rhai::Module::new();
-
-            sub_module.set_native_fn(
-                "create",
-                |horizontal_align, vertical_align, wrap_style, wrap_hard_breaks| {
-                    Ok(Self::new(
-                        horizontal_align,
-                        vertical_align,
-                        wrap_style,
-                        wrap_hard_breaks,
-                    ))
-                },
-            );
-            sub_module.set_native_fn("default", || Ok(Self::default()));
-
-            sub_module
-        });
-    }
-}
-
-pub type HorizontalAlign = fontdue::layout::HorizontalAlign;
-
-impl ModuleType for HorizontalAlign {
-    fn register(module: &mut rhai::Module) {
-        module.set_sub_module("HorizontalAlign", {
-            let mut sub_module = rhai::Module::new();
-
-            to_global!(
-                sub_module,
-                sub_module.set_getter_fn("enum_type", |this: &mut Self| Ok(match *this {
-                    Self::Left => "Left",
-                    Self::Center => "Center",
-                    Self::Right => "Right",
-                }))
-            );
-
-            sub_module.set_var("Left", Self::Left);
-            sub_module.set_var("Center", Self::Center);
-            sub_module.set_var("Right", Self::Right);
-
-            sub_module
-        });
-    }
-}
-
-pub type VerticalAlign = fontdue::layout::VerticalAlign;
-
-impl ModuleType for VerticalAlign {
-    fn register(module: &mut rhai::Module) {
-        module.set_sub_module("VerticalAlign", {
-            let mut sub_module = rhai::Module::new();
-
-            to_global!(
-                sub_module,
-                sub_module.set_getter_fn("enum_type", |this: &mut Self| Ok(match *this {
-                    Self::Top => "Top",
-                    Self::Middle => "Middle",
-                    Self::Bottom => "Bottom",
-                }))
-            );
-
-            sub_module.set_var("Top", Self::Top);
-            sub_module.set_var("Middle", Self::Middle);
-            sub_module.set_var("Bottom", Self::Bottom);
-
-            sub_module
-        });
-    }
-}
-
-pub type WrapStyle = fontdue::layout::WrapStyle;
-
-impl ModuleType for WrapStyle {
-    fn register(module: &mut rhai::Module) {
-        module.set_sub_module("WrapStyle", {
-            let mut sub_module = rhai::Module::new();
-
-            to_global!(
-                sub_module,
-                sub_module.set_getter_fn("enum_type", |this: &mut Self| Ok(match *this {
-                    Self::Word => "Word",
-                    Self::Letter => "Letter",
-                }))
-            );
-
-            sub_module.set_var("Word", Self::Word);
-            sub_module.set_var("Letter", Self::Letter);
-
-            sub_module
+        methods.add_method("compute_size", |_lua, this, ()| {
+            Ok(this.with_ref(|this| this.compute_size()))
         });
     }
 }

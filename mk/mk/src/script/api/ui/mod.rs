@@ -1,21 +1,27 @@
-use crate::script::api::ModuleType;
-use rhai::Module;
+use crate::script::api::LuaApiTable;
+use mlua::prelude::*;
 
 mod ui_anchor;
 mod ui_margin;
+mod ui_scale_mode;
 
 pub use ui_anchor::*;
 pub use ui_margin::*;
+pub use ui_scale_mode::*;
 
 pub struct UIModule;
 
-impl ModuleType for UIModule {
-    fn register(module: &mut Module) {
-        let mut sub_module = Module::new();
+impl LuaApiTable for UIModule {
+    fn create_api_table<'lua>(lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
+        let table = lua.create_table()?;
 
-        ui_anchor::UIAnchor::register(&mut sub_module);
-        ui_margin::UIMargin::register(&mut sub_module);
+        table.set("Anchor", ui_anchor::UIAnchor::create_api_table(lua)?)?;
+        table.set("Margin", ui_margin::UIMargin::create_api_table(lua)?)?;
+        table.set(
+            "ScaleMode",
+            ui_scale_mode::UIScaleMode::create_api_table(lua)?,
+        )?;
 
-        module.set_sub_module("ui", sub_module);
+        Ok(table)
     }
 }

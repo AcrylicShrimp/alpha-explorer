@@ -44,7 +44,7 @@ impl TransformFlattener {
         }
 
         // 2. Clear processed_flags to all false.
-        self.processed_flags.set_all(false);
+        self.processed_flags.fill(false);
 
         // 3. Clear the flattened_indices.
         self.flattened_indices.clear();

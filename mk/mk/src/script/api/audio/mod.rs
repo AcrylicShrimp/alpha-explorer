@@ -1,5 +1,5 @@
-use crate::script::api::ModuleType;
-use rhai::Module;
+use crate::script::api::LuaApiTable;
+use mlua::prelude::*;
 
 mod audio_clip;
 
@@ -7,12 +7,10 @@ pub use audio_clip::*;
 
 pub struct AudioModule;
 
-impl ModuleType for AudioModule {
-    fn register(module: &mut Module) {
-        let mut sub_module = Module::new();
+impl LuaApiTable for AudioModule {
+    fn create_api_table<'lua>(lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
+        let table = lua.create_table()?;
 
-        audio_clip::AudioClip::register(&mut sub_module);
-
-        module.set_sub_module("component", sub_module);
+        Ok(table)
     }
 }

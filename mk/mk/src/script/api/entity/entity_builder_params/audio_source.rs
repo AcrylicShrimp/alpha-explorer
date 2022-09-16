@@ -1,6 +1,7 @@
 use super::EntityBuilderParam;
 use crate::audio::AudioClip;
-use rhai::EvalAltResult;
+use anyhow::Context;
+use mlua::prelude::*;
 use std::sync::Arc;
 
 #[derive(Default)]
@@ -10,23 +11,17 @@ pub struct AudioSourceParams {
 }
 
 impl EntityBuilderParam for AudioSourceParams {
-    fn from_table(mut table: rhai::Map) -> Result<Self, Box<EvalAltResult>> {
+    fn from_table<'lua>(table: LuaTable<'lua>) -> LuaResult<Self> {
         Ok(Self {
             volume: table
-                .remove("volume")
-                .map(|volume| {
-                    volume
-                        .try_cast()
-                        .ok_or_else(|| "the field 'volume' is not valid type")
-                })
-                .transpose()?,
+                .get("volume")
+                .with_context(|| "invalid value for 'volume' of AudioSourceParams")
+                .to_lua_err()?,
             clip: table
-                .remove("clip")
-                .map(|clip| {
-                    clip.try_cast()
-                        .ok_or_else(|| "the field 'clip' is not valid type")
-                })
-                .transpose()?,
+                .get::<_, Option<crate::script::api::audio::AudioClip>>("clip")
+                .with_context(|| "invalid value for 'clip' of AudioSourceParams")
+                .to_lua_err()?
+                .map(|clip| clip.into_inner()),
         })
     }
 }

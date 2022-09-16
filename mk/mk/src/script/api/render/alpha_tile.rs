@@ -1,39 +1,52 @@
-use crate::{render::Color, script::api::ModuleType};
+use crate::script::api::LuaApiTable;
+use mlua::prelude::*;
 
 pub type AlphaTile = crate::render::AlphaTile;
 
-impl ModuleType for AlphaTile {
-    fn register(module: &mut rhai::Module) {
-        module.set_custom_type::<Self>("AlphaTile");
+impl LuaApiTable for AlphaTile {
+    fn create_api_table<'lua>(lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
+        let table = lua.create_table()?;
 
-        to_global!(
-            module,
-            module.set_native_fn("to_string", |this: &mut Self| Ok(this.to_string()))
-        );
-        to_global!(
-            module,
-            module.set_native_fn("to_debug", |this: &mut Self| Ok(format!("{:?}", this)))
-        );
-
-        module.set_getter_fn("fore_color", |this: &mut Self| Ok(this.fore_color));
-        module.set_getter_fn("back_color", |this: &mut Self| Ok(this.back_color));
-        module.set_getter_fn("character", |this: &mut Self| Ok(this.character));
-
-        module.set_sub_module("AlphaTile", {
-            let mut sub_module = rhai::Module::new();
-
-            sub_module.set_native_fn(
-                "new",
-                |fore_color: Color, back_color: Color, character: char| {
-                    Ok(Self {
+        table.set(
+            "new",
+            lua.create_function(
+                |_lua, (fore_color, back_color, character): (_, _, LuaString)| {
+                    Ok(Self::new(
                         fore_color,
                         back_color,
-                        character,
-                    })
+                        character.to_str()?.chars().next().unwrap_or(' '),
+                    ))
                 },
-            );
+            )?,
+        )?;
 
-            sub_module
+        Ok(table)
+    }
+}
+
+impl LuaUserData for AlphaTile {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("fore_color", |_lua, this| Ok(this.fore_color));
+        fields.add_field_method_get("back_color", |_lua, this| Ok(this.back_color));
+        fields.add_field_method_get("character", |_lua, this| Ok(this.character.to_string()));
+
+        fields.add_field_method_set("fore_color", |_lua, this, fore_color| {
+            this.fore_color = fore_color;
+            Ok(())
+        });
+        fields.add_field_method_set("back_color", |_lua, this, back_color| {
+            this.back_color = back_color;
+            Ok(())
+        });
+        fields.add_field_method_set("character", |_lua, this, character: LuaString| {
+            this.character = character.to_str()?.chars().next().unwrap_or(' ');
+            Ok(())
+        });
+    }
+
+    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
+            Ok(this.to_string())
         });
     }
 }

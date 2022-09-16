@@ -42,12 +42,28 @@ where
         Self { hash, inner }
     }
 
+    pub fn into_raw(self) -> (usize, Box<T>) {
+        (self.hash, self.inner)
+    }
+
+    pub fn into_inner(self) -> Box<T> {
+        self.inner
+    }
+
     pub fn hash(&self) -> usize {
         self.hash
     }
+}
 
-    pub fn into_raw(self) -> (usize, Box<T>) {
-        (self.hash, self.inner)
+impl<T> BoxId<T>
+where
+    T: Any,
+{
+    pub fn upcast(self) -> BoxId<dyn Any> {
+        BoxId {
+            hash: self.hash,
+            inner: self.inner,
+        }
     }
 }
 

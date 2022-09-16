@@ -1,60 +1,52 @@
-use crate::script::api::{extract_float, ModuleType};
-use rhai::Dynamic;
+use crate::script::api::LuaApiTable;
+use mlua::prelude::*;
 
 pub type UIMargin = crate::ui::UIMargin;
 
-impl ModuleType for UIMargin {
-    fn register(module: &mut rhai::Module) {
-        module.set_custom_type::<Self>("UIMargin");
+impl LuaApiTable for UIMargin {
+    fn create_api_table<'lua>(lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
+        let table = lua.create_table()?;
 
-        to_global!(
-            module,
-            module.set_native_fn("to_string", |lhs: &mut Self| Ok(lhs.to_string()))
-        );
-        to_global!(
-            module,
-            module.set_native_fn("to_debug", |lhs: &mut Self| Ok(format!("{:?}", lhs)))
-        );
+        table.set(
+            "new",
+            lua.create_function(|_lua, (left, right, top, bottom)| {
+                Ok(Self::new(left, right, top, bottom))
+            })?,
+        )?;
+        table.set("zero", lua.create_function(|_lua, ()| Ok(Self::zero()))?)?;
 
-        module.set_getter_fn("left", |this: &mut Self| Ok(this.left));
-        module.set_getter_fn("right", |this: &mut Self| Ok(this.right));
-        module.set_getter_fn("top", |this: &mut Self| Ok(this.top));
-        module.set_getter_fn("bottom", |this: &mut Self| Ok(this.bottom));
+        Ok(table)
+    }
+}
 
-        module.set_setter_fn("left", |this: &mut Self, left| {
+impl LuaUserData for UIMargin {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("left", |_lua, this| Ok(this.left));
+        fields.add_field_method_get("right", |_lua, this| Ok(this.right));
+        fields.add_field_method_get("top", |_lua, this| Ok(this.top));
+        fields.add_field_method_get("bottom", |_lua, this| Ok(this.bottom));
+
+        fields.add_field_method_set("left", |_lua, this, left| {
             this.left = left;
             Ok(())
         });
-        module.set_setter_fn("right", |this: &mut Self, right| {
+        fields.add_field_method_set("right", |_lua, this, right| {
             this.right = right;
             Ok(())
         });
-        module.set_setter_fn("top", |this: &mut Self, top| {
+        fields.add_field_method_set("top", |_lua, this, top| {
             this.top = top;
             Ok(())
         });
-        module.set_setter_fn("bottom", |this: &mut Self, bottom| {
+        fields.add_field_method_set("bottom", |_lua, this, bottom| {
             this.bottom = bottom;
             Ok(())
         });
+    }
 
-        module.set_sub_module("UIMargin", {
-            let mut sub_module = rhai::Module::new();
-
-            sub_module.set_native_fn(
-                "create",
-                |left: Dynamic, right: Dynamic, top: Dynamic, bottom: Dynamic| {
-                    Ok(Self::new(
-                        extract_float(left)?,
-                        extract_float(right)?,
-                        extract_float(top)?,
-                        extract_float(bottom)?,
-                    ))
-                },
-            );
-            sub_module.set_native_fn("zero", || Ok(Self::zero()));
-
-            sub_module
+    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
+            Ok(this.to_string())
         });
     }
 }
