@@ -280,13 +280,13 @@ pub fn run(
                             context
                                 .event_mgr()
                                 .dispatcher()
-                                .emit(&crate::script::event::KeyDownEvent::from_key(key));
+                                .emit(&crate::script::event::KeyDown::from_key(key));
                         }
                         ElementState::Released => {
                             context
                                 .event_mgr()
                                 .dispatcher()
-                                .emit(&crate::script::event::KeyUpEvent::from_key(key));
+                                .emit(&crate::script::event::KeyUp::from_key(key));
                         }
                     }
                 }

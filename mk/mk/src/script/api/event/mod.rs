@@ -49,8 +49,8 @@ impl LuaApiTable for EventModule {
             "DiagnosticLevel",
             diagnostic::DiagnosticLevel::create_api_table(lua)?,
         )?;
-        table.set("KeyDownEvent", input::KeyDownEvent::create_api_table(lua)?)?;
-        table.set("KeyUpEvent", input::KeyUpEvent::create_api_table(lua)?)?;
+        table.set("KeyDown", input::KeyDown::create_api_table(lua)?)?;
+        table.set("KeyUp", input::KeyUp::create_api_table(lua)?)?;
         table.set("PointerEnter", input::PointerEnter::create_api_table(lua)?)?;
         table.set("PointerExit", input::PointerExit::create_api_table(lua)?)?;
         table.set("PointerMove", input::PointerMove::create_api_table(lua)?)?;

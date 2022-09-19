@@ -171,11 +171,11 @@ fn keycode_to_str(keycode: VirtualKeyCode) -> &'static str {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct KeyDownEvent {
+pub struct KeyDown {
     pub key: &'static str,
 }
 
-impl KeyDownEvent {
+impl KeyDown {
     pub fn from_key(key: VirtualKeyCode) -> Self {
         Self {
             key: keycode_to_str(key),
@@ -183,7 +183,7 @@ impl KeyDownEvent {
     }
 }
 
-impl LuaApiTable for KeyDownEvent {
+impl LuaApiTable for KeyDown {
     fn create_api_table<'lua>(lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
         let table = lua.create_table()?;
 
@@ -193,18 +193,18 @@ impl LuaApiTable for KeyDownEvent {
     }
 }
 
-impl LuaUserData for KeyDownEvent {
+impl LuaUserData for KeyDown {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
         fields.add_field_method_get("key", |_lua, this| Ok(this.key));
     }
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct KeyUpEvent {
+pub struct KeyUp {
     pub key: &'static str,
 }
 
-impl KeyUpEvent {
+impl KeyUp {
     pub fn from_key(key: VirtualKeyCode) -> Self {
         Self {
             key: keycode_to_str(key),
@@ -212,7 +212,7 @@ impl KeyUpEvent {
     }
 }
 
-impl LuaApiTable for KeyUpEvent {
+impl LuaApiTable for KeyUp {
     fn create_api_table<'lua>(lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
         let table = lua.create_table()?;
 
@@ -222,7 +222,7 @@ impl LuaApiTable for KeyUpEvent {
     }
 }
 
-impl LuaUserData for KeyUpEvent {
+impl LuaUserData for KeyUp {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
         fields.add_field_method_get("key", |_lua, this| Ok(this.key));
     }
