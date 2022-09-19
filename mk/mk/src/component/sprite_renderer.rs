@@ -5,7 +5,7 @@ use std::sync::Arc;
 #[derive(Component)]
 pub struct SpriteRenderer {
     pub layer: Layer,
-    pub order: isize,
+    pub order: i32,
     pub color: Color,
     pub shader: Arc<Shader>,
     pub sprite: Arc<Sprite>,
@@ -14,7 +14,7 @@ pub struct SpriteRenderer {
 impl SpriteRenderer {
     pub fn new(
         layer: Layer,
-        order: isize,
+        order: i32,
         color: Color,
         shader: Arc<Shader>,
         sprite: Arc<Sprite>,

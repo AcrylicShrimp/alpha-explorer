@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 pub struct AlphaTilemapRendererParams {
     pub layer: Layer,
-    pub order: isize,
+    pub order: i32,
     pub color: Color,
     pub fore_shader: Arc<Shader>,
     pub back_shader: Arc<Shader>,

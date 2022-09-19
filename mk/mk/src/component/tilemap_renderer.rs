@@ -5,7 +5,7 @@ use std::sync::Arc;
 #[derive(Component)]
 pub struct TilemapRenderer {
     pub layer: Layer,
-    pub order: isize,
+    pub order: i32,
     pub color: Color,
     pub shader: Arc<Shader>,
     pub tilemap: Arc<Tilemap>,
@@ -14,7 +14,7 @@ pub struct TilemapRenderer {
 impl TilemapRenderer {
     pub fn new(
         layer: Layer,
-        order: isize,
+        order: i32,
         color: Color,
         shader: Arc<Shader>,
         tilemap: Arc<Tilemap>,

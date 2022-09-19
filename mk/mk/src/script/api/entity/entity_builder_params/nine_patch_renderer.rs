@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 pub struct NinePatchRendererParams {
     pub layer: Layer,
-    pub order: isize,
+    pub order: i32,
     pub color: Color,
     pub shader: Arc<Shader>,
     pub nine_patch: Arc<SpriteNinePatch>,

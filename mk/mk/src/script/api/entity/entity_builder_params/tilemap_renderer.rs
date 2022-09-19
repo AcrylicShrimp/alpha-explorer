@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 pub struct TilemapRendererParams {
     pub layer: Layer,
-    pub order: isize,
+    pub order: i32,
     pub color: Color,
     pub shader: Arc<Shader>,
     pub tilemap: Arc<Tilemap>,

@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 pub struct GlyphRendererParams {
     pub layer: Layer,
-    pub order: isize,
+    pub order: i32,
     pub color: Color,
     pub shader: Arc<Shader>,
     pub thickness: f32,

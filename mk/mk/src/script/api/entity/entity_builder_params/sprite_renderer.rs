@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 pub struct SpriteRendererParams {
     pub layer: Layer,
-    pub order: isize,
+    pub order: i32,
     pub color: Color,
     pub shader: Arc<Shader>,
     pub sprite: Arc<Sprite>,

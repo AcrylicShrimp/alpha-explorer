@@ -6,7 +6,7 @@ use std::sync::Arc;
 #[derive(Component)]
 pub struct AlphaTilemapRenderer {
     pub layer: Layer,
-    pub order: isize,
+    pub order: i32,
     pub color: Color,
     pub fore_shader: Arc<Shader>,
     pub back_shader: Arc<Shader>,
@@ -20,7 +20,7 @@ pub struct AlphaTilemapRenderer {
 impl AlphaTilemapRenderer {
     pub fn new(
         layer: Layer,
-        order: isize,
+        order: i32,
         color: Color,
         fore_shader: Arc<Shader>,
         back_shader: Arc<Shader>,

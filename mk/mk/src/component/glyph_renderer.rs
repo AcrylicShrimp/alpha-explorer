@@ -13,7 +13,7 @@ use std::sync::Arc;
 #[derive(Component)]
 pub struct GlyphRenderer {
     pub layer: Layer,
-    pub order: isize,
+    pub order: i32,
     pub color: Color,
     pub shader: Arc<Shader>,
     pub thickness: f32,
@@ -28,7 +28,7 @@ pub struct GlyphRenderer {
 impl GlyphRenderer {
     pub fn new(
         layer: Layer,
-        order: isize,
+        order: i32,
         color: Color,
         shader: Arc<Shader>,
         thickness: f32,
