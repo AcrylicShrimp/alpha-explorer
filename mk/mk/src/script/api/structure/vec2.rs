@@ -26,6 +26,15 @@ impl LuaUserData for Vec2 {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
         fields.add_field_method_get("x", |_lua, this| Ok(this.x));
         fields.add_field_method_get("y", |_lua, this| Ok(this.y));
+
+        fields.add_field_method_set("x", |_lua, this, x| {
+            this.x = x;
+            Ok(())
+        });
+        fields.add_field_method_set("y", |_lua, this, y| {
+            this.y = y;
+            Ok(())
+        });
     }
 
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {

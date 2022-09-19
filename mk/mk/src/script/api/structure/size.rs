@@ -22,6 +22,15 @@ impl LuaUserData for Size {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
         fields.add_field_method_get("width", |_lua, this| Ok(this.width));
         fields.add_field_method_get("height", |_lua, this| Ok(this.height));
+
+        fields.add_field_method_set("width", |_lua, this, width| {
+            this.width = width;
+            Ok(())
+        });
+        fields.add_field_method_set("height", |_lua, this, height| {
+            this.height = height;
+            Ok(())
+        });
     }
 
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
