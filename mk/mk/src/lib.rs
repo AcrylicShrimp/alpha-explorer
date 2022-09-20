@@ -6,6 +6,7 @@ pub mod component;
 pub mod diagnostic;
 mod engine;
 mod engine_context;
+mod engine_gfx;
 pub mod event;
 pub mod glyph;
 pub mod input;
@@ -21,6 +22,7 @@ pub mod util;
 
 pub use engine::run;
 pub use engine_context::EngineContext;
+pub use engine_gfx::EngineGfx;
 
 #[cfg(test)]
 pub use transform::test;

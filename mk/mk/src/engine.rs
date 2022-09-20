@@ -8,18 +8,18 @@ use crate::util::*;
 use crate::EngineContext;
 use anyhow::Context;
 use anyhow::Result;
+use ash::vk;
 #[cfg(debug_assertions)]
 use colored::*;
-use glutin::dpi::LogicalSize;
-use glutin::event::{ElementState, Event, MouseButton, WindowEvent};
-use glutin::event_loop::{ControlFlow, EventLoop};
-use glutin::window::WindowBuilder;
-use glutin::{ContextBuilder, GlProfile};
 use specs::RunNow;
 use std::fs::read_to_string;
 use std::mem::MaybeUninit;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use winit::dpi::LogicalSize;
+use winit::event::{ElementState, Event, MouseButton, WindowEvent};
+use winit::event_loop::{ControlFlow, EventLoop};
+use winit::window::WindowBuilder;
 
 static mut CONTEXT: MaybeUninit<Arc<EngineContext>> = MaybeUninit::uninit();
 
@@ -36,19 +36,43 @@ pub fn run(
     entry_script_path: impl AsRef<Path>,
 ) -> Result<()> {
     let event_loop = EventLoop::new();
-    let gfx_context = ContextBuilder::new()
-        .with_vsync(true)
-        .with_gl_profile(GlProfile::Core)
-        .with_double_buffer(Some(true))
-        .build_windowed(
-            WindowBuilder::new()
-                .with_visible(false)
-                .with_title(title)
-                .with_resizable(resizable)
-                .with_inner_size(LogicalSize::new(width, height)),
-            &event_loop,
-        )?;
-    let gfx_context = unsafe { gfx_context.make_current().map_err(|err| err.1)? };
+    let window = WindowBuilder::new()
+        .with_visible(false)
+        .with_title(title)
+        .with_resizable(resizable)
+        .with_inner_size(LogicalSize::new(width, height))
+        .build(&event_loop)?;
+
+    let entry = unsafe {
+        let entry = ash::Entry::linked();
+        let surface_extensions = ash_window::enumerate_required_extensions(&window)?;
+        let app_desc = vk::ApplicationInfo::builder()
+            .api_version(vk::make_api_version(0, 1, 1, 0))
+            .build();
+        let instance_desc = vk::InstanceCreateInfo::builder()
+            .application_info(&app_desc)
+            .enabled_extension_names(surface_extensions)
+            .build();
+
+        let instance = entry.create_instance(&instance_desc, None)?;
+
+        let surface = ash_window::create_surface(&entry, &instance, &window, None)?;
+        let surface_fn = ash::extensions::khr::Surface::new(&entry, &instance);
+    };
+
+    // let gfx_context = ContextBuilder::new()
+    //     .with_vsync(true)
+    //     .with_gl_profile(GlProfile::Core)
+    //     .with_double_buffer(Some(true))
+    //     .build_windowed(
+    //         WindowBuilder::new()
+    //             .with_visible(false)
+    //             .with_title(title)
+    //             .with_resizable(resizable)
+    //             .with_inner_size(LogicalSize::new(width, height)),
+    //         &event_loop,
+    //     )?;
+    // let gfx_context = unsafe { gfx_context.make_current().map_err(|err| err.1)? };
 
     init(|s| gfx_context.context().get_proc_address(s));
 
@@ -398,6 +422,7 @@ pub fn run(
                 *control_flow = ControlFlow::Exit;
                 return;
             }
+            Event::LoopDestroyed => {}
             _ => return,
         }
 

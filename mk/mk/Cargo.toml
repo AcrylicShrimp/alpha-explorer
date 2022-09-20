@@ -9,17 +9,18 @@ authors = ["AcrylicShrimp <led789zxpp@naver.com>"]
 [dependencies]
 codegen = { path = "../codegen" }
 render = { path = "../render" }
-# new_render = { path = "../new_render" }
+new_render = { path = "../new_render" }
 res = { path = "../res", features = ["asset_loader", "meta_loader"] }
 
 # Third parties
 anyhow = { version = "1" }
+ash = { version = "0.37.0+1.3.209", features = ["linked"] }
+ash-window = { version = "0.11" }
 bitvec = { version = "1" }
 bumpalo = { version = "3", features = ["collections"] }
 colored = { version = "2" }
 downcast-rs = { version = "1" }
 fontdue = { version = "0.7" }
-glutin = { version = "0.29" }
 image = { version = "0.24" }
 itertools = { version = "0.10" }
 legion = { version = "0.4", default-features = false }
@@ -30,6 +31,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }
 smartstring = { version = "1" }
 specs = { version = "0.18", features = ["derive"] }
+winit = { version = "0.27" }
 # wrapped2d = { version = "0.4" }
 
 [features]
