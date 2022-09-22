@@ -41,36 +41,29 @@ where
     {
         // Prevent deadlock
         if let Some(mut listeners) = self.listeners.try_lock() {
-            let mut index = 0;
+            if let Some(added_listeners) = self.added_listener_queue.lock().take() {
+                listeners.extend(added_listeners);
+            }
 
-            while index < listeners.len() {
-                if let Err(err) = listeners[index].listen(script_mgr, event) {
+            if let Some(removed_listeners) = self.removed_listener_queue.lock().take() {
+                for hash in removed_listeners.into_iter() {
+                    if let Some(index) = listeners
+                        .iter()
+                        .position(|listener| listener.hash() == hash)
+                    {
+                        listeners.swap_remove(index);
+                    }
+                }
+            }
+
+            for listener in listeners.iter_mut() {
+                if let Err(err) = listener.listen(script_mgr, event) {
                     emit_diagnostic_error!(format!(
                         "an error occurred while handing {}: {:#}",
                         type_name::<T>(),
                         err
                     ));
                 }
-
-                index += 1;
-            }
-
-            match self.removed_listener_queue.lock().take() {
-                Some(removed_listeners) => {
-                    for hash in removed_listeners.into_iter() {
-                        if let Some(index) = listeners
-                            .iter()
-                            .position(|listener| listener.hash() == hash)
-                        {
-                            listeners.swap_remove(index);
-                        }
-                    }
-                }
-                None => {}
-            }
-
-            if let Some(added_listeners) = self.added_listener_queue.lock().take() {
-                listeners.extend(added_listeners);
             }
         }
     }
