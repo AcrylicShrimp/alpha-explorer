@@ -4,7 +4,7 @@ use crate::{
     util::BoxId,
 };
 use mlua::prelude::*;
-use parking_lot::Mutex;
+use parking_lot::{Mutex, MutexGuard};
 use std::{
     any::{Any, TypeId},
     collections::{hash_map::Entry, HashMap},
@@ -18,12 +18,19 @@ pub struct EventDispatcher {
 
 impl EventDispatcher {
     pub fn new() -> Self {
-        EventDispatcher {
+        Self {
             event_buses: HashMap::new().into(),
         }
     }
 
-    pub fn add_listener<T>(&self, listener: TypedEventListener<T>) -> usize {
+    pub fn listeners(&self) -> MutexGuard<HashMap<TypeId, Arc<dyn AbstractTypedEventBus>>> {
+        self.event_buses.lock()
+    }
+
+    pub fn add_listener<T>(&self, listener: TypedEventListener<T>) -> usize
+    where
+        T: 'static + Any + Clone + for<'lua> ToLua<'lua>,
+    {
         match self.event_buses.lock().entry(TypeId::of::<T>()) {
             Entry::Occupied(event_bus) => event_bus
                 .get()
@@ -41,7 +48,7 @@ impl EventDispatcher {
 
     pub fn remove_listener<T>(&self, hash: usize) -> Option<BoxId<dyn Any>>
     where
-        T: 'static,
+        T: 'static + Any + Clone + for<'lua> ToLua<'lua>,
     {
         if let Some(event_bus) = self.event_buses.lock().get(&TypeId::of::<T>()) {
             event_bus.remove_listener(hash)
@@ -50,9 +57,9 @@ impl EventDispatcher {
         }
     }
 
-    pub fn emit<'lua, T>(&self, event: &T)
+    pub fn emit<T>(&self, event: &T)
     where
-        T: 'static + Clone + ToLua<'lua>,
+        T: 'static + Clone + for<'lua> ToLua<'lua>,
     {
         let script_mgr = use_context().script_mgr();
 
@@ -64,6 +71,21 @@ impl EventDispatcher {
                 .downcast_ref::<TypedEventBus<T>>()
                 .unwrap()
                 .handle(&script_mgr, event);
+        }
+    }
+
+    pub fn emit_untyped<T>(&self, type_id: TypeId, event: impl AsRef<dyn Any>)
+    where
+        T: 'static + Any + Clone + for<'lua> ToLua<'lua>,
+    {
+        let event = event.as_ref();
+        let script_mgr = use_context().script_mgr();
+
+        if let Some(event_bus) = {
+            let event_buses = self.event_buses.lock();
+            event_buses.get(&type_id).cloned()
+        } {
+            event_bus.handle_untyped(script_mgr, event);
         }
     }
 }

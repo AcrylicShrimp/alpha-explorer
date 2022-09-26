@@ -30,6 +30,7 @@ macro_rules! impl_event_listeners {
 }
 
 mod diagnostic;
+mod event;
 mod input;
 mod lifecycles;
 mod per_entity;

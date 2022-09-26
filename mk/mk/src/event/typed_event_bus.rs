@@ -9,6 +9,7 @@ pub trait AbstractTypedEventBus
 where
     Self: Downcast,
 {
+    fn handle_untyped(&self, script_mgr: &ScriptManager, event: &dyn Any);
     fn remove_listener(&self, hash: usize) -> Option<BoxId<dyn Any>>;
 }
 
@@ -35,7 +36,7 @@ where
         }
     }
 
-    pub fn handle<'lua>(&self, script_mgr: &'lua ScriptManager, event: &T)
+    pub fn handle<'lua>(&'lua self, script_mgr: &'lua ScriptManager, event: &T)
     where
         T: Clone + ToLua<'lua>,
     {
@@ -87,7 +88,16 @@ where
     }
 }
 
-impl<T> AbstractTypedEventBus for TypedEventBus<T> {
+impl<T> AbstractTypedEventBus for TypedEventBus<T>
+where
+    T: 'static + Any + Clone + for<'lua> ToLua<'lua>,
+{
+    fn handle_untyped(&self, script_mgr: &ScriptManager, event: &dyn Any) {
+        if let Some(event) = event.downcast_ref::<T>() {
+            self.handle(script_mgr, event);
+        }
+    }
+
     fn remove_listener(&self, hash: usize) -> Option<BoxId<dyn Any>> {
         match self.listeners.try_lock() {
             Some(mut listeners) => {

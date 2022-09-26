@@ -1,3 +1,19 @@
+
+-- local event = mk.event.Event.new()
+
+-- local listener;
+-- listener = event.listen(function(event)
+--   print(event)
+-- end)
+
+-- event.emit({
+--   a = nil,
+--   b = "123",
+--   c = 123
+-- })
+
+-- event.unlisten(listener)
+
 local camera = mk.entity.EntityBuilder.new()
   :name("camera")
   :camera({
@@ -83,11 +99,11 @@ local keys = {}
 
 mk.event.KeyDown.listen(function(event)
   keys[event.key] = true
-end);
+end)
 
 mk.event.KeyUp.listen(function(event)
   keys[event.key] = false
-end);
+end)
 
 mk.event.PostUpdate.listen(function(event)
   if not keys["left"] and not keys["right"] and not keys["up"] and not keys["down"] then
