@@ -16,6 +16,12 @@ impl LuaApiTable for Color {
             lua.create_function(|_lua, (r, g, b, a)| Ok(Self::from_rgba(r, g, b, a)))?,
         )?;
         table.set(
+            "parse_hex",
+            lua.create_function(|_lua, hex: LuaString| {
+                Ok(Self::parse_hex(hex.to_str()?).map_err(|err| err.to_lua_err())?)
+            })?,
+        )?;
+        table.set(
             "transparent",
             lua.create_function(|_lua, ()| Ok(Self::transparent()))?,
         )?;
