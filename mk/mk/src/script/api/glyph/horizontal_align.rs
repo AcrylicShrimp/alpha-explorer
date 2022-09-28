@@ -8,18 +8,9 @@ impl LuaApiTable for HorizontalAlign {
     fn create_api_table<'lua>(lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
         let table = lua.create_table()?;
 
-        table.set(
-            "Left",
-            HorizontalAlign(fontdue::layout::HorizontalAlign::Left),
-        )?;
-        table.set(
-            "Center",
-            HorizontalAlign(fontdue::layout::HorizontalAlign::Center),
-        )?;
-        table.set(
-            "Right",
-            HorizontalAlign(fontdue::layout::HorizontalAlign::Right),
-        )?;
+        table.set("Left", Self(fontdue::layout::HorizontalAlign::Left))?;
+        table.set("Center", Self(fontdue::layout::HorizontalAlign::Center))?;
+        table.set("Right", Self(fontdue::layout::HorizontalAlign::Right))?;
 
         Ok(table)
     }
