@@ -155,6 +155,19 @@ impl<'a> System<'a> for RenderSystem {
         let height_half = (screen_mgr.height() * 0.5) as f32;
 
         for (camera_transform, camera) in cameras {
+            match camera.clear_mode {
+                ClearMode::None => {}
+                ClearMode::Color => {
+                    clear_color(
+                        camera.clear_color.r,
+                        camera.clear_color.g,
+                        camera.clear_color.b,
+                        camera.clear_color.a,
+                    );
+                    clear();
+                }
+            }
+
             let camera_transform_index = camera_transform.index();
             let mut ndc_to_world = transform_mgr
                 .transform_world_matrix(camera_transform_index)

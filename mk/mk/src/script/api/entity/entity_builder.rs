@@ -233,7 +233,12 @@ impl LuaUserData for EntityBuilder {
             }
 
             if let Some(param) = this.camera_params.take() {
-                let camera = Camera::new(param.layer, param.order);
+                let camera = Camera::new(
+                    param.layer,
+                    param.order,
+                    param.clear_mode,
+                    param.clear_color,
+                );
                 builder = builder.with(camera);
             }
 

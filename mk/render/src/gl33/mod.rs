@@ -42,6 +42,12 @@ pub fn init(f: impl FnMut(&str) -> *const std::ffi::c_void) {
     }
 }
 
+pub fn clear_color(r: f32, g: f32, b: f32, a: f32) {
+    unsafe {
+        gl33::ClearColor(r, g, b, a);
+    }
+}
+
 pub fn clear() {
     unsafe {
         gl33::Clear(gl33::COLOR_BUFFER_BIT);

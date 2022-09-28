@@ -5,6 +5,7 @@ mod alpha_tile;
 mod alpha_tilemap;
 mod alpha_tileset;
 mod buffer;
+mod clear_mode;
 mod color;
 mod font;
 mod layer;
@@ -20,6 +21,7 @@ pub use alpha_tile::*;
 pub use alpha_tilemap::*;
 pub use alpha_tileset::*;
 pub use buffer::*;
+pub use clear_mode::*;
 pub use color::*;
 pub use font::*;
 pub use layer::*;
@@ -46,6 +48,7 @@ impl LuaApiTable for RenderModule {
             "AlphaTileset",
             alpha_tileset::AlphaTileset::create_api_table(lua)?,
         )?;
+        table.set("ClearMode", clear_mode::ClearMode::create_api_table(lua)?)?;
         table.set("Color", color::Color::create_api_table(lua)?)?;
         table.set("Layer", layer::Layer::create_api_table(lua)?)?;
         table.set(

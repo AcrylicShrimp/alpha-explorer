@@ -411,7 +411,6 @@ pub fn run(
             );
         }
 
-        clear();
         systems_render();
 
         gfx_context.swap_buffers().unwrap();
