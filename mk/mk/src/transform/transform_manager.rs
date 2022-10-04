@@ -20,6 +20,10 @@ impl TransformManager {
         Self::default()
     }
 
+    pub fn flattened_indices(&self) -> &[usize] {
+        self.flattener.flattened()
+    }
+
     pub fn begin_alloc(&mut self) -> u32 {
         if let Some(index) = self.removed_indices.pop() {
             self.transforms[index as usize] = Transform::default();

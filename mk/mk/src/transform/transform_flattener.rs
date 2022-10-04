@@ -17,6 +17,10 @@ impl TransformFlattener {
         self.flattened_indices.push(0);
     }
 
+    pub fn flattened(&self) -> &[usize] {
+        &self.flattened_indices
+    }
+
     pub fn flatten(&mut self, transforms: &mut [Transform]) -> &[usize] {
         // 1. Mark all transforms as dirty that have a dirty parent transform.
         let range = transforms.as_mut_ptr_range();
@@ -78,7 +82,7 @@ impl TransformFlattener {
             }
         }
 
-        &mut self.flattened_indices
+        &self.flattened_indices
     }
 }
 
