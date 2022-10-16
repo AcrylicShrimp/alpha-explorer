@@ -1,3 +1,4 @@
+use crate::structure::{Size, Vec2};
 use std::fmt::Display;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -15,6 +16,18 @@ impl UIMargin {
             right,
             top,
             bottom,
+        }
+    }
+
+    pub fn from_size(pivot: Vec2, position: Vec2, size: Size) -> Self {
+        let pivot_x = pivot.x * size.width;
+        let pivot_y = pivot.y * size.height;
+
+        Self {
+            left: position.x - pivot_x,
+            right: -(position.x - pivot_x + size.width),
+            top: -(position.y - pivot_y + size.height),
+            bottom: position.y - pivot_y,
         }
     }
 

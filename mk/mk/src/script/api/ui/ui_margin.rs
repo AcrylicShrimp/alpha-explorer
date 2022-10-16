@@ -13,6 +13,12 @@ impl LuaApiTable for UIMargin {
                 Ok(Self::new(left, right, top, bottom))
             })?,
         )?;
+        table.set(
+            "from_size",
+            lua.create_function(|_lua, (pivot, position, size)| {
+                Ok(Self::from_size(pivot, position, size))
+            })?,
+        )?;
         table.set("zero", lua.create_function(|_lua, ()| Ok(Self::zero()))?)?;
 
         Ok(table)
