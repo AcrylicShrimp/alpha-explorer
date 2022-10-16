@@ -381,12 +381,8 @@ impl<'a> System<'a> for RenderSystem {
                     matrix[3],
                     matrix[4],
                     matrix[5],
-                    matrix[6]
-                        + matrix[0] * (-size.width * 0.5f32)
-                        + matrix[3] * (size.height * 0.5f32),
-                    matrix[7]
-                        + matrix[1] * (-size.width * 0.5f32)
-                        + matrix[4] * (size.height * 0.5f32),
+                    matrix[6],
+                    matrix[7],
                     matrix[8],
                     size.width,
                     size.height,

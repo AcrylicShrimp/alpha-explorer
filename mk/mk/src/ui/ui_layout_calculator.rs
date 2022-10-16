@@ -154,7 +154,7 @@ fn calculate_pair<'a>(
     size.size = crate::structure::Size::new(width, height);
     transform.mark_as_dirty();
     transform.position = crate::structure::Vec2::new(
-        margin_left + child.margin.left + width * 0.5f32,
-        margin_top - child.margin.top - height * 0.5f32,
+        margin_left + child.margin.left,
+        margin_bottom + child.margin.bottom,
     );
 }
