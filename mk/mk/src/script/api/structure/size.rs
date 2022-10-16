@@ -38,12 +38,18 @@ impl LuaUserData for Size {
             Ok(this.to_string())
         });
 
-        methods.add_meta_function(LuaMetaMethod::Mul, |_lua, (lhs, rhs): (Self, f32)| {
-            Ok(lhs * rhs)
-        });
-        methods.add_meta_function(LuaMetaMethod::Mul, |_lua, (lhs, rhs): (f32, Self)| {
-            Ok(lhs * rhs)
-        });
+        methods.add_meta_function(
+            LuaMetaMethod::Mul,
+            |lua, (lhs, rhs): (LuaValue, LuaValue)| match (&lhs, &rhs) {
+                (_, &LuaValue::Integer(..)) => {
+                    Ok(Self::from_lua(lhs, lua)? * f32::from_lua(rhs, lua)?)
+                }
+                (_, &LuaValue::Number(..)) => {
+                    Ok(Self::from_lua(lhs, lua)? * f32::from_lua(rhs, lua)?)
+                }
+                _ => Ok(f32::from_lua(lhs, lua)? * Self::from_lua(rhs, lua)?),
+            },
+        );
 
         methods.add_meta_function(LuaMetaMethod::Div, |_lua, (lhs, rhs): (Self, f32)| {
             Ok(lhs / rhs)
