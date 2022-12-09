@@ -1,16 +1,16 @@
-use super::Mat22;
+use super::Mat33;
 use crate::script::api::LuaApiTable;
 use mlua::prelude::*;
 
-pub type Vec2 = crate::structure::Vec2;
+pub type Vec3 = crate::structure::Vec3;
 
-impl LuaApiTable for Vec2 {
+impl LuaApiTable for Vec3 {
     fn create_api_table<'lua>(lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
         let table = lua.create_table()?;
 
         table.set(
             "new",
-            lua.create_function(|_lua, (x, y)| Ok(Self::new(x, y)))?,
+            lua.create_function(|_lua, (x, y, z)| Ok(Self::new(x, y, z)))?,
         )?;
         table.set(
             "distance",
@@ -23,6 +23,10 @@ impl LuaApiTable for Vec2 {
         table.set(
             "dot",
             lua.create_function(|_lua, (lhs, rhs)| Ok(Self::dot(lhs, rhs)))?,
+        )?;
+        table.set(
+            "cross",
+            lua.create_function(|_lua, (lhs, rhs)| Ok(Self::cross(lhs, rhs)))?,
         )?;
         table.set(
             "project",
@@ -38,11 +42,9 @@ impl LuaApiTable for Vec2 {
         )?;
         table.set(
             "angle_signed",
-            lua.create_function(|_lua, (from, to)| Ok(Self::angle_signed(from, to)))?,
-        )?;
-        table.set(
-            "perpendicular",
-            lua.create_function(|_lua, lhs| Ok(Self::perpendicular(lhs)))?,
+            lua.create_function(|_lua, (from, to, normal)| {
+                Ok(Self::angle_signed(from, to, normal))
+            })?,
         )?;
         table.set(
             "reflect",
@@ -111,22 +113,26 @@ impl LuaApiTable for Vec2 {
             "max",
             lua.create_function(|_lua, (lhs, rhs)| Ok(Self::max(lhs, rhs)))?,
         )?;
-        table.set(
-            "rotate",
-            lua.create_function(|_lua, (lhs, angle_degrees)| Ok(Self::rotate(lhs, angle_degrees)))?,
-        )?;
         table.set("zero", lua.create_function(|_lua, ()| Ok(Self::zero()))?)?;
         table.set("one", lua.create_function(|_lua, ()| Ok(Self::one()))?)?;
         table.set("left", lua.create_function(|_lua, ()| Ok(Self::left()))?)?;
         table.set("right", lua.create_function(|_lua, ()| Ok(Self::right()))?)?;
         table.set("up", lua.create_function(|_lua, ()| Ok(Self::up()))?)?;
         table.set("down", lua.create_function(|_lua, ()| Ok(Self::down()))?)?;
+        table.set(
+            "forward",
+            lua.create_function(|_lua, ()| Ok(Self::forward()))?,
+        )?;
+        table.set(
+            "backward",
+            lua.create_function(|_lua, ()| Ok(Self::backward()))?,
+        )?;
 
         Ok(table)
     }
 }
 
-impl LuaUserData for Vec2 {
+impl LuaUserData for Vec3 {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
         fields.add_field_method_get("x", |_lua, this| Ok(this.x));
         fields.add_field_method_get("y", |_lua, this| Ok(this.y));
@@ -169,11 +175,11 @@ impl LuaUserData for Vec2 {
                 (&LuaValue::Number(..), _) => {
                     (f32::from_lua(lhs, lua)? * Self::from_lua(rhs, lua)?).to_lua(lua)
                 }
-                (_, LuaValue::UserData(rhs_inner)) if rhs_inner.is::<Mat22>() => {
-                    (Self::from_lua(lhs, lua)? * Mat22::from_lua(rhs, lua)?).to_lua(lua)
+                (_, LuaValue::UserData(rhs_inner)) if rhs_inner.is::<Mat33>() => {
+                    (Self::from_lua(lhs, lua)? * Mat33::from_lua(rhs, lua)?).to_lua(lua)
                 }
-                (LuaValue::UserData(lhs_inner), _) if lhs_inner.is::<Mat22>() => {
-                    (Mat22::from_lua(lhs, lua)? * Self::from_lua(rhs, lua)?).to_lua(lua)
+                (LuaValue::UserData(lhs_inner), _) if lhs_inner.is::<Mat33>() => {
+                    (Mat33::from_lua(lhs, lua)? * Self::from_lua(rhs, lua)?).to_lua(lua)
                 }
                 _ => (Self::from_lua(lhs, lua)? * Self::from_lua(rhs, lua)?).to_lua(lua),
             },

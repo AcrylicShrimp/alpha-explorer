@@ -3,7 +3,7 @@ use std::{
     ops::{Div, DivAssign, Mul, MulAssign, Neg},
 };
 
-#[derive(Default, Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
 pub struct Size {
     pub width: f32,
     pub height: f32,
