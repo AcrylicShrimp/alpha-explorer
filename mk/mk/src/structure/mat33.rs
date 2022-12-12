@@ -22,6 +22,12 @@ impl Mat33 {
         &mut self.elements
     }
 
+    pub fn set<'b>(&mut self, rhs: Mat33Ref<'b>) {
+        let lhs = self.elements_mut();
+        let rhs = rhs.elements();
+        *lhs = rhs.clone();
+    }
+
     pub fn row(&self, index: usize) -> Vec3 {
         let lhs = self.elements();
         Vec3 {
@@ -159,12 +165,16 @@ impl Mat33 {
         ])
     }
 
-    pub fn to_ref(&self) -> Mat33Ref {
+    pub fn as_ref(&self) -> Mat33Ref {
         Mat33Ref::new(&self.elements)
     }
 
-    pub fn to_mut(&mut self) -> Mat33Mut {
+    pub fn as_mut(&mut self) -> Mat33Mut {
         Mat33Mut::new(&mut self.elements)
+    }
+
+    pub fn into_elements(self) -> [f32; 9] {
+        self.elements
     }
 
     pub fn zero() -> Self {
@@ -200,20 +210,39 @@ impl Mat33 {
         }
     }
 
+    pub fn affine_srt(t: Vec2, angle_degrees: f32, s: Vec2) -> Self {
+        let rad = angle_degrees.to_radians();
+        let cos = rad.cos();
+        let sin = rad.sin();
+        Self {
+            elements: [
+                s.x * cos,
+                s.x * sin,
+                0f32,
+                s.y * -sin,
+                s.y * cos,
+                0f32,
+                t.x,
+                t.y,
+                1f32,
+            ],
+        }
+    }
+
     pub fn affine_trs(t: Vec2, angle_degrees: f32, s: Vec2) -> Self {
         let rad = angle_degrees.to_radians();
         let cos = rad.cos();
         let sin = rad.sin();
         Self {
             elements: [
-                cos * s.x,
-                sin * s.y,
+                s.x * cos,
+                s.y * sin,
                 0f32,
-                -sin * s.x,
-                cos * s.y,
+                s.x * -sin,
+                s.y * cos,
                 0f32,
-                t.x,
-                t.y,
+                s.x * (t.x * cos - t.y * sin),
+                s.y * (t.x * sin + t.y * cos),
                 1f32,
             ],
         }

@@ -1,3 +1,4 @@
+use super::Vec3;
 use std::{
     fmt::Display,
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
@@ -211,6 +212,10 @@ impl Vec2 {
             x: cos * lhs.x - sin * lhs.y,
             y: sin * lhs.x + cos * lhs.y,
         }
+    }
+
+    pub fn to_vec3(self, z: f32) -> Vec3 {
+        Vec3::new(self.x, self.y, z)
     }
 
     pub fn zero() -> Self {

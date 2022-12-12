@@ -114,6 +114,10 @@ impl LuaApiTable for Vec3 {
             lua.create_function(|_lua, (lhs, rhs)| Ok(Self::max(lhs, rhs)))?,
         )?;
         table.set("zero", lua.create_function(|_lua, ()| Ok(Self::zero()))?)?;
+        table.set(
+            "zero_one",
+            lua.create_function(|_lua, ()| Ok(Self::zero_one()))?,
+        )?;
         table.set("one", lua.create_function(|_lua, ()| Ok(Self::one()))?)?;
         table.set("left", lua.create_function(|_lua, ()| Ok(Self::left()))?)?;
         table.set("right", lua.create_function(|_lua, ()| Ok(Self::right()))?)?;
@@ -136,6 +140,7 @@ impl LuaUserData for Vec3 {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
         fields.add_field_method_get("x", |_lua, this| Ok(this.x));
         fields.add_field_method_get("y", |_lua, this| Ok(this.y));
+        fields.add_field_method_get("z", |_lua, this| Ok(this.z));
 
         fields.add_field_method_set("x", |_lua, this, x| {
             this.x = x;
@@ -143,6 +148,10 @@ impl LuaUserData for Vec3 {
         });
         fields.add_field_method_set("y", |_lua, this, y| {
             this.y = y;
+            Ok(())
+        });
+        fields.add_field_method_set("z", |_lua, this, z| {
+            this.z = z;
             Ok(())
         });
     }
@@ -203,5 +212,6 @@ impl LuaUserData for Vec3 {
         methods.add_method("len", |_lua, this, ()| Ok(this.len()));
         methods.add_method("len_square", |_lua, this, ()| Ok(this.len_square()));
         methods.add_method("norm", |_lua, this, ()| Ok(this.norm()));
+        methods.add_method("to_vec2", |_lua, this, ()| Ok(this.to_vec2()));
     }
 }

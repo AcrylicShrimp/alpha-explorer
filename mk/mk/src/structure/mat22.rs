@@ -22,6 +22,12 @@ impl Mat22 {
         &mut self.elements
     }
 
+    pub fn set<'b>(&mut self, rhs: Mat22Ref<'b>) {
+        let lhs = self.elements_mut();
+        let rhs = rhs.elements();
+        *lhs = rhs.clone();
+    }
+
     pub fn row(&self, index: usize) -> Vec2 {
         let lhs = self.elements();
         Vec2 {
@@ -120,12 +126,16 @@ impl Mat22 {
         ])
     }
 
-    pub fn to_ref(&self) -> Mat22Ref {
+    pub fn as_ref(&self) -> Mat22Ref {
         Mat22Ref::new(&self.elements)
     }
 
-    pub fn to_mut(&mut self) -> Mat22Mut {
+    pub fn as_mut(&mut self) -> Mat22Mut {
         Mat22Mut::new(&mut self.elements)
+    }
+
+    pub fn into_elements(self) -> [f32; 4] {
+        self.elements
     }
 
     pub fn zero() -> Self {

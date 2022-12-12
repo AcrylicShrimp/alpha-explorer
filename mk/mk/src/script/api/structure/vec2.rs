@@ -197,5 +197,6 @@ impl LuaUserData for Vec2 {
         methods.add_method("len", |_lua, this, ()| Ok(this.len()));
         methods.add_method("len_square", |_lua, this, ()| Ok(this.len_square()));
         methods.add_method("norm", |_lua, this, ()| Ok(this.norm()));
+        methods.add_method("to_vec3", |_lua, this, z| Ok(this.to_vec3(z)));
     }
 }

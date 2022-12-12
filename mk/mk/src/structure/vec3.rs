@@ -1,3 +1,4 @@
+use super::Vec2;
 use std::{
     fmt::Display,
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
@@ -221,8 +222,16 @@ impl Vec3 {
         }
     }
 
+    pub fn to_vec2(self) -> Vec2 {
+        Vec2::new(self.x, self.y)
+    }
+
     pub fn zero() -> Self {
         Self::new(0f32, 0f32, 0f32)
+    }
+
+    pub fn zero_one() -> Self {
+        Self::new(0f32, 0f32, 1f32)
     }
 
     pub fn one() -> Self {

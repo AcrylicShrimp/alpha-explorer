@@ -22,6 +22,12 @@ impl<'a> Mat33Mut<'a> {
         &mut self.elements
     }
 
+    pub fn set<'b>(&mut self, rhs: Mat33Ref<'b>) {
+        let lhs = self.elements_mut();
+        let rhs = rhs.elements();
+        *lhs = rhs.clone();
+    }
+
     pub fn row(&self, index: usize) -> Vec3 {
         let lhs = self.elements();
         Vec3 {

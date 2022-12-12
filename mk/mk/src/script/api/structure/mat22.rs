@@ -78,18 +78,18 @@ impl LuaUserData for Mat22 {
         });
         methods.add_method("transposed", |_lua, this, ()| Ok(this.transposed()));
         methods.add_method_mut("element_wise_multiply", |_lua, this, rhs: Self| {
-            this.element_wise_multiply(rhs.to_ref());
+            this.element_wise_multiply(rhs.as_ref());
             Ok(())
         });
         methods.add_method("element_wise_multiplied", |_lua, this, rhs: Self| {
-            Ok(this.element_wise_multiplied(rhs.to_ref()))
+            Ok(this.element_wise_multiplied(rhs.as_ref()))
         });
         methods.add_method_mut("element_wise_divide", |_lua, this, rhs: Self| {
-            this.element_wise_divide(rhs.to_ref());
+            this.element_wise_divide(rhs.as_ref());
             Ok(())
         });
         methods.add_method("element_wise_divided", |_lua, this, rhs: Self| {
-            Ok(this.element_wise_divided(rhs.to_ref()))
+            Ok(this.element_wise_divided(rhs.as_ref()))
         });
     }
 }

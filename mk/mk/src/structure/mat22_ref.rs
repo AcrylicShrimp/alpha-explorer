@@ -77,7 +77,7 @@ impl<'a> Mat22Ref<'a> {
         ])
     }
 
-    pub fn to_mat(&self) -> Mat22 {
+    pub fn to_mat(self) -> Mat22 {
         Mat22::new(self.elements.clone())
     }
 
