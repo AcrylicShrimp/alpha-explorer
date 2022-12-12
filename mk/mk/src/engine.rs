@@ -3,6 +3,7 @@ use crate::emit_diagnostic_info;
 use crate::event::*;
 use crate::render::*;
 use crate::script::event::DiagnosticLevel;
+use crate::structure::Vec2;
 use crate::system::*;
 use crate::util::*;
 use crate::EngineContext;
@@ -331,7 +332,7 @@ pub fn run(
                     });
                 context
                     .ui_event_mgr_mut()
-                    .handle_mouse_move(position.x as f32, position.y as f32);
+                    .handle_mouse_move(Vec2::new(position.x as f32, position.y as f32));
 
                 return;
             }

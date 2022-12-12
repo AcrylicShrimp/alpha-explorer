@@ -1,7 +1,7 @@
 use super::UILayoutCalculator;
 use crate::component::{Camera, Size, Transform, UIScaler};
 use crate::engine::use_context;
-use crate::structure::Vec2;
+use crate::structure::{Mat33Ref, Vec2, Vec3};
 use crate::ui::{UIElement, UIScaleMode};
 use specs::prelude::*;
 use std::collections::btree_map::Entry;
@@ -77,8 +77,7 @@ impl UIManager {
 
     pub fn raycast_element(
         &self,
-        x: f32,
-        y: f32,
+        point_in_screen: Vec2,
         camera: Option<(&Transform, &Camera)>,
     ) -> Option<Entity> {
         let context = use_context();
@@ -86,21 +85,17 @@ impl UIManager {
         let screen_mgr = context.screen_mgr();
         let transform_mgr = context.transform_mgr();
 
-        let camera_x = x - screen_mgr.width() as f32 * 0.5f32;
-        let camera_y = -y + screen_mgr.height() as f32 * 0.5f32;
-
-        // TODO: Capsulate below matrix calculations.
-
+        let point_in_camera = Vec3::new(
+            point_in_screen.x - screen_mgr.width() as f32 * 0.5f32,
+            -point_in_screen.y + screen_mgr.height() as f32 * 0.5f32,
+            1f32,
+        );
         let camera_to_world = match camera {
             Some(camera) => {
                 let camera_transform_index = camera.0.index();
-                transform_mgr
-                    .transform_world_matrix(camera_transform_index)
-                    .clone()
+                transform_mgr.transform_world_matrix(camera_transform_index)
             }
-            None => [
-                1.0f32, 0.0f32, 0.0f32, 0.0f32, 1.0f32, 0.0f32, 0.0f32, 0.0f32, 1.0f32,
-            ],
+            None => Mat33Ref::identity(),
         };
 
         for (_, indices) in self.ordered_indices.iter().rev() {
@@ -122,43 +117,16 @@ impl UIManager {
                 } else {
                     continue;
                 };
-                let matrix = transform_mgr.transform_world_matrix(transform_index);
-                let mut world_to_local = [0f32; 9];
-                let mut camera_to_local = [0f32; 6];
 
-                world_to_local.clone_from(&matrix);
-                crate::transform::Transform::inverse_matrix(&mut world_to_local);
+                let world_to_local = transform_mgr
+                    .transform_world_matrix(transform_index)
+                    .inversed();
+                let point_in_local = point_in_camera * camera_to_world * world_to_local;
 
-                camera_to_local[0] = camera_to_world[0] * world_to_local[0]
-                    + camera_to_world[1] * world_to_local[3]
-                    + camera_to_world[2] * world_to_local[6];
-                camera_to_local[1] = camera_to_world[0] * world_to_local[1]
-                    + camera_to_world[1] * world_to_local[4]
-                    + camera_to_world[2] * world_to_local[7];
-                camera_to_local[2] = camera_to_world[3] * world_to_local[0]
-                    + camera_to_world[4] * world_to_local[3]
-                    + camera_to_world[5] * world_to_local[6];
-                camera_to_local[3] = camera_to_world[3] * world_to_local[1]
-                    + camera_to_world[4] * world_to_local[4]
-                    + camera_to_world[5] * world_to_local[7];
-                camera_to_local[4] = camera_to_world[6] * world_to_local[0]
-                    + camera_to_world[7] * world_to_local[3]
-                    + camera_to_world[8] * world_to_local[6];
-                camera_to_local[5] = camera_to_world[6] * world_to_local[1]
-                    + camera_to_world[7] * world_to_local[4]
-                    + camera_to_world[8] * world_to_local[7];
-
-                let local_x = camera_x * camera_to_local[0]
-                    + camera_y * camera_to_local[2]
-                    + camera_to_local[4];
-                let local_y = camera_x * camera_to_local[1]
-                    + camera_y * camera_to_local[3]
-                    + camera_to_local[5];
-
-                if 0f32 <= local_x
-                    && local_x <= size.width
-                    && -size.height <= local_y
-                    && local_y <= 0f32
+                if 0f32 <= point_in_local.x
+                    && point_in_local.x <= size.width
+                    && -size.height <= point_in_local.y
+                    && point_in_local.y <= 0f32
                 {
                     return Some(self.entities[index as usize]);
                 }
@@ -229,8 +197,10 @@ impl UIManager {
                             new_size
                         }
                     };
-                    let transform = transform_mgr.transform_mut(transform.index());
-                    transform.mark_as_dirty();
+                    let transform_index = transform.index();
+                    transform_mgr.hierarchy_mut().set_dirty(transform_index);
+
+                    let transform = transform_mgr.allocator_mut().transform_mut(transform_index);
                     transform.position = Vec2::new(0f32, 0f32);
                     size.size = new_size;
                     elements[element.index() as usize].mark_as_dirty();

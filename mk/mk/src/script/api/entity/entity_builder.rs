@@ -170,18 +170,21 @@ impl LuaUserData for EntityBuilder {
             let mut builder = world.create_entity();
 
             let mut transform_mgr = context.transform_mgr_mut();
-            let transform = transform_mgr.begin_alloc();
+            let transform = transform_mgr.alloc();
             builder = builder.with(Transform::new(transform));
 
-            transform_mgr.set_name(transform, this.name.take().map(|name| name.as_str().into()));
-            transform_mgr.set_parent(
-                transform,
-                this.transform_parent.map(|parent| parent.index()),
-            );
+            transform_mgr
+                .name_manager_mut()
+                .set_name(transform, this.name.take().map(|name| name.as_str().into()));
+
+            if let Some(parent) = this.transform_parent {
+                transform_mgr
+                    .hierarchy_mut()
+                    .set_parent(transform, Some(parent.index()));
+            }
 
             {
-                let transform = transform_mgr.transform_mut(transform);
-                transform.mark_as_dirty();
+                let transform = transform_mgr.allocator_mut().transform_mut(transform);
 
                 if let Some(position) = this.transform_position {
                     transform.position = position;
@@ -333,7 +336,7 @@ impl LuaUserData for EntityBuilder {
             }
 
             let entity = builder.build();
-            transform_mgr.fin_alloc(transform, entity);
+            transform_mgr.alloc_entity(transform, entity);
 
             if let Some(index) = ui_element_index {
                 context.ui_mgr_mut().fin_alloc(index, entity);

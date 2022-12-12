@@ -6,26 +6,28 @@ pub type ComponentTransform = crate::component::Transform;
 impl LuaUserData for ComponentTransform {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
         fields.add_field_method_get("parent", |_lua, this| {
-            Ok(this
-                .with_ref(|this| this.parent_index())
+            Ok(use_context()
+                .transform_mgr()
+                .hierarchy()
+                .parent(this.index())
                 .map(|index| Self::new(index)))
         });
         fields.add_field_method_get("position", |_lua, this| {
             Ok(crate::transform::Transform::world_position(
                 this.index(),
-                &use_context().transform_mgr(),
+                &use_context().transform_mgr_mut(),
             ))
         });
         fields.add_field_method_get("scale", |_lua, this| {
             Ok(crate::transform::Transform::world_scale(
                 this.index(),
-                &use_context().transform_mgr(),
+                &use_context().transform_mgr_mut(),
             ))
         });
         fields.add_field_method_get("angle", |_lua, this| {
             Ok(crate::transform::Transform::world_angle(
                 this.index(),
-                &use_context().transform_mgr(),
+                &use_context().transform_mgr_mut(),
             ))
         });
         fields.add_field_method_get("local_position", |_lua, this| {
@@ -39,10 +41,10 @@ impl LuaUserData for ComponentTransform {
         });
 
         fields.add_field_method_set("parent", |_lua, this, parent: Option<Self>| {
-            this.with_mut(|this| {
-                this.mark_as_dirty();
-                this.set_parent_index(parent.map(|parent| parent.index()));
-            });
+            use_context()
+                .transform_mgr_mut()
+                .hierarchy_mut()
+                .set_parent(this.index(), parent.map(|parent| parent.index()));
             Ok(())
         });
         fields.add_field_method_set("position", |_lua, this, position| {
@@ -71,23 +73,32 @@ impl LuaUserData for ComponentTransform {
         });
         fields.add_field_method_set("local_position", |_lua, this, position| {
             this.with_mut(|this| {
-                this.mark_as_dirty();
                 this.position = position;
             });
+            use_context()
+                .transform_mgr_mut()
+                .hierarchy_mut()
+                .set_dirty(this.index());
             Ok(())
         });
         fields.add_field_method_set("local_scale", |_lua, this, scale| {
             this.with_mut(|this| {
-                this.mark_as_dirty();
                 this.scale = scale;
             });
+            use_context()
+                .transform_mgr_mut()
+                .hierarchy_mut()
+                .set_dirty(this.index());
             Ok(())
         });
         fields.add_field_method_set("local_angle", |_lua, this, angle| {
             this.with_mut(|this| {
-                this.mark_as_dirty();
                 this.angle = angle;
             });
+            use_context()
+                .transform_mgr_mut()
+                .hierarchy_mut()
+                .set_dirty(this.index());
             Ok(())
         });
     }

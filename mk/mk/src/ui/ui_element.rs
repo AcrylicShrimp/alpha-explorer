@@ -20,6 +20,7 @@ impl UIElement {
         (self.flags & 0b0100_0000_0000_0000_0000_0000_0000_0000) != 0
     }
 
+    // TODO: Remove this.
     pub fn order_index(&self) -> u32 {
         self.flags & 0b0011_1111_1111_1111_1111_1111_1111_1111
     }

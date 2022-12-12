@@ -46,23 +46,27 @@ impl LuaApiTable for Entity {
             "find_by_name",
             lua.create_function(|_lua, name: LuaString| {
                 let transform_mgr = use_context().transform_mgr();
+                let allocator = transform_mgr.allocator();
                 Ok(transform_mgr
-                    .find_by_name(name.to_str()?)
-                    .map(|index| Self::new(transform_mgr.entity(index))))
+                    .name_manager()
+                    .transforms_by_name(name.to_str()?)
+                    .first()
+                    .copied()
+                    .map(|index| Self::new(allocator.entity(index))))
             })?,
         )?;
         table.set(
             "find_all_by_name",
             lua.create_function(|_lua, name: LuaString| {
                 let transform_mgr = use_context().transform_mgr();
+                let allocator = transform_mgr.allocator();
                 Ok(transform_mgr
-                    .find_all_by_name(name.to_str()?)
-                    .map(|indices| {
-                        indices
+                    .name_manager()
+                    .transforms_by_name(name.to_str()?)
                             .iter()
-                            .map(|index| Self::new(transform_mgr.entity(*index)))
-                            .collect::<Vec<_>>()
-                    }))
+                    .copied()
+                    .map(|index| Self::new(allocator.entity(index)))
+                    .collect::<Vec<_>>())
             })?,
         )?;
 
@@ -78,8 +82,9 @@ impl LuaUserData for Entity {
                 .map(|index| {
                     use_context()
                         .transform_mgr()
+                        .name_manager()
                         .name(index)
-                        .map(|name| name.to_owned())
+                        .map(|name| name.to_string())
                 }))
         });
         fields.add_field_method_set("name", |_lua, this, name: Option<String>| {
@@ -87,6 +92,7 @@ impl LuaUserData for Entity {
                 .map(|index| {
                     use_context()
                         .transform_mgr_mut()
+                        .name_manager_mut()
                         .set_name(index, name.map(SmartString::from))
                 });
             Ok(())

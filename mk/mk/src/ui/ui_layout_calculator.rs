@@ -77,18 +77,21 @@ impl UILayoutCalculator {
         self.pair_flags.set(index as usize, true);
 
         let transform = if let Some(transform) = transform_storage.get(entities[index as usize]) {
-            transform_mgr.transform(transform.index())
+            transform.index()
         } else {
             return elements[index as usize].is_dirty();
         };
         let parent_index = {
-            let parent_index = if let Some(parent_index) = transform.parent_index() {
-                parent_index
-            } else {
-                return elements[index as usize].is_dirty();
-            };
+            let parent_index =
+                if let Some(parent_index) = transform_mgr.hierarchy().parent(transform) {
+                    parent_index
+                } else {
+                    return elements[index as usize].is_dirty();
+                };
 
-            if let Some(ui_element) = element_storage.get(transform_mgr.entity(parent_index)) {
+            if let Some(ui_element) =
+                element_storage.get(transform_mgr.allocator().entity(parent_index))
+            {
                 ui_element.index()
             } else {
                 return elements[index as usize].is_dirty();
@@ -139,11 +142,12 @@ fn calculate_pair<'a>(
     let margin_top = parent_size.height * (child.anchor.max.y - 0.5f32);
 
     let entity = entities[pair.child as usize];
-    let transform = if let Some(transform) = transform_storage.get_mut(entity) {
-        transform_mgr.transform_mut(transform.index())
+    let transform_index = if let Some(transform) = transform_storage.get_mut(entity) {
+        transform.index()
     } else {
         return;
     };
+    let transform = transform_mgr.allocator_mut().transform_mut(transform_index);
     let size = if let Some(size) = size_storage.get_mut(entity) {
         size
     } else {
@@ -152,9 +156,9 @@ fn calculate_pair<'a>(
     let width = margin_right - margin_left - child.margin.left - child.margin.right;
     let height = margin_top - margin_bottom - child.margin.bottom - child.margin.top;
     size.size = crate::structure::Size::new(width, height);
-    transform.mark_as_dirty();
     transform.position = crate::structure::Vec2::new(
         margin_left + child.margin.left,
         margin_bottom + child.margin.bottom,
     );
+    transform_mgr.hierarchy_mut().set_dirty(transform_index);
 }

@@ -1,7 +1,9 @@
 use crate::component::*;
 use crate::engine::use_context;
 use crate::render::*;
+use crate::structure::Mat33;
 use crate::structure::Vec2;
+use crate::structure::Vec3;
 use bumpalo::vec as bump_vec;
 use bumpalo::Bump;
 use fontdue::layout::GlyphRasterConfig;
@@ -120,7 +122,6 @@ impl<'a> System<'a> for RenderSystem {
         ReadStorage<'a, Camera>,
         WriteStorage<'a, GlyphRenderer>,
         ReadStorage<'a, SpriteRenderer>,
-        ReadStorage<'a, NinePatchRenderer>,
         ReadStorage<'a, TilemapRenderer>,
         ReadStorage<'a, AlphaTilemapRenderer>,
     );
@@ -133,7 +134,6 @@ impl<'a> System<'a> for RenderSystem {
             camera,
             mut glyph_renderer,
             sprite_renderer,
-            nine_patch_renderer,
             tilemap_renderer,
             alpha_tilemap_renderer,
         ): Self::SystemData,
@@ -169,22 +169,12 @@ impl<'a> System<'a> for RenderSystem {
             }
 
             let camera_transform_index = camera_transform.index();
-            let mut ndc_to_world = transform_mgr
+            let world_to_ndc = transform_mgr
                 .transform_world_matrix(camera_transform_index)
-                .clone();
-
-            let mut camera_matrix_inverse = [0f32; 9];
-            camera_matrix_inverse.clone_from(&ndc_to_world);
-            crate::transform::Transform::inverse_matrix_with_scale(
-                width_half,
-                height_half,
-                &mut camera_matrix_inverse,
-            );
-
-            ndc_to_world[0] *= width_half;
-            ndc_to_world[1] *= width_half;
-            ndc_to_world[3] *= height_half;
-            ndc_to_world[4] *= height_half;
+                .inversed()
+                * Mat33::affine_scale(Vec2::new(1f32 / width_half, 1f32 / height_half));
+            let ndc_to_world = Mat33::affine_scale(Vec2::new(width_half, height_half))
+                * transform_mgr.transform_world_matrix(camera_transform_index);
 
             let mut buffers = bump_vec![in &self.extra_bump];
             let mut renderers = bump_vec![in &self.extra_bump];
@@ -243,6 +233,11 @@ impl<'a> System<'a> for RenderSystem {
                         glyph.width as f32 + 2f32 * font_width_scale * sdf_inset as f32;
                     let glyph_height =
                         glyph.height as f32 + 2f32 * font_height_scale * sdf_inset as f32;
+                    let matrix = (Mat33::affine_translation(Vec2::new(
+                        glyph.x + offset.x - sdf_inset as f32 * font_width_scale,
+                        glyph.y - offset.y - sdf_inset as f32 * font_height_scale,
+                    )) * matrix)
+                        .into_elements();
 
                     buffer.replace(&[
                         matrix[0],
@@ -251,16 +246,8 @@ impl<'a> System<'a> for RenderSystem {
                         matrix[3],
                         matrix[4],
                         matrix[5],
-                        matrix[6]
-                            + matrix[0]
-                                * (glyph.x + offset.x - sdf_inset as f32 * font_width_scale)
-                            + matrix[3]
-                                * (glyph.y - offset.y - sdf_inset as f32 * font_height_scale),
-                        matrix[7]
-                            + matrix[1]
-                                * (glyph.x + offset.x - sdf_inset as f32 * font_width_scale)
-                            + matrix[4]
-                                * (glyph.y - offset.y - sdf_inset as f32 * font_height_scale),
+                        matrix[6],
+                        matrix[7],
                         matrix[8],
                         glyph_width,
                         glyph_height,
@@ -291,7 +278,7 @@ impl<'a> System<'a> for RenderSystem {
                         // TODO: Add shader type checking logic to alert if types have no match.
 
                         if let Some(uniform) = shader.uniform("camera") {
-                            req.uniform_f33(uniform.location, camera_matrix_inverse);
+                            req.uniform_f33(uniform.location, world_to_ndc.elements().clone());
                         }
                         if let Some(uniform) = shader.uniform("glyph") {
                             req.uniform_texture_raw(uniform.location, texture);
@@ -371,19 +358,20 @@ impl<'a> System<'a> for RenderSystem {
 
                 let size = size.size;
                 let matrix = transform_mgr.transform_world_matrix(transform.index());
+                let mat_elems = matrix.elements();
                 let sprite = &renderer.sprite;
                 let mut buffer = render_mgr.alloc_buffer();
 
                 buffer.replace(&[
-                    matrix[0],
-                    matrix[1],
-                    matrix[2],
-                    matrix[3],
-                    matrix[4],
-                    matrix[5],
-                    matrix[6],
-                    matrix[7],
-                    matrix[8],
+                    mat_elems[0],
+                    mat_elems[1],
+                    mat_elems[2],
+                    mat_elems[3],
+                    mat_elems[4],
+                    mat_elems[5],
+                    mat_elems[6],
+                    mat_elems[7],
+                    mat_elems[8],
                     size.width,
                     size.height,
                     renderer.color.r,
@@ -405,7 +393,7 @@ impl<'a> System<'a> for RenderSystem {
                     // TODO: Add shader type checking logic to alert if types have no match.
 
                     if let Some(uniform) = shader.uniform("camera") {
-                        req.uniform_f33(uniform.location, camera_matrix_inverse);
+                        req.uniform_f33(uniform.location, world_to_ndc.elements().clone());
                     }
                     if let Some(uniform) = shader.uniform("sprite") {
                         req.uniform_texture(uniform.location, sprite.texture());
@@ -455,206 +443,206 @@ impl<'a> System<'a> for RenderSystem {
                 renderers.push((renderer.order, r));
             }
 
-            for (transform, size, renderer) in (&transform, &size, &nine_patch_renderer).join() {
-                if !Layer::has_overlap(camera.layer, renderer.layer) {
-                    return;
-                }
+            // for (transform, size, renderer) in (&transform, &size, &nine_patch_renderer).join() {
+            //     if !Layer::has_overlap(camera.layer, renderer.layer) {
+            //         return;
+            //     }
 
-                let size = size.size;
-                let matrix = transform_mgr.transform_world_matrix(transform.index());
-                let nine_patch = &renderer.nine_patch;
+            //     let size = size.size;
+            //     let matrix = transform_mgr.transform_world_matrix(transform.index());
+            //     let nine_patch = &renderer.nine_patch;
 
-                let left = nine_patch.sprite_lt().width() as f32;
-                let right = nine_patch.sprite_rt().width() as f32;
-                let center = f32::max(0f32, size.width - left - right);
-                let (left, right) = if 0f32 < center {
-                    (left, right)
-                } else {
-                    let ratio = size.width / (left + right);
-                    (left * ratio, right * ratio)
-                };
+            //     let left = nine_patch.sprite_lt().width() as f32;
+            //     let right = nine_patch.sprite_rt().width() as f32;
+            //     let center = f32::max(0f32, size.width - left - right);
+            //     let (left, right) = if 0f32 < center {
+            //         (left, right)
+            //     } else {
+            //         let ratio = size.width / (left + right);
+            //         (left * ratio, right * ratio)
+            //     };
 
-                let top = nine_patch.sprite_lt().height() as f32;
-                let bottom = nine_patch.sprite_lb().height() as f32;
-                let middle = f32::max(0f32, size.height - top - bottom);
-                let (top, bottom) = if 0f32 < middle {
-                    (top, bottom)
-                } else {
-                    let ratio = size.height / (top + bottom);
-                    (top * ratio, bottom * ratio)
-                };
+            //     let top = nine_patch.sprite_lt().height() as f32;
+            //     let bottom = nine_patch.sprite_lb().height() as f32;
+            //     let middle = f32::max(0f32, size.height - top - bottom);
+            //     let (top, bottom) = if 0f32 < middle {
+            //         (top, bottom)
+            //     } else {
+            //         let ratio = size.height / (top + bottom);
+            //         (top * ratio, bottom * ratio)
+            //     };
 
-                let mut buffer_data: Vec<f32> = Vec::with_capacity(9 * 19);
-                let mut enqueue_patch = |offset_x: f32,
-                                         offset_y: f32,
-                                         width: f32,
-                                         height: f32,
-                                         sprite: &Sprite| {
-                    buffer_data.extend(&[
-                        matrix[0],
-                        matrix[1],
-                        matrix[2],
-                        matrix[3],
-                        matrix[4],
-                        matrix[5],
-                        matrix[6]
-                            + matrix[0] * (offset_x - size.width * 0.5f32)
-                            + matrix[3] * (offset_y + size.height * 0.5f32),
-                        matrix[7]
-                            + matrix[1] * (offset_x - size.width * 0.5f32)
-                            + matrix[4] * (offset_y + size.height * 0.5f32),
-                        matrix[8],
-                        width,
-                        height,
-                        renderer.color.r,
-                        renderer.color.g,
-                        renderer.color.b,
-                        renderer.color.a,
-                        (sprite.texel_mapping().min().0 as f32) / sprite.texture().width() as f32,
-                        (sprite.texel_mapping().min().1 as f32) / sprite.texture().height() as f32,
-                        (sprite.texel_mapping().max().0 as f32) / sprite.texture().width() as f32,
-                        (sprite.texel_mapping().max().1 as f32) / sprite.texture().height() as f32,
-                    ]);
-                };
+            //     let mut buffer_data: Vec<f32> = Vec::with_capacity(9 * 19);
+            //     let mut enqueue_patch = |offset_x: f32,
+            //                              offset_y: f32,
+            //                              width: f32,
+            //                              height: f32,
+            //                              sprite: &Sprite| {
+            //         buffer_data.extend(&[
+            //             matrix[0],
+            //             matrix[1],
+            //             matrix[2],
+            //             matrix[3],
+            //             matrix[4],
+            //             matrix[5],
+            //             matrix[6]
+            //                 + matrix[0] * (offset_x - size.width * 0.5f32)
+            //                 + matrix[3] * (offset_y + size.height * 0.5f32),
+            //             matrix[7]
+            //                 + matrix[1] * (offset_x - size.width * 0.5f32)
+            //                 + matrix[4] * (offset_y + size.height * 0.5f32),
+            //             matrix[8],
+            //             width,
+            //             height,
+            //             renderer.color.r,
+            //             renderer.color.g,
+            //             renderer.color.b,
+            //             renderer.color.a,
+            //             (sprite.texel_mapping().min().0 as f32) / sprite.texture().width() as f32,
+            //             (sprite.texel_mapping().min().1 as f32) / sprite.texture().height() as f32,
+            //             (sprite.texel_mapping().max().0 as f32) / sprite.texture().width() as f32,
+            //             (sprite.texel_mapping().max().1 as f32) / sprite.texture().height() as f32,
+            //         ]);
+            //     };
 
-                let mut patch_count = 0;
+            //     let mut patch_count = 0;
 
-                if 0f32 < left && 0f32 < top {
-                    patch_count += 1;
-                    enqueue_patch(0f32, -top, left, top, &nine_patch.sprite_lt());
-                }
+            //     if 0f32 < left && 0f32 < top {
+            //         patch_count += 1;
+            //         enqueue_patch(0f32, -top, left, top, &nine_patch.sprite_lt());
+            //     }
 
-                if 0f32 < center && 0f32 < top {
-                    patch_count += 1;
-                    enqueue_patch(left, -top, center, top, &nine_patch.sprite_ct());
-                }
+            //     if 0f32 < center && 0f32 < top {
+            //         patch_count += 1;
+            //         enqueue_patch(left, -top, center, top, &nine_patch.sprite_ct());
+            //     }
 
-                if 0f32 < right && 0f32 < top {
-                    patch_count += 1;
-                    enqueue_patch(left + center, -top, right, top, &nine_patch.sprite_rt());
-                }
+            //     if 0f32 < right && 0f32 < top {
+            //         patch_count += 1;
+            //         enqueue_patch(left + center, -top, right, top, &nine_patch.sprite_rt());
+            //     }
 
-                if 0f32 < left && 0f32 < middle {
-                    patch_count += 1;
-                    enqueue_patch(0f32, -(top + middle), left, middle, &nine_patch.sprite_lm());
-                }
+            //     if 0f32 < left && 0f32 < middle {
+            //         patch_count += 1;
+            //         enqueue_patch(0f32, -(top + middle), left, middle, &nine_patch.sprite_lm());
+            //     }
 
-                if 0f32 < center && 0f32 < middle {
-                    patch_count += 1;
-                    enqueue_patch(
-                        left,
-                        -(top + middle),
-                        center,
-                        middle,
-                        &nine_patch.sprite_cm(),
-                    );
-                }
+            //     if 0f32 < center && 0f32 < middle {
+            //         patch_count += 1;
+            //         enqueue_patch(
+            //             left,
+            //             -(top + middle),
+            //             center,
+            //             middle,
+            //             &nine_patch.sprite_cm(),
+            //         );
+            //     }
 
-                if 0f32 < right && 0f32 < middle {
-                    patch_count += 1;
-                    enqueue_patch(
-                        left + center,
-                        -(top + middle),
-                        right,
-                        middle,
-                        &nine_patch.sprite_rm(),
-                    );
-                }
+            //     if 0f32 < right && 0f32 < middle {
+            //         patch_count += 1;
+            //         enqueue_patch(
+            //             left + center,
+            //             -(top + middle),
+            //             right,
+            //             middle,
+            //             &nine_patch.sprite_rm(),
+            //         );
+            //     }
 
-                if 0f32 < left && 0f32 < bottom {
-                    patch_count += 1;
-                    enqueue_patch(
-                        0f32,
-                        -(top + middle + bottom),
-                        left,
-                        bottom,
-                        &nine_patch.sprite_lb(),
-                    );
-                }
+            //     if 0f32 < left && 0f32 < bottom {
+            //         patch_count += 1;
+            //         enqueue_patch(
+            //             0f32,
+            //             -(top + middle + bottom),
+            //             left,
+            //             bottom,
+            //             &nine_patch.sprite_lb(),
+            //         );
+            //     }
 
-                if 0f32 < center && 0f32 < bottom {
-                    patch_count += 1;
-                    enqueue_patch(
-                        left,
-                        -(top + middle + bottom),
-                        center,
-                        bottom,
-                        &nine_patch.sprite_cb(),
-                    );
-                }
+            //     if 0f32 < center && 0f32 < bottom {
+            //         patch_count += 1;
+            //         enqueue_patch(
+            //             left,
+            //             -(top + middle + bottom),
+            //             center,
+            //             bottom,
+            //             &nine_patch.sprite_cb(),
+            //         );
+            //     }
 
-                if 0f32 < right && 0f32 < bottom {
-                    patch_count += 1;
-                    enqueue_patch(
-                        left + center,
-                        -(top + middle + bottom),
-                        right,
-                        bottom,
-                        &nine_patch.sprite_rb(),
-                    );
-                }
+            //     if 0f32 < right && 0f32 < bottom {
+            //         patch_count += 1;
+            //         enqueue_patch(
+            //             left + center,
+            //             -(top + middle + bottom),
+            //             right,
+            //             bottom,
+            //             &nine_patch.sprite_rb(),
+            //         );
+            //     }
 
-                let mut buffer = render_mgr.alloc_buffer();
-                buffer.replace(buffer_data.as_slice());
+            //     let mut buffer = render_mgr.alloc_buffer();
+            //     buffer.replace(buffer_data.as_slice());
 
-                let shader = &renderer.shader;
-                let mut r = Renderer::new(&self.renderer_bump);
+            //     let shader = &renderer.shader;
+            //     let mut r = Renderer::new(&self.renderer_bump);
 
-                r.enqueue(patch_count, 2, RenderMode::Trangles, shader, |req| {
-                    render_mgr.apply_common_shader_input(shader, req);
+            //     r.enqueue(patch_count, 2, RenderMode::Trangles, shader, |req| {
+            //         render_mgr.apply_common_shader_input(shader, req);
 
-                    // TODO: Add shader type checking logic to alert if types have no match.
+            //         // TODO: Add shader type checking logic to alert if types have no match.
 
-                    if let Some(uniform) = shader.uniform("camera") {
-                        req.uniform_f33(uniform.location, camera_matrix_inverse);
-                    }
-                    if let Some(uniform) = shader.uniform("sprite") {
-                        req.uniform_texture(uniform.location, nine_patch.texture());
-                    }
+            //         if let Some(uniform) = shader.uniform("camera") {
+            //             req.uniform_f33(uniform.location, camera_matrix_inverse);
+            //         }
+            //         if let Some(uniform) = shader.uniform("sprite") {
+            //             req.uniform_texture(uniform.location, nine_patch.texture());
+            //         }
 
-                    if let Some(attribute) = shader.attribute("pos") {
-                        req.attribute(attribute.location, &self.sprite_buffer, 0, attribute.ty);
-                    }
-                    if let Some(attribute) = shader.attribute("uv") {
-                        req.attribute(
-                            attribute.location,
-                            &self.sprite_buffer,
-                            (size_of::<f32>() * 2) as _,
-                            attribute.ty,
-                        );
-                    }
+            //         if let Some(attribute) = shader.attribute("pos") {
+            //             req.attribute(attribute.location, &self.sprite_buffer, 0, attribute.ty);
+            //         }
+            //         if let Some(attribute) = shader.attribute("uv") {
+            //             req.attribute(
+            //                 attribute.location,
+            //                 &self.sprite_buffer,
+            //                 (size_of::<f32>() * 2) as _,
+            //                 attribute.ty,
+            //             );
+            //         }
 
-                    if let Some(attribute) = shader.attribute("transform") {
-                        req.attribute_per_instance(attribute.location, &buffer, 0, attribute.ty);
-                    }
-                    if let Some(attribute) = shader.attribute("size") {
-                        req.attribute_per_instance(
-                            attribute.location,
-                            &buffer,
-                            (size_of::<f32>() * 9) as _,
-                            attribute.ty,
-                        );
-                    }
-                    if let Some(attribute) = shader.attribute("color") {
-                        req.attribute_per_instance(
-                            attribute.location,
-                            &buffer,
-                            (size_of::<f32>() * 11) as _,
-                            attribute.ty,
-                        );
-                    }
-                    if let Some(attribute) = shader.attribute("uv_rect") {
-                        req.attribute_per_instance(
-                            attribute.location,
-                            &buffer,
-                            (size_of::<f32>() * 15) as _,
-                            attribute.ty,
-                        );
-                    }
-                });
-                buffers.push(buffer);
-                renderers.push((renderer.order, r));
-            }
+            //         if let Some(attribute) = shader.attribute("transform") {
+            //             req.attribute_per_instance(attribute.location, &buffer, 0, attribute.ty);
+            //         }
+            //         if let Some(attribute) = shader.attribute("size") {
+            //             req.attribute_per_instance(
+            //                 attribute.location,
+            //                 &buffer,
+            //                 (size_of::<f32>() * 9) as _,
+            //                 attribute.ty,
+            //             );
+            //         }
+            //         if let Some(attribute) = shader.attribute("color") {
+            //             req.attribute_per_instance(
+            //                 attribute.location,
+            //                 &buffer,
+            //                 (size_of::<f32>() * 11) as _,
+            //                 attribute.ty,
+            //             );
+            //         }
+            //         if let Some(attribute) = shader.attribute("uv_rect") {
+            //             req.attribute_per_instance(
+            //                 attribute.location,
+            //                 &buffer,
+            //                 (size_of::<f32>() * 15) as _,
+            //                 attribute.ty,
+            //             );
+            //         }
+            //     });
+            //     buffers.push(buffer);
+            //     renderers.push((renderer.order, r));
+            // }
 
             for (transform, renderer) in (&transform, &tilemap_renderer).join() {
                 if !Layer::has_overlap(camera.layer, renderer.layer) {
@@ -662,61 +650,29 @@ impl<'a> System<'a> for RenderSystem {
                 }
 
                 let matrix = transform_mgr.transform_world_matrix(transform.index());
-                let mut world_to_local = [0f32; 9];
-                let mut ndc_to_local = [0f32; 6];
+                let ndc_to_local = ndc_to_world.as_ref() * matrix.inversed();
 
-                world_to_local.clone_from(&matrix);
-                crate::transform::Transform::inverse_matrix(&mut world_to_local);
+                let aabb_lt = (Vec3::new(-1f32, 1f32, 1f32) * ndc_to_local.as_ref()).to_vec2();
+                let aabb_lb = (Vec3::new(-1f32, -1f32, 1f32) * ndc_to_local.as_ref()).to_vec2();
+                let aabb_rt = (Vec3::new(1f32, 1f32, 1f32) * ndc_to_local.as_ref()).to_vec2();
+                let aabb_rb = (Vec3::new(1f32, -1f32, 1f32) * ndc_to_local.as_ref()).to_vec2();
 
-                ndc_to_local[0] = ndc_to_world[0] * world_to_local[0]
-                    + ndc_to_world[1] * world_to_local[3]
-                    + ndc_to_world[2] * world_to_local[6];
-                ndc_to_local[1] = ndc_to_world[0] * world_to_local[1]
-                    + ndc_to_world[1] * world_to_local[4]
-                    + ndc_to_world[2] * world_to_local[7];
-                ndc_to_local[2] = ndc_to_world[3] * world_to_local[0]
-                    + ndc_to_world[4] * world_to_local[3]
-                    + ndc_to_world[5] * world_to_local[6];
-                ndc_to_local[3] = ndc_to_world[3] * world_to_local[1]
-                    + ndc_to_world[4] * world_to_local[4]
-                    + ndc_to_world[5] * world_to_local[7];
-                ndc_to_local[4] = ndc_to_world[6] * world_to_local[0]
-                    + ndc_to_world[7] * world_to_local[3]
-                    + ndc_to_world[8] * world_to_local[6];
-                ndc_to_local[5] = ndc_to_world[6] * world_to_local[1]
-                    + ndc_to_world[7] * world_to_local[4]
-                    + ndc_to_world[8] * world_to_local[7];
-
-                let aabb_x_lt = -ndc_to_local[0] + ndc_to_local[2] + ndc_to_local[4];
-                let aabb_x_lb = -ndc_to_local[0] - ndc_to_local[2] + ndc_to_local[4];
-                let aabb_x_rt = ndc_to_local[0] + ndc_to_local[2] + ndc_to_local[4];
-                let aabb_x_rb = ndc_to_local[0] - ndc_to_local[2] + ndc_to_local[4];
-
-                let aabb_y_lt = -ndc_to_local[1] + ndc_to_local[3] + ndc_to_local[5];
-                let aabb_y_lb = -ndc_to_local[1] + -ndc_to_local[3] + ndc_to_local[5];
-                let aabb_y_rt = ndc_to_local[1] + ndc_to_local[3] + ndc_to_local[5];
-                let aabb_y_rb = ndc_to_local[1] + -ndc_to_local[3] + ndc_to_local[5];
-
-                let aabb_min_x = [aabb_x_lt, aabb_x_lb, aabb_x_rt, aabb_x_rb]
-                    .iter()
-                    .cloned()
-                    .reduce(f32::min)
-                    .unwrap();
-                let aabb_max_x = [aabb_x_lt, aabb_x_lb, aabb_x_rt, aabb_x_rb]
-                    .iter()
-                    .cloned()
-                    .reduce(f32::max)
-                    .unwrap();
-                let aabb_min_y = [aabb_y_lt, aabb_y_lb, aabb_y_rt, aabb_y_rb]
-                    .iter()
-                    .cloned()
-                    .reduce(f32::min)
-                    .unwrap();
-                let aabb_max_y = [aabb_y_lt, aabb_y_lb, aabb_y_rt, aabb_y_rb]
-                    .iter()
-                    .cloned()
-                    .reduce(f32::max)
-                    .unwrap();
+                let aabb_min_x = f32::min(
+                    f32::min(aabb_lt.x, aabb_lb.x),
+                    f32::min(aabb_rt.x, aabb_rb.x),
+                );
+                let aabb_max_x = f32::max(
+                    f32::max(aabb_lt.x, aabb_lb.x),
+                    f32::max(aabb_rt.x, aabb_rb.x),
+                );
+                let aabb_min_y = f32::min(
+                    f32::min(aabb_lt.y, aabb_lb.y),
+                    f32::min(aabb_rt.y, aabb_rb.y),
+                );
+                let aabb_max_y = f32::max(
+                    f32::max(aabb_lt.y, aabb_lb.y),
+                    f32::max(aabb_rt.y, aabb_rb.y),
+                );
 
                 let tilemap = &renderer.tilemap;
                 let tile_width = tilemap.tile_width;
@@ -759,6 +715,9 @@ impl<'a> System<'a> for RenderSystem {
                             let texel_mapping = sprite.texel_mapping();
                             let offset_x = x as f32 * tile_width;
                             let offset_y = y as f32 * tile_height;
+                            let matrix = (Mat33::affine_translation(Vec2::new(offset_x, offset_y))
+                                * matrix)
+                                .into_elements();
 
                             instance_count += 1;
                             per_instance_buffer.extend([
@@ -768,8 +727,8 @@ impl<'a> System<'a> for RenderSystem {
                                 matrix[3],
                                 matrix[4],
                                 matrix[5],
-                                matrix[6] + matrix[0] * offset_x + matrix[3] * offset_y,
-                                matrix[7] + matrix[1] * offset_x + matrix[4] * offset_y,
+                                matrix[6],
+                                matrix[7],
                                 matrix[8],
                                 tile_width,
                                 tile_height,
@@ -799,7 +758,7 @@ impl<'a> System<'a> for RenderSystem {
                     // TODO: Add shader type checking logic to alert if types have no match.
 
                     if let Some(uniform) = shader.uniform("camera") {
-                        req.uniform_f33(uniform.location, camera_matrix_inverse);
+                        req.uniform_f33(uniform.location, world_to_ndc.elements().clone());
                     }
                     if let Some(uniform) = shader.uniform("sprite") {
                         req.uniform_texture(uniform.location, &texture);
@@ -860,61 +819,29 @@ impl<'a> System<'a> for RenderSystem {
                 }
 
                 let matrix = transform_mgr.transform_world_matrix(transform.index());
-                let mut world_to_local = [0f32; 9];
-                let mut ndc_to_local = [0f32; 6];
+                let ndc_to_local = ndc_to_world.as_ref() * matrix.inversed();
 
-                world_to_local.clone_from(&matrix);
-                crate::transform::Transform::inverse_matrix(&mut world_to_local);
+                let aabb_lt = (Vec3::new(-1f32, 1f32, 1f32) * ndc_to_local.as_ref()).to_vec2();
+                let aabb_lb = (Vec3::new(-1f32, -1f32, 1f32) * ndc_to_local.as_ref()).to_vec2();
+                let aabb_rt = (Vec3::new(1f32, 1f32, 1f32) * ndc_to_local.as_ref()).to_vec2();
+                let aabb_rb = (Vec3::new(1f32, -1f32, 1f32) * ndc_to_local.as_ref()).to_vec2();
 
-                ndc_to_local[0] = ndc_to_world[0] * world_to_local[0]
-                    + ndc_to_world[1] * world_to_local[3]
-                    + ndc_to_world[2] * world_to_local[6];
-                ndc_to_local[1] = ndc_to_world[0] * world_to_local[1]
-                    + ndc_to_world[1] * world_to_local[4]
-                    + ndc_to_world[2] * world_to_local[7];
-                ndc_to_local[2] = ndc_to_world[3] * world_to_local[0]
-                    + ndc_to_world[4] * world_to_local[3]
-                    + ndc_to_world[5] * world_to_local[6];
-                ndc_to_local[3] = ndc_to_world[3] * world_to_local[1]
-                    + ndc_to_world[4] * world_to_local[4]
-                    + ndc_to_world[5] * world_to_local[7];
-                ndc_to_local[4] = ndc_to_world[6] * world_to_local[0]
-                    + ndc_to_world[7] * world_to_local[3]
-                    + ndc_to_world[8] * world_to_local[6];
-                ndc_to_local[5] = ndc_to_world[6] * world_to_local[1]
-                    + ndc_to_world[7] * world_to_local[4]
-                    + ndc_to_world[8] * world_to_local[7];
-
-                let aabb_x_lt = -ndc_to_local[0] + ndc_to_local[2] + ndc_to_local[4];
-                let aabb_x_lb = -ndc_to_local[0] - ndc_to_local[2] + ndc_to_local[4];
-                let aabb_x_rt = ndc_to_local[0] + ndc_to_local[2] + ndc_to_local[4];
-                let aabb_x_rb = ndc_to_local[0] - ndc_to_local[2] + ndc_to_local[4];
-
-                let aabb_y_lt = -ndc_to_local[1] + ndc_to_local[3] + ndc_to_local[5];
-                let aabb_y_lb = -ndc_to_local[1] + -ndc_to_local[3] + ndc_to_local[5];
-                let aabb_y_rt = ndc_to_local[1] + ndc_to_local[3] + ndc_to_local[5];
-                let aabb_y_rb = ndc_to_local[1] + -ndc_to_local[3] + ndc_to_local[5];
-
-                let aabb_min_x = [aabb_x_lt, aabb_x_lb, aabb_x_rt, aabb_x_rb]
-                    .iter()
-                    .cloned()
-                    .reduce(f32::min)
-                    .unwrap();
-                let aabb_max_x = [aabb_x_lt, aabb_x_lb, aabb_x_rt, aabb_x_rb]
-                    .iter()
-                    .cloned()
-                    .reduce(f32::max)
-                    .unwrap();
-                let aabb_min_y = [aabb_y_lt, aabb_y_lb, aabb_y_rt, aabb_y_rb]
-                    .iter()
-                    .cloned()
-                    .reduce(f32::min)
-                    .unwrap();
-                let aabb_max_y = [aabb_y_lt, aabb_y_lb, aabb_y_rt, aabb_y_rb]
-                    .iter()
-                    .cloned()
-                    .reduce(f32::max)
-                    .unwrap();
+                let aabb_min_x = f32::min(
+                    f32::min(aabb_lt.x, aabb_lb.x),
+                    f32::min(aabb_rt.x, aabb_rb.x),
+                );
+                let aabb_max_x = f32::max(
+                    f32::max(aabb_lt.x, aabb_lb.x),
+                    f32::max(aabb_rt.x, aabb_rb.x),
+                );
+                let aabb_min_y = f32::min(
+                    f32::min(aabb_lt.y, aabb_lb.y),
+                    f32::min(aabb_rt.y, aabb_rb.y),
+                );
+                let aabb_max_y = f32::max(
+                    f32::max(aabb_lt.y, aabb_lb.y),
+                    f32::max(aabb_rt.y, aabb_rb.y),
+                );
 
                 let tilemap = &renderer.tilemap;
                 let tile_width = tilemap.tile_width;
@@ -959,6 +886,10 @@ impl<'a> System<'a> for RenderSystem {
                         };
                         let tile_offset_x = x as f32 * tile_width;
                         let tile_offset_y = y as f32 * tile_height;
+                        let back_matrix =
+                            (Mat33::affine_translation(Vec2::new(tile_offset_x, tile_offset_y))
+                                * matrix)
+                                .into_elements();
 
                         let glyph_key = font.lookup_glyph_index(tile.character);
                         let g = glyph_mgr.glyph(
@@ -991,18 +922,23 @@ impl<'a> System<'a> for RenderSystem {
                             glyph_height as f32 + 2f32 * font_height_scale * sdf_inset as f32;
                         let glyph_offset_x = (tilemap.tile_width - glyph_width) * 0.5f32;
                         let glyph_offset_y = (tilemap.tile_height - glyph_height) * 0.5f32;
+                        let glyph_matrix = (Mat33::affine_translation(Vec2::new(
+                            tile_offset_x + glyph_offset_x - sdf_inset as f32 * font_width_scale,
+                            tile_offset_y + glyph_offset_y - sdf_inset as f32 * font_height_scale,
+                        )) * matrix)
+                            .into_elements();
 
                         instance_count += 1;
                         back_buffer_content.extend([
-                            matrix[0],
-                            matrix[1],
-                            matrix[2],
-                            matrix[3],
-                            matrix[4],
-                            matrix[5],
-                            matrix[6] + matrix[0] * tile_offset_x + matrix[3] * tile_offset_y,
-                            matrix[7] + matrix[1] * tile_offset_x + matrix[4] * tile_offset_y,
-                            matrix[8],
+                            back_matrix[0],
+                            back_matrix[1],
+                            back_matrix[2],
+                            back_matrix[3],
+                            back_matrix[4],
+                            back_matrix[5],
+                            back_matrix[6],
+                            back_matrix[7],
+                            back_matrix[8],
                             tile_width,
                             tile_height,
                             tile.back_color.r,
@@ -1017,27 +953,15 @@ impl<'a> System<'a> for RenderSystem {
 
                         let mut glyph_buffer = render_mgr.alloc_buffer();
                         glyph_buffer.replace(&[
-                            matrix[0],
-                            matrix[1],
-                            matrix[2],
-                            matrix[3],
-                            matrix[4],
-                            matrix[5],
-                            matrix[6]
-                                + matrix[0]
-                                    * (tile_offset_x + glyph_offset_x
-                                        - sdf_inset as f32 * font_width_scale)
-                                + matrix[3]
-                                    * (tile_offset_y + glyph_offset_y
-                                        - sdf_inset as f32 * font_height_scale),
-                            matrix[7]
-                                + matrix[1]
-                                    * (tile_offset_x + glyph_offset_x
-                                        - sdf_inset as f32 * font_width_scale)
-                                + matrix[4]
-                                    * (tile_offset_y + glyph_offset_y
-                                        - sdf_inset as f32 * font_height_scale),
-                            matrix[8],
+                            glyph_matrix[0],
+                            glyph_matrix[1],
+                            glyph_matrix[2],
+                            glyph_matrix[3],
+                            glyph_matrix[4],
+                            glyph_matrix[5],
+                            glyph_matrix[6],
+                            glyph_matrix[7],
+                            glyph_matrix[8],
                             glyph_width,
                             glyph_height,
                             renderer.color.r * tile.fore_color.r,
@@ -1073,7 +997,7 @@ impl<'a> System<'a> for RenderSystem {
                         // TODO: Add shader type checking logic to alert if types have no match.
 
                         if let Some(uniform) = back_shader.uniform("camera") {
-                            req.uniform_f33(uniform.location, camera_matrix_inverse);
+                            req.uniform_f33(uniform.location, world_to_ndc.elements().clone());
                         }
 
                         if let Some(attribute) = back_shader.attribute("pos") {
@@ -1128,7 +1052,7 @@ impl<'a> System<'a> for RenderSystem {
                         // TODO: Add shader type checking logic to alert if types have no match.
 
                         if let Some(uniform) = fore_shader.uniform("camera") {
-                            req.uniform_f33(uniform.location, camera_matrix_inverse);
+                            req.uniform_f33(uniform.location, world_to_ndc.elements().clone());
                         }
                         if let Some(uniform) = fore_shader.uniform("glyph") {
                             req.uniform_texture_raw(uniform.location, texture);

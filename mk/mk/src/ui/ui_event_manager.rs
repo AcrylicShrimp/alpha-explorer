@@ -44,7 +44,7 @@ impl UIEventManager {
         self.last_mouse_position = None;
     }
 
-    pub fn handle_mouse_move(&mut self, x: f32, y: f32) {
+    pub fn handle_mouse_move(&mut self, point_in_screen: Vec2) {
         let context = use_context();
         let world = context.world();
         let (transform_storage, camera_storage) = (
@@ -52,8 +52,7 @@ impl UIEventManager {
             world.read_storage::<Camera>(),
         );
         let entity = context.ui_mgr().raycast_element(
-            x,
-            y,
+            point_in_screen,
             self.camera.and_then(|camera| {
                 match (transform_storage.get(camera), camera_storage.get(camera)) {
                     (Some(transform), Some(camera)) => Some((transform, camera)),
@@ -90,7 +89,9 @@ impl UIEventManager {
                 context.event_mgr().dispatcher().emit(&PerEntity {
                     entity,
                     event: "mouse-move".to_owned(),
-                    param: EventMouseMove { x, y },
+                    param: EventMouseMove {
+                        mouse_position: point_in_screen,
+                    },
                 });
             }
             None => {
@@ -116,9 +117,8 @@ impl UIEventManager {
                     entity,
                     event: "drag-begin".to_owned(),
                     param: EventDragBegin {
-                        x,
-                        y,
-                        button: match mouse_button {
+                        mouse_position: point_in_screen,
+                        mouse_button: match mouse_button {
                             MouseButton::Left => "left",
                             MouseButton::Right => "right",
                             MouseButton::Middle => "middle",
@@ -130,7 +130,7 @@ impl UIEventManager {
             _ => {}
         }
 
-        self.last_mouse_position = Some(Vec2::new(x, y));
+        self.last_mouse_position = Some(point_in_screen);
     }
 
     pub fn handle_mouse_button_down(&mut self, button: MouseButton) {
@@ -145,7 +145,7 @@ impl UIEventManager {
             });
         }
 
-        let last_mouse_position = match &self.last_mouse_position {
+        let last_mouse_position = match self.last_mouse_position {
             Some(last_mouse_position) => last_mouse_position,
             None => {
                 if let Some(focus_entity) = self.focus.take() {
@@ -166,8 +166,7 @@ impl UIEventManager {
             world.read_storage::<Camera>(),
         );
         let entity = context.ui_mgr().raycast_element(
-            last_mouse_position.x,
-            last_mouse_position.y,
+            last_mouse_position,
             self.camera.and_then(|camera| {
                 match (transform_storage.get(camera), camera_storage.get(camera)) {
                     (Some(transform), Some(camera)) => Some((transform, camera)),
@@ -203,9 +202,8 @@ impl UIEventManager {
                     entity,
                     event: "mouse-down".to_owned(),
                     param: EventMouseDown {
-                        x: last_mouse_position.x,
-                        y: last_mouse_position.y,
-                        button: match button {
+                        mouse_position: last_mouse_position,
+                        mouse_button: match button {
                             MouseButton::Left => "left",
                             MouseButton::Right => "right",
                             MouseButton::Middle => "middle",
@@ -234,7 +232,7 @@ impl UIEventManager {
     pub fn handle_mouse_button_up(&mut self, button: MouseButton) {
         self.mouse_down = None;
 
-        let last_mouse_position = match &self.last_mouse_position {
+        let last_mouse_position = match self.last_mouse_position {
             Some(last_mouse_position) => last_mouse_position,
             None => {
                 if let Some(mouse_drag) = self.mouse_drag.take() {
@@ -243,7 +241,7 @@ impl UIEventManager {
                         entity: mouse_drag.entity,
                         event: "drag-end".to_owned(),
                         param: EventDragEnd {
-                            button: match button {
+                            mouse_button: match button {
                                 MouseButton::Left => "left",
                                 MouseButton::Right => "right",
                                 MouseButton::Middle => "middle",
@@ -262,8 +260,7 @@ impl UIEventManager {
             world.read_storage::<Camera>(),
         );
         let entity = context.ui_mgr().raycast_element(
-            last_mouse_position.x,
-            last_mouse_position.y,
+            last_mouse_position,
             self.camera.and_then(|camera| {
                 match (transform_storage.get(camera), camera_storage.get(camera)) {
                     (Some(transform), Some(camera)) => Some((transform, camera)),
@@ -280,7 +277,7 @@ impl UIEventManager {
                         event: "drop".to_owned(),
                         param: EventDrop {
                             from: crate::script::entity::Entity::new(mouse_drag.entity),
-                            button: match button {
+                            mouse_button: match button {
                                 MouseButton::Left => "left",
                                 MouseButton::Right => "right",
                                 MouseButton::Middle => "middle",
@@ -292,7 +289,7 @@ impl UIEventManager {
                         entity: mouse_drag.entity,
                         event: "drag-end".to_owned(),
                         param: EventDragEnd {
-                            button: match button {
+                            mouse_button: match button {
                                 MouseButton::Left => "left",
                                 MouseButton::Right => "right",
                                 MouseButton::Middle => "middle",
@@ -306,7 +303,7 @@ impl UIEventManager {
                     entity,
                     event: "mouse-up".to_owned(),
                     param: EventMouseUp {
-                        button: match button {
+                        mouse_button: match button {
                             MouseButton::Left => "left",
                             MouseButton::Right => "right",
                             MouseButton::Middle => "middle",
@@ -321,7 +318,7 @@ impl UIEventManager {
                         entity: mouse_drag.entity,
                         event: "drag-end".to_owned(),
                         param: EventDragEnd {
-                            button: match button {
+                            mouse_button: match button {
                                 MouseButton::Left => "left",
                                 MouseButton::Right => "right",
                                 MouseButton::Middle => "middle",
@@ -337,78 +334,72 @@ impl UIEventManager {
 
 #[derive(Clone)]
 pub struct EventMouseDown {
-    pub x: f32,
-    pub y: f32,
-    pub button: &'static str,
+    pub mouse_position: Vec2,
+    pub mouse_button: &'static str,
 }
 
 impl LuaUserData for EventMouseDown {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
-        fields.add_field_method_get("x", |_lua, this| Ok(this.x));
-        fields.add_field_method_get("y", |_lua, this| Ok(this.y));
-        fields.add_field_method_get("button", |_lua, this| Ok(this.button));
+        fields.add_field_method_get("mouse_position", |_lua, this| Ok(this.mouse_position));
+        fields.add_field_method_get("mouse_button", |_lua, this| Ok(this.mouse_button));
     }
 }
 
 #[derive(Clone)]
 pub struct EventMouseUp {
-    pub button: &'static str,
+    pub mouse_button: &'static str,
 }
 
 impl LuaUserData for EventMouseUp {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
-        fields.add_field_method_get("button", |_lua, this| Ok(this.button));
+        fields.add_field_method_get("mouse_button", |_lua, this| Ok(this.mouse_button));
     }
 }
 
 #[derive(Clone)]
 pub struct EventMouseMove {
-    pub x: f32,
-    pub y: f32,
+    pub mouse_position: Vec2,
 }
 
 impl LuaUserData for EventMouseMove {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
-        fields.add_field_method_get("x", |_lua, this| Ok(this.x));
-        fields.add_field_method_get("y", |_lua, this| Ok(this.y));
+        fields.add_field_method_get("mouse_position", |_lua, this| Ok(this.mouse_position));
     }
 }
 
 #[derive(Clone)]
 pub struct EventDragBegin {
-    pub x: f32,
-    pub y: f32,
-    pub button: &'static str,
+    pub mouse_position: Vec2,
+    pub mouse_button: &'static str,
 }
 
 impl LuaUserData for EventDragBegin {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
-        fields.add_field_method_get("x", |_lua, this| Ok(this.x));
-        fields.add_field_method_get("y", |_lua, this| Ok(this.y));
-        fields.add_field_method_get("button", |_lua, this| Ok(this.button));
+        fields.add_field_method_get("mouse_position", |_lua, this| Ok(this.mouse_position));
+        fields.add_field_method_get("mouse_button", |_lua, this| Ok(this.mouse_button));
     }
 }
 
 #[derive(Clone)]
 pub struct EventDragEnd {
-    pub button: &'static str,
+    pub mouse_button: &'static str,
 }
 
 impl LuaUserData for EventDragEnd {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
-        fields.add_field_method_get("button", |_lua, this| Ok(this.button));
+        fields.add_field_method_get("mouse_button", |_lua, this| Ok(this.mouse_button));
     }
 }
 
 #[derive(Clone)]
 pub struct EventDrop {
     pub from: crate::script::entity::Entity,
-    pub button: &'static str,
+    pub mouse_button: &'static str,
 }
 
 impl LuaUserData for EventDrop {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
         fields.add_field_method_get("from", |_lua, this| Ok(this.from));
-        fields.add_field_method_get("button", |_lua, this| Ok(this.button));
+        fields.add_field_method_get("mouse_button", |_lua, this| Ok(this.mouse_button));
     }
 }
