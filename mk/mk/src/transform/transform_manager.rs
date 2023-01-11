@@ -47,7 +47,7 @@ impl TransformManager {
         self.name_manager.add(transform);
 
         let transform_usize = transform as usize;
-        if self.world_matrices.len() <= transform_usize {
+        if self.world_matrices.len() <= transform_usize * 9 {
             self.world_matrices.extend_from_slice(&[0f32; 9]);
         }
 
