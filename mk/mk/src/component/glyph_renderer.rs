@@ -1,24 +1,20 @@
 use crate::{
-    glyph::GlyphLayoutConfig,
-    render::{Color, Layer, Shader},
+    gfx::{Color, GlyphLayoutConfig, Layer},
+    handles::*,
     structure::Size,
 };
-use fontdue::{
-    layout::{CoordinateSystem, Layout, LayoutSettings, TextStyle},
-    Font,
-};
+use fontdue::layout::{CoordinateSystem, Layout, LayoutSettings, TextStyle};
 use specs::{prelude::*, Component};
-use std::sync::Arc;
 
 #[derive(Component)]
 pub struct GlyphRenderer {
     pub layer: Layer,
     pub order: i32,
     pub color: Color,
-    pub shader: Arc<Shader>,
+    pub shader: ShaderHandle,
     pub thickness: f32,
     pub smoothness: f32,
-    font: Arc<Font>,
+    font: FontHandle,
     font_size: f32,
     text: String,
     config: GlyphLayoutConfig,
@@ -30,10 +26,10 @@ impl GlyphRenderer {
         layer: Layer,
         order: i32,
         color: Color,
-        shader: Arc<Shader>,
+        shader: ShaderHandle,
         thickness: f32,
         smoothness: f32,
-        font: Arc<Font>,
+        font: FontHandle,
         font_size: f32,
     ) -> Self {
         Self {
@@ -51,15 +47,15 @@ impl GlyphRenderer {
         }
     }
 
-    pub fn font(&self) -> &Arc<Font> {
+    pub fn font(&self) -> &FontHandle {
         &self.font
     }
 
-    pub fn set_font(&mut self, font: Arc<Font>) {
+    pub fn set_font(&mut self, font: FontHandle) {
         self.font = font;
         self.layout.clear();
         self.layout.append(
-            &[self.font.as_ref()],
+            &[self.font.inner().as_ref()],
             &TextStyle::new(self.text.as_str(), self.font_size, 0),
         );
     }
@@ -72,7 +68,7 @@ impl GlyphRenderer {
         self.font_size = font_size;
         self.layout.clear();
         self.layout.append(
-            &[self.font.as_ref()],
+            &[self.font.inner().as_ref()],
             &TextStyle::new(self.text.as_str(), self.font_size, 0),
         );
     }
@@ -85,7 +81,7 @@ impl GlyphRenderer {
         self.text = text;
         self.layout.clear();
         self.layout.append(
-            &[self.font.as_ref()],
+            &[self.font.inner().as_ref()],
             &TextStyle::new(self.text.as_str(), self.font_size, 0),
         );
     }
@@ -107,7 +103,7 @@ impl GlyphRenderer {
             wrap_hard_breaks: self.config.wrap_hard_breaks,
         });
         self.layout.append(
-            &[self.font.as_ref()],
+            &[self.font.inner().as_ref()],
             &TextStyle::new(self.text.as_str(), self.font_size, 0),
         );
     }
@@ -116,7 +112,7 @@ impl GlyphRenderer {
         &self.layout
     }
 
-    pub fn font_and_layout(&mut self) -> (&Arc<Font>, &mut Layout) {
+    pub fn font_and_layout(&mut self) -> (&FontHandle, &mut Layout) {
         (&self.font, &mut self.layout)
     }
 

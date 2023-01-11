@@ -1,7 +1,4 @@
-use crate::script::{
-    api::IntoShared,
-    render::{Shader, Sprite},
-};
+use crate::{engine::use_context, handles::*};
 use mlua::prelude::*;
 
 pub type ComponentSpriteRenderer = super::Component<crate::component::SpriteRenderer>;
@@ -12,10 +9,10 @@ impl LuaUserData for ComponentSpriteRenderer {
         fields.add_field_method_get("order", |_lua, this| Ok(this.with_ref(|this| this.order)));
         fields.add_field_method_get("color", |_lua, this| Ok(this.with_ref(|this| this.color)));
         fields.add_field_method_get("shader", |_lua, this| {
-            Ok(this.with_ref(|this| this.shader.clone().into_shared()))
+            Ok(this.with_ref(|this| this.shader.clone()))
         });
         fields.add_field_method_get("sprite", |_lua, this| {
-            Ok(this.with_ref(|this| this.sprite.clone().into_shared()))
+            Ok(this.with_ref(|this| this.sprite().clone()))
         });
 
         fields.add_field_method_set("layer", |_lua, this, layer| {
@@ -36,15 +33,15 @@ impl LuaUserData for ComponentSpriteRenderer {
             });
             Ok(())
         });
-        fields.add_field_method_set("shader", |_lua, this, shader: Shader| {
+        fields.add_field_method_set("shader", |_lua, this, shader: ShaderHandle| {
             this.with_mut(|this| {
-                this.shader = shader.into_inner();
+                this.shader = shader;
             });
             Ok(())
         });
-        fields.add_field_method_set("sprite", |_lua, this, sprite: Sprite| {
+        fields.add_field_method_set("sprite", |_lua, this, sprite: SpriteHandle| {
             this.with_mut(|this| {
-                this.sprite = sprite.into_inner();
+                this.set_sprite(&use_context().render_mgr(), sprite);
             });
             Ok(())
         });

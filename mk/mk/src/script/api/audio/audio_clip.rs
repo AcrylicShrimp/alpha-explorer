@@ -1,7 +1,7 @@
 use mlua::prelude::*;
 use rodio::Source;
 
-define_shared_type!(AudioClip, crate::audio::AudioClip);
+type AudioClip = crate::handles::AudioClipHandle;
 
 impl LuaUserData for AudioClip {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {

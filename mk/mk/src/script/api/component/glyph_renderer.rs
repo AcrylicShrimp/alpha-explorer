@@ -1,7 +1,4 @@
-use crate::script::{
-    api::IntoShared,
-    render::{Font, Shader},
-};
+use crate::handles::*;
 use mlua::prelude::*;
 
 pub type ComponentGlyphRenderer = super::Component<crate::component::GlyphRenderer>;
@@ -12,7 +9,7 @@ impl LuaUserData for ComponentGlyphRenderer {
         fields.add_field_method_get("order", |_lua, this| Ok(this.with_ref(|this| this.order)));
         fields.add_field_method_get("color", |_lua, this| Ok(this.with_ref(|this| this.color)));
         fields.add_field_method_get("shader", |_lua, this| {
-            Ok(this.with_ref(|this| this.shader.clone().into_shared()))
+            Ok(this.with_ref(|this| this.shader.clone()))
         });
         fields.add_field_method_get("thickness", |_lua, this| {
             Ok(this.with_ref(|this| this.thickness))
@@ -21,7 +18,7 @@ impl LuaUserData for ComponentGlyphRenderer {
             Ok(this.with_ref(|this| this.smoothness))
         });
         fields.add_field_method_get("font", |_lua, this| {
-            Ok(this.with_ref(|this| this.font().clone().into_shared()))
+            Ok(this.with_ref(|this| this.font().clone()))
         });
         fields.add_field_method_get("font_size", |_lua, this| {
             Ok(this.with_ref(|this| this.font_size()))
@@ -51,9 +48,9 @@ impl LuaUserData for ComponentGlyphRenderer {
             });
             Ok(())
         });
-        fields.add_field_method_set("shader", |_lua, this, shader: Shader| {
+        fields.add_field_method_set("shader", |_lua, this, shader: ShaderHandle| {
             this.with_mut(|this| {
-                this.shader = shader.into_inner();
+                this.shader = shader;
             });
             Ok(())
         });
@@ -69,8 +66,8 @@ impl LuaUserData for ComponentGlyphRenderer {
             });
             Ok(())
         });
-        fields.add_field_method_set("font", |_lua, this, font: Font| {
-            this.with_mut(|this| this.set_font(font.into_inner()));
+        fields.add_field_method_set("font", |_lua, this, font: FontHandle| {
+            this.with_mut(|this| this.set_font(font));
             Ok(())
         });
         fields.add_field_method_set("font_size", |_lua, this, font_size| {

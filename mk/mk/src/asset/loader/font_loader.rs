@@ -13,7 +13,7 @@ impl From<&'static str> for AssetLoadError {
 }
 
 pub fn font_loader() -> AssetLoader<Arc<Font>> {
-    AssetLoader::new(|_asset_mgr, base, path| {
+    AssetLoader::new(|_context, base, path| {
         let path = base.join("fonts").join(path);
         let mut font_path = Err(IOError::new(IOErrorKind::NotFound, "cannot find a font"));
 

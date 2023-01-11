@@ -1,12 +1,11 @@
-use crate::{audio::AudioClip, engine::use_context};
+use crate::{engine::use_context, handles::*};
 use rodio::Sink;
 use specs::{prelude::*, Component};
-use std::sync::Arc;
 
 #[derive(Component)]
 pub struct AudioSource {
     volume: f32,
-    clip: Option<Arc<AudioClip>>,
+    clip: Option<AudioClipHandle>,
     sink: Option<Sink>,
 }
 
@@ -36,11 +35,11 @@ impl AudioSource {
         }
     }
 
-    pub fn clip(&self) -> Option<Arc<AudioClip>> {
-        self.clip.clone()
+    pub fn clip(&self) -> Option<&AudioClipHandle> {
+        self.clip.as_ref()
     }
 
-    pub fn set_clip(&mut self, clip: Option<Arc<AudioClip>>) {
+    pub fn set_clip(&mut self, clip: Option<AudioClipHandle>) {
         self.clip = clip;
 
         if let Some(sink) = self.sink.take() {

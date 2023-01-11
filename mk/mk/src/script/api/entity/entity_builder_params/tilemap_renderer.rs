@@ -1,5 +1,5 @@
 use super::EntityBuilderParam;
-use crate::render::{Color, Layer, Shader, Tilemap};
+use crate::gfx::{Color, Layer, ShaderHandle, Tilemap};
 use anyhow::Context;
 use mlua::prelude::*;
 use std::sync::Arc;
@@ -8,7 +8,7 @@ pub struct TilemapRendererParams {
     pub layer: Layer,
     pub order: i32,
     pub color: Color,
-    pub shader: Arc<Shader>,
+    pub shader: Arc<ShaderHandle>,
     pub tilemap: Arc<Tilemap>,
 }
 
@@ -28,12 +28,12 @@ impl EntityBuilderParam for TilemapRendererParams {
                 .with_context(|| "invalid value for 'color' of TilemapRendererParams")
                 .to_lua_err()?,
             shader: table
-                .get::<_, crate::script::api::render::Shader>("shader")
+                .get::<_, crate::script::api::gfx::Shader>("shader")
                 .with_context(|| "invalid value for 'shader' of TilemapRendererParams")
                 .to_lua_err()?
                 .into_inner(),
             tilemap: table
-                .get::<_, crate::script::api::render::Tilemap>("tilemap")
+                .get::<_, crate::script::api::gfx::Tilemap>("tilemap")
                 .with_context(|| "invalid value for 'tilemap' of TilemapRendererParams")
                 .to_lua_err()?
                 .into_inner(),

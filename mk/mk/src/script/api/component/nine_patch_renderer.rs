@@ -1,6 +1,6 @@
 use crate::script::{
     api::IntoShared,
-    render::{Shader, SpriteNinePatch},
+    gfx::{Shader, SpriteNinePatch},
 };
 use mlua::prelude::*;
 

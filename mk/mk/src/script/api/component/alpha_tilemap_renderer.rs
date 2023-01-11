@@ -1,6 +1,6 @@
 use crate::script::{
     api::IntoShared,
-    render::{AlphaTileset, Font, Shader},
+    gfx::{AlphaTileset, Font, Shader},
 };
 use mlua::prelude::*;
 

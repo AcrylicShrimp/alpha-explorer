@@ -1,5 +1,5 @@
 use crate::input::InputType;
-use glutin::event::{ElementState, KeyboardInput, VirtualKeyCode};
+use winit::event::{ElementState, KeyboardInput, VirtualKeyCode};
 
 #[derive(Debug)]
 pub struct Button {

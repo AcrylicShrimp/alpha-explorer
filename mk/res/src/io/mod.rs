@@ -14,11 +14,11 @@ pub mod writer;
 use std::io::Error as IOError;
 
 #[cfg(any(feature = "asset_loader", feature = "writer"))]
-pub(in crate) fn chunk_to_filename(chunk: crate::ResourceChunkID) -> String {
+pub(crate) fn chunk_to_filename(chunk: crate::ResourceChunkID) -> String {
     format!("assets{}.res", chunk)
 }
 
-pub(in crate) fn read_file_all(
+pub(crate) fn read_file_all(
     file: &std::fs::File,
     offset: u64,
     buffer: &mut [u8],

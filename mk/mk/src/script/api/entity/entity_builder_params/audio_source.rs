@@ -1,13 +1,12 @@
 use super::EntityBuilderParam;
-use crate::audio::AudioClip;
+use crate::handles::*;
 use anyhow::Context;
 use mlua::prelude::*;
-use std::sync::Arc;
 
 #[derive(Default)]
 pub struct AudioSourceParams {
     pub volume: Option<f32>,
-    pub clip: Option<Arc<AudioClip>>,
+    pub clip: Option<AudioClipHandle>,
 }
 
 impl EntityBuilderParam for AudioSourceParams {
@@ -18,10 +17,9 @@ impl EntityBuilderParam for AudioSourceParams {
                 .with_context(|| "invalid value for 'volume' of AudioSourceParams")
                 .to_lua_err()?,
             clip: table
-                .get::<_, Option<crate::script::api::audio::AudioClip>>("clip")
+                .get("clip")
                 .with_context(|| "invalid value for 'clip' of AudioSourceParams")
-                .to_lua_err()?
-                .map(|clip| clip.into_inner()),
+                .to_lua_err()?,
         })
     }
 }

@@ -1,6 +1,6 @@
 use crate::{
     asset::{AssetLoadError, AssetLoader},
-    render::{SpriteAtlasGrid, SpriteAtlasGridError},
+    gfx::{SpriteAtlasGrid, SpriteAtlasGridError},
 };
 use std::sync::Arc;
 
@@ -11,7 +11,7 @@ impl From<SpriteAtlasGridError> for AssetLoadError {
 }
 
 pub fn sprite_atlas_grid_loader() -> AssetLoader<Arc<SpriteAtlasGrid>> {
-    AssetLoader::new(|_asset_mgr, base, path| {
+    AssetLoader::new(|_context, base, path| {
         Ok(Arc::new(SpriteAtlasGrid::from_file(
             &base.join("sprites").join(path),
             None,

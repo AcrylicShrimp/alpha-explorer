@@ -1,5 +1,5 @@
 use super::EntityBuilderParam;
-use crate::render::{ClearMode, Color, Layer};
+use crate::gfx::{ClearMode, Color, Layer};
 use anyhow::Context;
 use mlua::prelude::*;
 

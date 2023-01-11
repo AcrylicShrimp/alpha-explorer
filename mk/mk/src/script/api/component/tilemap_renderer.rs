@@ -1,6 +1,6 @@
 use crate::script::{
     api::IntoShared,
-    render::{Shader, Tilemap},
+    gfx::{Shader, Tilemap},
 };
 use mlua::prelude::*;
 

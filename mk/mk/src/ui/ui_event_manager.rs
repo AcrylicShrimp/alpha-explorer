@@ -2,9 +2,9 @@ use crate::component::{Camera, Transform};
 use crate::engine::use_context;
 use crate::script::event::PerEntity;
 use crate::structure::Vec2;
-use glutin::event::MouseButton;
 use mlua::prelude::*;
 use specs::prelude::*;
+use winit::event::MouseButton;
 
 #[derive(Debug)]
 struct MouseDown {

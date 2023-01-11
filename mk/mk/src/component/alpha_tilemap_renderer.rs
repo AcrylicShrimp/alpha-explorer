@@ -1,16 +1,17 @@
-use crate::render::{AlphaTilemap, Color, Layer, Shader};
-use fontdue::Font;
+use crate::{
+    gfx::{AlphaTilemap, Color, Layer},
+    handles::*,
+};
 use specs::{prelude::*, Component};
-use std::sync::Arc;
 
 #[derive(Component)]
 pub struct AlphaTilemapRenderer {
     pub layer: Layer,
     pub order: i32,
     pub color: Color,
-    pub fore_shader: Arc<Shader>,
-    pub back_shader: Arc<Shader>,
-    pub font: Arc<Font>,
+    pub fore_shader: ShaderHandle,
+    pub back_shader: ShaderHandle,
+    pub font: FontHandle,
     pub font_size: f32,
     pub thickness: f32,
     pub smoothness: f32,
@@ -22,9 +23,9 @@ impl AlphaTilemapRenderer {
         layer: Layer,
         order: i32,
         color: Color,
-        fore_shader: Arc<Shader>,
-        back_shader: Arc<Shader>,
-        font: Arc<Font>,
+        fore_shader: ShaderHandle,
+        back_shader: ShaderHandle,
+        font: FontHandle,
         font_size: f32,
         thickness: f32,
         smoothness: f32,

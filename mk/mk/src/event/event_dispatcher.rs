@@ -59,7 +59,7 @@ impl EventDispatcher {
 
     pub fn emit<T>(&self, event: &T)
     where
-        T: 'static + Clone + for<'lua> ToLua<'lua>,
+        T: 'static + Any + Clone + for<'lua> ToLua<'lua>,
     {
         let script_mgr = use_context().script_mgr();
 

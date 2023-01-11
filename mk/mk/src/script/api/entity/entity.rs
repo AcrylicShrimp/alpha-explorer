@@ -63,7 +63,7 @@ impl LuaApiTable for Entity {
                 Ok(transform_mgr
                     .name_manager()
                     .transforms_by_name(name.to_str()?)
-                            .iter()
+                    .iter()
                     .copied()
                     .map(|index| Self::new(allocator.entity(index)))
                     .collect::<Vec<_>>())
@@ -98,9 +98,9 @@ impl LuaUserData for Entity {
             Ok(())
         });
 
-        fields.add_field_method_get("alpha_tilemap_renderer", |_lua, this| {
-            Ok(ComponentAlphaTilemapRenderer::new(this.0))
-        });
+        // fields.add_field_method_get("alpha_tilemap_renderer", |_lua, this| {
+        //     Ok(ComponentAlphaTilemapRenderer::new(this.0))
+        // });
         fields.add_field_method_get("audio_source", |_lua, this| {
             Ok(ComponentAudioSource::new(this.0))
         });
@@ -111,22 +111,20 @@ impl LuaUserData for Entity {
         fields.add_field_method_get("glyph_renderer", |_lua, this| {
             Ok(ComponentGlyphRenderer::new(this.0))
         });
-        fields.add_field_method_get("nine_patch_renderer", |_lua, this| {
-            Ok(ComponentNinePatchRenderer::new(this.0))
-        });
         fields.add_field_method_get("size", |_lua, this| Ok(ComponentSize::new(this.0)));
         fields.add_field_method_get("sprite_renderer", |_lua, this| {
             Ok(ComponentSpriteRenderer::new(this.0))
         });
-        fields.add_field_method_get("tilemap_renderer", |_lua, this| {
-            Ok(ComponentTilemapRenderer::new(this.0))
-        });
+        // fields.add_field_method_get("tilemap_renderer", |_lua, this| {
+        //     Ok(ComponentTilemapRenderer::new(this.0))
+        // });
         fields.add_field_method_get("transform", |_lua, this| {
             Ok(this.with_ref(|component: &Transform| ComponentTransform::new(component.index())))
         });
         fields.add_field_method_get("ui_element", |_lua, this| {
             Ok(ComponentUIElement::new(this.0))
         });
+        fields.add_field_method_get("ui_mask", |_lua, this| Ok(ComponentUIMask::new(this.0)));
         fields.add_field_method_get("ui_scaler", |_lua, this| Ok(ComponentUIScaler::new(this.0)));
     }
 

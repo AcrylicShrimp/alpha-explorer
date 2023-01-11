@@ -1,4 +1,5 @@
-use crate::asset::{AssetLoadError, AssetManager, BaseAssetLoader};
+use crate::asset::{AssetLoadError, BaseAssetLoader};
+use crate::EngineContext;
 use std::any::{Any, TypeId};
 use std::path::Path;
 use std::sync::Arc;
@@ -7,7 +8,7 @@ pub struct AssetLoader<T>
 where
     T: 'static + Any + Send + Sync,
 {
-    loader: Box<dyn Fn(&AssetManager, &Path, &Path) -> Result<T, AssetLoadError> + Sync>,
+    loader: Box<dyn Fn(&EngineContext, &Path, &Path) -> Result<T, AssetLoadError> + Sync>,
 }
 
 impl<T> AssetLoader<T>
@@ -16,7 +17,7 @@ where
 {
     pub fn new<F>(loader: F) -> Self
     where
-        F: 'static + Fn(&AssetManager, &Path, &Path) -> Result<T, AssetLoadError> + Sync,
+        F: 'static + Fn(&EngineContext, &Path, &Path) -> Result<T, AssetLoadError> + Sync,
     {
         Self {
             loader: Box::new(loader),
@@ -25,12 +26,12 @@ where
 
     pub fn load<P: AsRef<Path>>(
         &self,
-        asset_mgr: &AssetManager,
+        context: &EngineContext,
         base: P,
         path: P,
     ) -> Result<Arc<T>, AssetLoadError> {
         Ok(Arc::new(self.loader.as_ref()(
-            asset_mgr,
+            context,
             base.as_ref(),
             path.as_ref(),
         )?))

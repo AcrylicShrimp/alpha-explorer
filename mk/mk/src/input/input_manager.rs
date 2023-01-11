@@ -1,8 +1,8 @@
 use crate::input::InputType;
-use glutin::event::KeyboardInput;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
+use winit::event::KeyboardInput;
 
 pub type Input = Arc<Mutex<dyn InputType>>;
 

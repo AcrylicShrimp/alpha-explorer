@@ -1,5 +1,5 @@
 use super::EntityBuilderParam;
-use crate::render::{AlphaTilemap, Color, Layer, Shader};
+use crate::gfx::{AlphaTilemap, Color, Layer, ShaderHandle};
 use anyhow::Context;
 use fontdue::Font;
 use mlua::prelude::*;
@@ -9,8 +9,8 @@ pub struct AlphaTilemapRendererParams {
     pub layer: Layer,
     pub order: i32,
     pub color: Color,
-    pub fore_shader: Arc<Shader>,
-    pub back_shader: Arc<Shader>,
+    pub fore_shader: Arc<ShaderHandle>,
+    pub back_shader: Arc<ShaderHandle>,
     pub font: Arc<Font>,
     pub font_size: f32,
     pub thickness: f32,
@@ -34,17 +34,17 @@ impl EntityBuilderParam for AlphaTilemapRendererParams {
                 .with_context(|| "invalid value for 'color' of AlphaTilemapRendererParams")
                 .to_lua_err()?,
             fore_shader: table
-                .get::<_, crate::script::api::render::Shader>("fore_shader")
+                .get::<_, crate::script::api::gfx::Shader>("fore_shader")
                 .with_context(|| "invalid value for 'fore_shader' of AlphaTilemapRendererParams")
                 .to_lua_err()?
                 .into_inner(),
             back_shader: table
-                .get::<_, crate::script::api::render::Shader>("back_shader")
+                .get::<_, crate::script::api::gfx::Shader>("back_shader")
                 .with_context(|| "invalid value for 'back_shader' of AlphaTilemapRendererParams")
                 .to_lua_err()?
                 .into_inner(),
             font: table
-                .get::<_, crate::script::api::render::Font>("font")
+                .get::<_, crate::script::api::gfx::Font>("font")
                 .with_context(|| "invalid value for 'font' of AlphaTilemapRendererParams")
                 .to_lua_err()?
                 .into_inner(),

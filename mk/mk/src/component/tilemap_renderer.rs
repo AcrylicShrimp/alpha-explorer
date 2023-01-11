@@ -1,4 +1,7 @@
-use crate::render::{Color, Layer, Shader, Tilemap};
+use crate::{
+    gfx::{Color, Layer, Tilemap},
+    handles::*,
+};
 use specs::{prelude::*, Component};
 use std::sync::Arc;
 
@@ -7,7 +10,7 @@ pub struct TilemapRenderer {
     pub layer: Layer,
     pub order: i32,
     pub color: Color,
-    pub shader: Arc<Shader>,
+    pub shader: ShaderHandle,
     pub tilemap: Arc<Tilemap>,
 }
 
@@ -16,7 +19,7 @@ impl TilemapRenderer {
         layer: Layer,
         order: i32,
         color: Color,
-        shader: Arc<Shader>,
+        shader: ShaderHandle,
         tilemap: Arc<Tilemap>,
     ) -> Self {
         Self {

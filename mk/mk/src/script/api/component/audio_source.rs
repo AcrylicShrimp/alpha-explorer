@@ -1,4 +1,4 @@
-use crate::script::{api::IntoShared, audio::AudioClip};
+use crate::handles::*;
 use mlua::prelude::*;
 
 pub type ComponentAudioSource = super::Component<crate::component::AudioSource>;
@@ -12,7 +12,7 @@ impl LuaUserData for ComponentAudioSource {
             Ok(this.with_ref(|this| this.volume()))
         });
         fields.add_field_method_get("clip", |_lua, this| {
-            Ok(this.with_ref(|this| this.clip().map(|clip| clip.into_shared())))
+            Ok(this.with_ref(|this| this.clip().cloned()))
         });
 
         fields.add_field_method_set("volume", |_lua, this, volume| {
@@ -21,8 +21,8 @@ impl LuaUserData for ComponentAudioSource {
             });
             Ok(())
         });
-        fields.add_field_method_set("clip", |_lua, this, clip: Option<AudioClip>| {
-            this.with_mut(|this| this.set_clip(clip.map(|clip| clip.into_inner())));
+        fields.add_field_method_set("clip", |_lua, this, clip: Option<AudioClipHandle>| {
+            this.with_mut(|this| this.set_clip(clip));
             Ok(())
         });
     }

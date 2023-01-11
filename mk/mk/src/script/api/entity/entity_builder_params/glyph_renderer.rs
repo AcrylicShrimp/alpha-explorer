@@ -1,21 +1,19 @@
 use super::EntityBuilderParam;
 use crate::{
-    glyph::GlyphLayoutConfig,
-    render::{Color, Layer, Shader},
+    gfx::{Color, GlyphLayoutConfig, Layer},
+    handles::*,
 };
 use anyhow::Context;
-use fontdue::Font;
 use mlua::prelude::*;
-use std::sync::Arc;
 
 pub struct GlyphRendererParams {
     pub layer: Layer,
     pub order: i32,
     pub color: Color,
-    pub shader: Arc<Shader>,
+    pub shader: ShaderHandle,
     pub thickness: f32,
     pub smoothness: f32,
-    pub font: Arc<Font>,
+    pub font: FontHandle,
     pub font_size: f32,
     pub text: Option<String>,
     pub config: Option<GlyphLayoutConfig>,
@@ -37,10 +35,9 @@ impl EntityBuilderParam for GlyphRendererParams {
                 .with_context(|| "invalid value for 'color' of GlyphRendererParams")
                 .to_lua_err()?,
             shader: table
-                .get::<_, crate::script::api::render::Shader>("shader")
+                .get("shader")
                 .with_context(|| "invalid value for 'shader' of GlyphRendererParams")
-                .to_lua_err()?
-                .into_inner(),
+                .to_lua_err()?,
             thickness: table
                 .get("thickness")
                 .with_context(|| "invalid value for 'thickness' of GlyphRendererParams")
@@ -50,10 +47,9 @@ impl EntityBuilderParam for GlyphRendererParams {
                 .with_context(|| "invalid value for 'smoothness' of GlyphRendererParams")
                 .to_lua_err()?,
             font: table
-                .get::<_, crate::script::api::render::Font>("font")
+                .get("font")
                 .with_context(|| "invalid value for 'font' of GlyphRendererParams")
-                .to_lua_err()?
-                .into_inner(),
+                .to_lua_err()?,
             font_size: table
                 .get("font_size")
                 .with_context(|| "invalid value for 'font_size' of GlyphRendererParams")

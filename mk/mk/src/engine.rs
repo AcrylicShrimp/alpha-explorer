@@ -1,26 +1,24 @@
 use crate::asset::*;
 use crate::emit_diagnostic_info;
 use crate::event::*;
-use crate::render::*;
-use crate::script::event::DiagnosticLevel;
+use crate::log_diagnostic_event;
 use crate::structure::Vec2;
 use crate::system::*;
 use crate::util::*;
 use crate::EngineContext;
+use crate::GfxContext;
 use anyhow::Context;
 use anyhow::Result;
-#[cfg(debug_assertions)]
-use colored::*;
-use glutin::dpi::LogicalSize;
-use glutin::event::{ElementState, Event, MouseButton, WindowEvent};
-use glutin::event_loop::{ControlFlow, EventLoop};
-use glutin::window::WindowBuilder;
-use glutin::{ContextBuilder, GlProfile};
 use specs::RunNow;
 use std::fs::read_to_string;
 use std::mem::MaybeUninit;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use winit::dpi::LogicalSize;
+use winit::dpi::PhysicalSize;
+use winit::event::{ElementState, Event, MouseButton, WindowEvent};
+use winit::event_loop::{ControlFlow, EventLoop};
+use winit::window::WindowBuilder;
 
 static mut CONTEXT: MaybeUninit<Arc<EngineContext>> = MaybeUninit::uninit();
 
@@ -28,7 +26,7 @@ pub fn use_context() -> &'static EngineContext {
     unsafe { CONTEXT.assume_init_ref() }.as_ref()
 }
 
-pub fn run(
+pub async fn run(
     title: &str,
     width: u32,
     height: u32,
@@ -37,23 +35,20 @@ pub fn run(
     entry_script_path: impl AsRef<Path>,
 ) -> Result<()> {
     let event_loop = EventLoop::new();
-    let gfx_context = ContextBuilder::new()
-        .with_vsync(true)
-        .with_gl_profile(GlProfile::Core)
-        .with_double_buffer(Some(true))
-        .build_windowed(
-            WindowBuilder::new()
-                .with_visible(false)
-                .with_title(title)
-                .with_resizable(resizable)
-                .with_inner_size(LogicalSize::new(width, height)),
-            &event_loop,
-        )?;
-    let gfx_context = unsafe { gfx_context.make_current().map_err(|err| err.1)? };
+    let window = WindowBuilder::new()
+        .with_visible(false)
+        .with_title(title)
+        .with_resizable(resizable)
+        .with_inner_size(LogicalSize::new(width, height))
+        .build(&event_loop)?;
 
-    init(|s| gfx_context.context().get_proc_address(s));
-
-    let context = Arc::new(EngineContext::new(width, height, asset_base.into())?);
+    let gfx_context = GfxContext::new(&window).await?;
+    let context = Arc::new(EngineContext::new(
+        gfx_context,
+        width,
+        height,
+        asset_base.into(),
+    )?);
 
     unsafe {
         CONTEXT.write(context.clone());
@@ -74,80 +69,12 @@ pub fn run(
 
     #[cfg(debug_assertions)]
     {
-        fn set_color(level: DiagnosticLevel, str: String) -> ColoredString {
-            match level {
-                DiagnosticLevel::Debug => str.green(),
-                DiagnosticLevel::Info => str.blue(),
-                DiagnosticLevel::Warn => str.yellow(),
-                DiagnosticLevel::Error => str.red(),
-                DiagnosticLevel::Fatal => str.magenta(),
-            }
-        }
-
         context
             .event_mgr()
             .dispatcher()
             .add_listener(TypedEventListener::Native(BoxId::from_box(Box::new(
                 |event: &crate::script::event::Diagnostic| {
-                    let prefix = format!("{:>6}: ", event.level.to_str());
-                    let indent = prefix.len();
-                    let lines = event.message.split('\n').collect::<Vec<_>>();
-                    let (&first_line, context_lines) = lines.split_first().unwrap();
-                    let message = format!(
-                        "{}{} [{}:{}:{}]",
-                        set_color(event.level, prefix),
-                        first_line,
-                        event.file,
-                        event.line,
-                        event.column
-                    );
-                    let message = if context_lines.is_empty() {
-                        message
-                    } else {
-                        [
-                            message,
-                            context_lines
-                                .iter()
-                                .map(|&line| format!("{:indent$}{}", "", line, indent = indent))
-                                .collect::<Vec<_>>()
-                                .join("\n"),
-                        ]
-                        .join("\n")
-                    };
-
-                    println!("{}", message);
-
-                    for sub_diagnostics in &event.sub_diagnostics {
-                        let prefix = format!("> {:>6}: ", sub_diagnostics.level.to_str());
-                        let indent = prefix.len();
-                        let lines = sub_diagnostics.message.split('\n').collect::<Vec<_>>();
-                        let (&first_line, context_lines) = lines.split_first().unwrap();
-                        let message = format!(
-                            "        {}{} [{}:{}:{}]",
-                            set_color(sub_diagnostics.level, prefix),
-                            first_line,
-                            sub_diagnostics.file,
-                            sub_diagnostics.line,
-                            sub_diagnostics.column
-                        );
-                        let message = if context_lines.is_empty() {
-                            message
-                        } else {
-                            [
-                                message,
-                                context_lines
-                                    .iter()
-                                    .map(|&line| {
-                                        format!("        {:indent$}{}", "", line, indent = indent)
-                                    })
-                                    .collect::<Vec<_>>()
-                                    .join("\n"),
-                            ]
-                            .join("\n")
-                        };
-
-                        println!("{}", message);
-                    }
+                    log_diagnostic_event(event);
                 },
             ))));
     }
@@ -155,7 +82,7 @@ pub fn run(
     emit_diagnostic_info!(format!("configuring built-in systems."));
 
     let mut audio_system = AudioSystem;
-    let mut render_system = RenderSystem::new();
+    let mut render_system = RenderSystem::new(&mut context.render_mgr_mut());
 
     let mut systems_pre_render = {
         let context = context.clone();
@@ -223,19 +150,18 @@ pub fn run(
         asset_mgr.register_loader(loader::font_loader());
         asset_mgr.register_loader(loader::shader_loader());
         asset_mgr.register_loader(loader::sprite_loader());
-        asset_mgr.register_loader(loader::sprite_atlas_loader());
-        asset_mgr.register_loader(loader::sprite_atlas_grid_loader());
-        asset_mgr.register_loader(loader::sprite_nine_patch_loader());
-        asset_mgr.register_loader(loader::tilemap_loader());
+        // asset_mgr.register_loader(loader::sprite_atlas_loader());
+        // asset_mgr.register_loader(loader::sprite_atlas_grid_loader());
+        // asset_mgr.register_loader(loader::tilemap_loader());
     }
 
     {
         emit_diagnostic_info!(format!("abjusting scale factor."));
 
-        let scale_factor = gfx_context.window().scale_factor();
+        let scale_factor = window.scale_factor();
         context.screen_mgr_mut().update_scale_factor(
             scale_factor,
-            &LogicalSize::new(width, height).to_physical(scale_factor),
+            LogicalSize::new(width, height).to_physical(scale_factor),
         );
     }
 
@@ -253,22 +179,27 @@ pub fn run(
 
     {
         let screen_mgr = context.screen_mgr();
-        resize(
+        let mut render_mgr = context.render_mgr_mut();
+        render_mgr.resize_gfx(PhysicalSize::new(
             screen_mgr.physical_width() as u32,
             screen_mgr.physical_height() as u32,
-        );
+        ));
     }
-    clear();
-    gfx_context.swap_buffers().unwrap();
-    gfx_context.window().set_visible(true);
 
-    let window_id = gfx_context.window().id();
+    window.set_visible(true);
+
+    let window_id = window.id();
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
 
         match event {
-            Event::MainEventsCleared => {}
+            Event::MainEventsCleared => {
+                systems_pre_render();
+                systems_render();
+
+                return;
+            }
             Event::WindowEvent {
                 event: WindowEvent::KeyboardInput { input, .. },
                 window_id: id,
@@ -374,8 +305,8 @@ pub fn run(
                 event: WindowEvent::Resized(inner_size),
                 window_id: id,
             } if id == window_id => {
-                context.screen_mgr_mut().update_size(&inner_size);
-                gfx_context.resize(inner_size);
+                context.screen_mgr_mut().update_size(inner_size);
+                context.render_mgr_mut().resize_gfx(inner_size);
                 return;
             }
             Event::WindowEvent {
@@ -388,8 +319,8 @@ pub fn run(
             } if id == window_id => {
                 context
                     .screen_mgr_mut()
-                    .update_scale_factor(scale_factor, new_inner_size);
-                gfx_context.resize(*new_inner_size);
+                    .update_scale_factor(scale_factor, *new_inner_size);
+                context.render_mgr_mut().resize_gfx(*new_inner_size);
                 return;
             }
             Event::WindowEvent {
@@ -401,19 +332,5 @@ pub fn run(
             }
             _ => return,
         }
-
-        systems_pre_render();
-
-        {
-            let screen_mgr = context.screen_mgr();
-            resize(
-                screen_mgr.physical_width() as u32,
-                screen_mgr.physical_height() as u32,
-            );
-        }
-
-        systems_render();
-
-        gfx_context.swap_buffers().unwrap();
     });
 }

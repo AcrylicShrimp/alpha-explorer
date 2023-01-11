@@ -2,13 +2,13 @@ use crate::asset::AssetManager;
 use crate::audio::AudioManager;
 use crate::component::register_components;
 use crate::event::EventManager;
-use crate::glyph::GlyphManager;
+use crate::gfx::{GlyphManager, RenderManager, ScreenManager};
 use crate::input::InputManager;
-use crate::render::{RenderManager, ScreenManager};
 use crate::script::ScriptManager;
 use crate::time::TimeManager;
 use crate::transform::TransformManager;
 use crate::ui::{UIEventManager, UIManager};
+use crate::GfxContext;
 use anyhow::{Context, Result};
 use specs::prelude::*;
 use std::cell::{Ref, RefCell, RefMut};
@@ -31,7 +31,12 @@ pub struct EngineContext {
 }
 
 impl EngineContext {
-    pub fn new(screen_width: u32, screen_height: u32, asset_mgr_base: PathBuf) -> Result<Self> {
+    pub fn new(
+        gfx_context: GfxContext,
+        screen_width: u32,
+        screen_height: u32,
+        asset_mgr_base: PathBuf,
+    ) -> Result<Self> {
         let mut world = World::new();
 
         register_components(&mut world);
@@ -49,7 +54,7 @@ impl EngineContext {
                 .with_context(|| "failed to initialize script manager")?
                 .into(),
             glyph_mgr: GlyphManager::new(128f32, 8usize, 48usize, 0.5f32).into(),
-            render_mgr: RenderManager::new().into(),
+            render_mgr: RenderManager::new(gfx_context).into(),
             ui_mgr: UIManager::new().into(),
             ui_event_mgr: UIEventManager::new().into(),
         })

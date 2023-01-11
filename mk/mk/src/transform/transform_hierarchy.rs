@@ -147,7 +147,7 @@ impl TransformHierarchy {
 
     pub fn sibling_iter(&self, transform: u32) -> TransformSiblingIter {
         TransformSiblingIter::new(
-            self.transform_parents[transform as usize].first().copied(),
+            self.parent(transform),
             transform,
             &self.transform_spans,
             &self.ordered_transforms,

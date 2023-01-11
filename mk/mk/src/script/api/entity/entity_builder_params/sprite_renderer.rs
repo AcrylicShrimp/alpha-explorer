@@ -1,15 +1,17 @@
 use super::EntityBuilderParam;
-use crate::render::{Color, Layer, Shader, Sprite};
+use crate::{
+    gfx::{Color, Layer},
+    handles::*,
+};
 use anyhow::Context;
 use mlua::prelude::*;
-use std::sync::Arc;
 
 pub struct SpriteRendererParams {
     pub layer: Layer,
     pub order: i32,
     pub color: Color,
-    pub shader: Arc<Shader>,
-    pub sprite: Arc<Sprite>,
+    pub shader: ShaderHandle,
+    pub sprite: SpriteHandle,
 }
 
 impl EntityBuilderParam for SpriteRendererParams {
@@ -28,15 +30,13 @@ impl EntityBuilderParam for SpriteRendererParams {
                 .with_context(|| "invalid value for 'color' of SpriteRendererParams")
                 .to_lua_err()?,
             shader: table
-                .get::<_, crate::script::api::render::Shader>("shader")
+                .get("shader")
                 .with_context(|| "invalid value for 'shader' of SpriteRendererParams")
-                .to_lua_err()?
-                .into_inner(),
+                .to_lua_err()?,
             sprite: table
-                .get::<_, crate::script::api::render::Sprite>("sprite")
+                .get("sprite")
                 .with_context(|| "invalid value for 'sprite' of SpriteRendererParams")
-                .to_lua_err()?
-                .into_inner(),
+                .to_lua_err()?,
         })
     }
 }

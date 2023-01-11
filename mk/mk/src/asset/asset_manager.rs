@@ -1,6 +1,7 @@
 use crate::asset::{
     AssetCacheManager, AssetLoadError, AssetLoader, BaseAssetCacheManager, BaseAssetLoader,
 };
+use crate::engine::use_context;
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::ops::Deref;
@@ -43,7 +44,7 @@ impl AssetManager {
                     Some(asset) => Ok(asset.deref().clone()),
                     None => {
                         let asset = loader.downcast_ref::<AssetLoader<T>>().unwrap().load(
-                            self,
+                            use_context(),
                             self.base.as_path(),
                             path.as_ref(),
                         )?;

@@ -1,4 +1,4 @@
-use crate::render::{ClearMode, Color, Layer};
+use crate::gfx::{ClearMode, Color, Layer};
 use specs::{prelude::*, Component};
 
 #[derive(Component)]

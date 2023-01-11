@@ -7,7 +7,7 @@ use std::{
 };
 
 pub fn audio_clip_loader() -> AssetLoader<Arc<AudioClip>> {
-    AssetLoader::new(|_asset_mgr, base, path| {
+    AssetLoader::new(|_context, base, path| {
         let path = base.join("audios").join(path);
         let mut audio_clip_path = Err(IOError::new(
             IOErrorKind::NotFound,

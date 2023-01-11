@@ -1,4 +1,11 @@
 
+local a = mk.structure.Mat33.identity()
+print(a:transposed())
+print(a:inversed())
+print(mk.structure.Vec3.new(10, -20, 1) * a)
+print(mk.structure.Mat33.affine_translation(mk.structure.Vec2.new(-10, 10)) * mk.structure.Mat33.affine_translation(mk.structure.Vec2.new(-10, 10)):inversed())
+print(mk.structure.Vec3.new(10, -20, 1) * mk.structure.Mat33.affine_translation(mk.structure.Vec2.new(-10, 10)))
+
 -- local event = mk.event.Event.new()
 
 -- local listener;
@@ -14,116 +21,123 @@
 
 -- event.unlisten(listener)
 
-local camera = mk.entity.EntityBuilder.new()
-  :name("camera")
-  :camera({
-    layer = mk.render.Layer.all(),
-    order = 0,
-  })
-  :build()
+local camera = require("assets/scripts/camera")
 
-mk.entity.EntityBuilder.new()
-  :name("root")
-  :transform_parent(camera.transform)
-  :ui_element({
-    anchor = mk.ui.Anchor.full(),
-    margin = mk.ui.Margin.zero(),
-    is_interactible = false,
-    order_index = 0,
-  })
-  :ui_scaler({
-    mode = mk.ui.ScaleMode.Stretch,
-    reference_size = mk.structure.Size.new(1024, 768),
-  })
-  :build()
+-- local shader = mk.asset.load_shader("sprite")
+-- local sprite = mk.asset.load_sprite("arrow")
 
-require("assets/scripts/utils/fps-counter")
+-- local sprite_renderer = mk.entity.EntityBuilder.new()
+--   :name("sprite-renderer")
+--   :size(mk.structure.Size.new(100, 100))
+--   :sprite_renderer {
+--     layer = mk.gfx.Layer.new(1),
+--     order = 0,
+--     color = mk.gfx.Color.white(),
+--     shader = shader,
+--     sprite = sprite
+--   }
+--   :build()
 
-local generate_map = require("assets/scripts/map-gen/generate")
-local map = generate_map(100, 100)
+-- for i = 1, 1 do
+--   mk.entity.EntityBuilder.new()
+--     :transform_position(mk.structure.Vec2.new(math.random(-300, 300), math.random(-300, 300)))
+--     :size(mk.structure.Size.new(100, 100))
+--     :sprite_renderer {
+--       layer = mk.gfx.Layer.new(1),
+--       order = 0,
+--       color = mk.gfx.Color.white(),
+--       shader = shader,
+--       sprite = sprite
+--     }
+--     :build()
+-- end
 
-mk.entity.EntityBuilder.new()
-  :name("map")
-  :alpha_tilemap_renderer({
-    layer = mk.render.Layer.new(1),
-    order = 0,
-    color = mk.render.Color.white(),
-    fore_shader = mk.asset.load_shader("glyph"),
-    back_shader = mk.asset.load_shader("color"),
-    font = mk.asset.load_font("Courier Prime Sans"),
-    font_size = 16,
-    thickness = 0.5,
-    smoothness = 2 / 16,
-    tilemap = mk.render.AlphaTilemap.new(
-      16, 16,
-      100, 100,
-      map.map,
-      mk.render.AlphaTileset.new({
-        mk.render.AlphaTile.new(mk.render.Color.black(), mk.render.Color.white(), "#"),
-        mk.render.AlphaTile.new(mk.render.Color.from_rgba(1, 1, 1, 0.5), mk.render.Color.black(), "."),
-      })
-    ),
-  })
-  :build()
+-- local ui_status_indicator = require("assets/scripts/ui/ui-status-indicator")
+-- require("assets/scripts/utils/fps-counter")
 
-local player = mk.entity.EntityBuilder.new()
-  :name("player")
-  :size(mk.structure.Size.new(16, 16))
-  :glyph_renderer({
-    layer = mk.render.Layer.new(1),
-    order = 1,
-    color = mk.render.Color.from_rgb(0 / 255, 150 / 255, 105 / 255),
-    shader = mk.asset.load_shader("glyph"),
-    font = mk.asset.load_font("Courier Prime Sans"),
-    font_size = 16,
-    thickness = 0.5,
-    smoothness = 2 / 16,
-    text = "@",
-    config = mk.glyph.GlyphLayoutConfig.new(
-      mk.glyph.HorizontalAlign.Center,
-      mk.glyph.VerticalAlign.Middle,
-      mk.glyph.WrapStyle.Word,
-      true
-    ),
-  })
-  :build()
+-- local generate_map = require("assets/scripts/map-gen/generate")
+-- local map = generate_map(100, 100)
 
-player.transform.position = mk.structure.Vec2.new(
-  (map.rooms[1].x + map.rooms[1].width / 2) * 16,
-  ((100 - map.rooms[1].y) - map.rooms[1].height / 2) * 16
-)
+-- mk.entity.EntityBuilder.new()
+--   :name("map")
+--   :alpha_tilemap_renderer({
+--     layer = mk.render.Layer.new(1),
+--     order = 0,
+--     color = mk.render.Color.white(),
+--     fore_shader = mk.asset.load_shader("glyph"),
+--     back_shader = mk.asset.load_shader("color"),
+--     font = mk.asset.load_font("Courier Prime Sans"),
+--     font_size = 16,
+--     thickness = 0.5,
+--     smoothness = 2 / 16,
+--     tilemap = mk.render.AlphaTilemap.new(
+--       16, 16,
+--       100, 100,
+--       map.map,
+--       mk.render.AlphaTileset.new({
+--         mk.render.AlphaTile.new(mk.render.Color.black(), mk.render.Color.white(), "#"),
+--         mk.render.AlphaTile.new(mk.render.Color.from_rgba(1, 1, 1, 0.5), mk.render.Color.black(), "."),
+--       })
+--     ),
+--   })
+--   :build()
 
-camera.transform.parent = player.transform
+-- local player = require("assets/scripts/player")
 
-local keys = {}
+-- player.entity.transform.position = mk.structure.Vec2.new(
+--   (map.rooms[1].x + map.rooms[1].width / 2) * 16,
+--   ((100 - map.rooms[1].y) - map.rooms[1].height / 2) * 16
+-- )
 
-mk.event.KeyDown.listen(function(event)
-  keys[event.key] = true
-end)
+-- camera.transform.parent = player.entity.transform
 
-mk.event.KeyUp.listen(function(event)
-  keys[event.key] = false
-end)
+-- local keys = require("assets/scripts/keys")
 
-mk.event.PostUpdate.listen(function(event)
-  if not keys["left"] and not keys["right"] and not keys["up"] and not keys["down"] then
-    return
-  end
+-- local player_movement = mk.input.Action.new({
+--   name = "PlayerMovement",
+--   triggers = {}
+-- })
+-- player_movement.add_trigger(mk.input.Keyboard.key_down("ArrowLeft"))
 
-  local position = player.transform.position
+-- local player_movement = mk.input.Action.new({
+--   name = "PlayerMovement",
+--   triggers = {
+--     mk.input.Keyboard.key_down("ArrowLeft"),
+--     mk.input.Keyboard.key_stay("ArrowLeft"),
+--     mk.input.Keyboard.key_up("ArrowLeft"),
 
-  if keys["left"] then
-    position.x = position.x - event.dt * 400
-  end
-  if keys["right"] then
-    position.x = position.x + event.dt * 400
-  end
-  if keys["up"] then
-    position.y = position.y + event.dt * 400
-  end
-  if keys["down"] then
-    position.y = position.y - event.dt * 400
-  end
+--     mk.input.Gamepad.button_down("DPadLeft"),
+--     mk.input.Gamepad.button_stay("DPadLeft"),
+--     mk.input.Gamepad.button_up("DPadLeft"),
+--     mk.input.Gamepad.axis_1d("DPadHorizontal"),
+--     mk.input.Gamepad.axis_2d("DPad"),
+--     mk.input.Gamepad.axis_2d("DPadHorizontal", "DPadVertical"),
 
-  player.transform.position = position
-end)
+--     mk.input.Touch.tap(),
+--     mk.input.Touch.long_tap(),
+--     mk.input.Touch.double_tap(),
+--     mk.input.Touch.slide(),
+
+--     mk.input.Complex.all({
+--       mk.input.Keyboard.key_down("ArrowLeft"),
+--       mk.input.Keyboard.key_down("ArrowRight"),
+--     }),
+--     mk.input.Complex.any({
+--       mk.input.Keyboard.key_down("ArrowLeft"),
+--       mk.input.Keyboard.key_down("ArrowRight"),
+--     }),
+--     mk.input.Complex.sequence({
+--       mk.input.Keyboard.key_down("ArrowLeft"),
+--       mk.input.Keyboard.key_down("ArrowRight"),
+--     }),
+--   },
+-- })
+
+-- local action_map = mk.input.ActionMap.new()
+-- action_map.add_action(player_movement)
+
+-- local input = mk.input.Input.new()
+-- input.bind_action_map("Field", action_map)
+
+-- input.activate("Field")
+-- input.activate({"Field", "Menu"})

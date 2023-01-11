@@ -13,15 +13,15 @@ pub struct EntityBuilderImpl {
     transform_scale: Option<Vec2>,
     transform_angle: Option<f32>,
     size: Option<crate::structure::Size>,
-    alpha_tilemap_renderer_params: Option<AlphaTilemapRendererParams>,
+    // alpha_tilemap_renderer_params: Option<AlphaTilemapRendererParams>,
     audio_source_params: Option<AudioSourceParams>,
     camera_params: Option<CameraParams>,
     is_diagnostic: bool,
     glyph_renderer_params: Option<GlyphRendererParams>,
-    nine_patch_renderer_params: Option<NinePatchRendererParams>,
     sprite_renderer_params: Option<SpriteRendererParams>,
-    tilemap_renderer_params: Option<TilemapRendererParams>,
+    // tilemap_renderer_params: Option<TilemapRendererParams>,
     ui_element_params: Option<UIElementParams>,
+    ui_mask_params: Option<UIMaskParams>,
     ui_scaler_params: Option<UIScalerParams>,
 }
 
@@ -86,17 +86,17 @@ impl LuaUserData for EntityBuilder {
             });
             Ok(this.clone())
         });
-        methods.add_method(
-            "alpha_tilemap_renderer",
-            |_lua, this, params: Option<LuaTable>| {
-                this.with_mut(|this| -> LuaResult<_> {
-                    this.alpha_tilemap_renderer_params =
-                        params.map(|params| <_>::from_table(params)).transpose()?;
-                    Ok(())
-                })?;
-                Ok(this.clone())
-            },
-        );
+        // methods.add_method(
+        //     "alpha_tilemap_renderer",
+        //     |_lua, this, params: Option<LuaTable>| {
+        //         this.with_mut(|this| -> LuaResult<_> {
+        //             this.alpha_tilemap_renderer_params =
+        //                 params.map(|params| <_>::from_table(params)).transpose()?;
+        //             Ok(())
+        //         })?;
+        //         Ok(this.clone())
+        //     },
+        // );
         methods.add_method("audio_source", |_lua, this, params: Option<LuaTable>| {
             this.with_mut(|this| -> LuaResult<_> {
                 this.audio_source_params =
@@ -127,17 +127,6 @@ impl LuaUserData for EntityBuilder {
             })?;
             Ok(this.clone())
         });
-        methods.add_method(
-            "nine_patch_renderer",
-            |_lua, this, params: Option<LuaTable>| {
-                this.with_mut(|this| -> LuaResult<_> {
-                    this.nine_patch_renderer_params =
-                        params.map(|params| <_>::from_table(params)).transpose()?;
-                    Ok(())
-                })?;
-                Ok(this.clone())
-            },
-        );
         methods.add_method("sprite_renderer", |_lua, this, params: Option<LuaTable>| {
             this.with_mut(|this| -> LuaResult<_> {
                 this.sprite_renderer_params =
@@ -150,6 +139,13 @@ impl LuaUserData for EntityBuilder {
             this.with_mut(|this| -> LuaResult<_> {
                 this.ui_element_params =
                     params.map(|params| <_>::from_table(params)).transpose()?;
+                Ok(())
+            })?;
+            Ok(this.clone())
+        });
+        methods.add_method("ui_mask", |_lua, this, params: Option<LuaTable>| {
+            this.with_mut(|this| -> LuaResult<_> {
+                this.ui_mask_params = params.map(|params| <_>::from_table(params)).transpose()?;
                 Ok(())
             })?;
             Ok(this.clone())
@@ -172,6 +168,8 @@ impl LuaUserData for EntityBuilder {
             let mut transform_mgr = context.transform_mgr_mut();
             let transform = transform_mgr.alloc();
             builder = builder.with(Transform::new(transform));
+
+            let render_mgr = context.render_mgr();
 
             transform_mgr
                 .name_manager_mut()
@@ -207,21 +205,21 @@ impl LuaUserData for EntityBuilder {
 
             builder = builder.with(size);
 
-            if let Some(param) = this.alpha_tilemap_renderer_params.take() {
-                let alpha_tilemap_renderer = AlphaTilemapRenderer::new(
-                    param.layer,
-                    param.order,
-                    param.color,
-                    param.fore_shader,
-                    param.back_shader,
-                    param.font,
-                    param.font_size,
-                    param.thickness,
-                    param.smoothness,
-                    param.tilemap,
-                );
-                builder = builder.with(alpha_tilemap_renderer);
-            }
+            // if let Some(param) = this.alpha_tilemap_renderer_params.take() {
+            //     let alpha_tilemap_renderer = AlphaTilemapRenderer::new(
+            //         param.layer,
+            //         param.order,
+            //         param.color,
+            //         param.fore_shader,
+            //         param.back_shader,
+            //         param.font,
+            //         param.font_size,
+            //         param.thickness,
+            //         param.smoothness,
+            //         param.tilemap,
+            //     );
+            //     builder = builder.with(alpha_tilemap_renderer);
+            // }
 
             if let Some(param) = this.audio_source_params.take() {
                 let mut audio_source = AudioSource::new();
@@ -272,20 +270,9 @@ impl LuaUserData for EntityBuilder {
                 builder = builder.with(glyph_renderer);
             }
 
-            if let Some(param) = this.nine_patch_renderer_params.take() {
-                let nine_patch_renderer = NinePatchRenderer::new(
-                    param.layer,
-                    param.order,
-                    param.color,
-                    param.shader,
-                    param.nine_patch,
-                );
-
-                builder = builder.with(nine_patch_renderer);
-            }
-
             if let Some(param) = this.sprite_renderer_params.take() {
                 let sprite_renderer = SpriteRenderer::new(
+                    &render_mgr,
                     param.layer,
                     param.order,
                     param.color,
@@ -296,17 +283,17 @@ impl LuaUserData for EntityBuilder {
                 builder = builder.with(sprite_renderer);
             }
 
-            if let Some(param) = this.tilemap_renderer_params.take() {
-                let tilemap_renderer = TilemapRenderer::new(
-                    param.layer,
-                    param.order,
-                    param.color,
-                    param.shader,
-                    param.tilemap,
-                );
+            // if let Some(param) = this.tilemap_renderer_params.take() {
+            //     let tilemap_renderer = TilemapRenderer::new(
+            //         param.layer,
+            //         param.order,
+            //         param.color,
+            //         param.shader,
+            //         param.tilemap,
+            //     );
 
-                builder = builder.with(tilemap_renderer);
-            }
+            //     builder = builder.with(tilemap_renderer);
+            // }
 
             let mut ui_element_index = None;
 
@@ -324,6 +311,14 @@ impl LuaUserData for EntityBuilder {
                 builder = builder.with(UIElement::new(index));
 
                 ui_element_index = Some(index);
+            }
+
+            if let Some(param) = this.ui_mask_params.take() {
+                let ui_mask = UIMask {
+                    render_itself: param.render_itself,
+                };
+
+                builder = builder.with(ui_mask);
             }
 
             if let Some(param) = this.ui_scaler_params.take() {

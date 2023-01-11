@@ -1,6 +1,6 @@
 use crate::{
     asset::{AssetLoadError, AssetLoader},
-    render::Tilemap,
+    gfx::Tilemap,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Error as JSONError;
@@ -34,7 +34,7 @@ impl From<JSONError> for AssetLoadError {
 }
 
 pub fn tilemap_loader() -> AssetLoader<Arc<Tilemap>> {
-    AssetLoader::new(|asset_mgr, base, path| {
+    AssetLoader::new(|context, base, path| {
         let tilemap_json: TilemapJSON = serde_json::from_str(&read_to_string(
             &base.join("maps").join(path).with_extension("json"),
         )?)?;
@@ -49,7 +49,7 @@ pub fn tilemap_loader() -> AssetLoader<Arc<Tilemap>> {
             return Err(AssetLoadError::from("tileset's firstgid must be 1"));
         }
 
-        let palette = asset_mgr.load(&tilemap_json.tilesets[0].source)?;
+        let sprites = context.asset_mgr().load(&tilemap_json.tilesets[0].source)?;
 
         Ok(Arc::new(Tilemap {
             tile_width: tilemap_json.tilewidth as f32,
@@ -61,7 +61,7 @@ pub fn tilemap_loader() -> AssetLoader<Arc<Tilemap>> {
                 .into_iter()
                 .map(|layer| layer.data)
                 .collect(),
-            palette,
+            sprites,
         }))
     })
 }

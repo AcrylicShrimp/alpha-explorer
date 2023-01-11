@@ -1,6 +1,6 @@
 use crate::script::api::LuaApiTable;
-use glutin::event::VirtualKeyCode;
 use mlua::prelude::*;
+use winit::event::VirtualKeyCode;
 
 fn keycode_to_str(keycode: VirtualKeyCode) -> &'static str {
     match keycode {

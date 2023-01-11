@@ -9,3 +9,4 @@ edition = "2021"
 mk = { path = "mk/mk" }
 
 anyhow = { version = "1" }
+pollster = { version = "0.2" }

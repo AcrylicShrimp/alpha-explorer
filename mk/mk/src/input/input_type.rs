@@ -1,4 +1,4 @@
-use glutin::event::KeyboardInput;
+use winit::event::KeyboardInput;
 
 pub trait InputType
 where
