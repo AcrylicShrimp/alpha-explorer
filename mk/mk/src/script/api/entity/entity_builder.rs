@@ -169,7 +169,7 @@ impl LuaUserData for EntityBuilder {
             let transform = transform_mgr.alloc();
             builder = builder.with(Transform::new(transform));
 
-            let render_mgr = context.render_mgr();
+            let mut render_mgr = context.render_mgr_mut();
 
             transform_mgr
                 .name_manager_mut()
@@ -272,7 +272,7 @@ impl LuaUserData for EntityBuilder {
 
             if let Some(param) = this.sprite_renderer_params.take() {
                 let sprite_renderer = SpriteRenderer::new(
-                    &render_mgr,
+                    &mut render_mgr,
                     param.layer,
                     param.order,
                     param.color,

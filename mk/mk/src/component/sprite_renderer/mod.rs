@@ -1,3 +1,7 @@
+mod sprite_renderer_bind_group_allocator;
+
+pub use sprite_renderer_bind_group_allocator::*;
+
 use crate::{
     gfx::{
         low::{RenderPipelineFactory, RenderPipelineFactoryProvider, RenderPipelineLayoutFactory},
@@ -7,14 +11,15 @@ use crate::{
     GfxContext,
 };
 use specs::{prelude::*, Component};
-use std::{mem::size_of, num::NonZeroU64};
+use std::{
+    mem::{replace, size_of},
+    num::NonZeroU64,
+};
 use wgpu::{
-    vertex_attr_array, BindGroup, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry,
-    BindingResource, BindingType, BlendState, BufferAddress, BufferBindingType, ColorTargetState,
-    ColorWrites, DepthStencilState, FrontFace, PolygonMode, PrimitiveState, PrimitiveTopology,
-    SamplerBindingType, SamplerDescriptor, ShaderModule, ShaderStages, TextureAspect,
-    TextureSampleType, TextureViewDescriptor, TextureViewDimension, VertexAttribute,
-    VertexBufferLayout, VertexStepMode,
+    vertex_attr_array, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BlendState,
+    BufferAddress, BufferBindingType, ColorTargetState, ColorWrites, DepthStencilState, FrontFace,
+    PolygonMode, PrimitiveState, PrimitiveTopology, SamplerBindingType, ShaderModule, ShaderStages,
+    TextureSampleType, TextureViewDimension, VertexAttribute, VertexBufferLayout, VertexStepMode,
 };
 
 #[derive(Component)]
@@ -24,12 +29,12 @@ pub struct SpriteRenderer {
     pub color: Color,
     pub shader: ShaderHandle,
     sprite: SpriteHandle,
-    bind_group: BindGroup,
+    bind_group: BindGroupHandle,
 }
 
 impl SpriteRenderer {
     pub fn new(
-        render_mgr: &RenderManager,
+        render_mgr: &mut RenderManager,
         layer: Layer,
         order: i32,
         color: Color,
@@ -37,7 +42,7 @@ impl SpriteRenderer {
         sprite: SpriteHandle,
     ) -> Self {
         Self {
-            bind_group: Self::create_bind_group(render_mgr, &sprite),
+            bind_group: render_mgr.allocate_sprite_renderer_bind_group(None, &sprite),
             layer,
             order,
             color,
@@ -50,34 +55,14 @@ impl SpriteRenderer {
         &self.sprite
     }
 
-    pub fn bind_group(&self) -> &BindGroup {
+    pub fn bind_group(&self) -> &BindGroupHandle {
         &self.bind_group
     }
 
-    pub fn set_sprite(&mut self, render_mgr: &RenderManager, sprite: SpriteHandle) {
-        self.sprite = sprite;
-        self.bind_group = Self::create_bind_group(render_mgr, &self.sprite);
-    }
-
-    fn create_bind_group(render_mgr: &RenderManager, sprite: &SpriteHandle) -> BindGroup {
-        render_mgr.create_bind_group(
-            &render_mgr
-                .pipeline_allocator()
-                .layout_and_factory::<SpriteRenderPipelineFactoryProvider>()
-                .bind_group_layouts
-                .as_ref()
-                .unwrap()[1],
-            &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: BindingResource::TextureView(sprite.view()),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::Sampler(sprite.sampler()),
-                },
-            ],
-        )
+    pub fn set_sprite(&mut self, render_mgr: &mut RenderManager, sprite: SpriteHandle) {
+        let old_sprite = replace(&mut self.sprite, sprite);
+        self.bind_group =
+            render_mgr.allocate_sprite_renderer_bind_group(Some(old_sprite), &self.sprite);
     }
 }
 

@@ -22,6 +22,7 @@ image = { version = "0.24" }
 itertools = { version = "0.10" }
 mlua = { version = "0.8", features = ["lua54", "vendored"] }
 parking_lot = { version = "0.12" }
+rayon = { version = "1.6" }
 rodio = { version = "0.16" }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }

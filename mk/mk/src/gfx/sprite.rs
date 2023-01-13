@@ -1,13 +1,9 @@
-use wgpu::{Sampler, TextureView};
-
 use super::{SpriteSlice, SpriteTexelMapping};
 use crate::handles::*;
 use std::fmt::Display;
 
 pub struct Sprite {
     texture: TextureHandle,
-    view: TextureView,
-    sampler: Sampler,
     mapping: SpriteTexelMapping,
     slice: Option<SpriteSlice>,
 }
@@ -15,15 +11,11 @@ pub struct Sprite {
 impl Sprite {
     pub fn new(
         texture: TextureHandle,
-        view: TextureView,
-        sampler: Sampler,
         mapping: SpriteTexelMapping,
         slice: Option<SpriteSlice>,
     ) -> Self {
         Self {
             texture,
-            view,
-            sampler,
             mapping,
             slice,
         }
@@ -31,14 +23,6 @@ impl Sprite {
 
     pub fn texture(&self) -> &TextureHandle {
         &self.texture
-    }
-
-    pub fn view(&self) -> &TextureView {
-        &self.view
-    }
-
-    pub fn sampler(&self) -> &Sampler {
-        &self.sampler
     }
 
     pub fn mapping(&self) -> SpriteTexelMapping {

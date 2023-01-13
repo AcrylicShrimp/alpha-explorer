@@ -1,16 +1,27 @@
 use crate::{
     component::*,
     engine::use_context,
-    gfx::{low::SingleAllocation, *},
+    gfx::{
+        low::{DeviceAllocation, HostAllocation},
+        *,
+    },
     handles::{BufferHandle, PipelineHandle},
     structure::{Mat33, Vec2},
 };
+use rayon::slice::ParallelSliceMut;
 use specs::prelude::*;
-use std::{iter::once, mem::size_of, num::NonZeroU64};
+use std::{
+    cmp::Ordering,
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+    mem::{size_of, size_of_val},
+    num::NonZeroU64,
+    sync::Arc,
+};
 use wgpu::{
     BindGroup, BindGroupEntry, BindGroupLayout, BindGroupLayoutEntry, BindingResource, BindingType,
-    Buffer, BufferBinding, BufferBindingType, Color, LoadOp, Operations, RenderPassColorAttachment,
-    RenderPassDescriptor, ShaderStages,
+    Buffer, BufferAddress, BufferBinding, BufferBindingType, Color, LoadOp, Operations,
+    RenderPassColorAttachment, RenderPassDescriptor, ShaderStages,
 };
 
 pub struct RenderSystem {
@@ -193,26 +204,26 @@ impl<'a> System<'a> for RenderSystem {
             |CameraWithTransformBuffer { camera: lhs, .. },
              CameraWithTransformBuffer { camera: rhs, .. }| lhs.order.cmp(&rhs.order),
         );
-        // let camera_bind_groups = camera_with_transform_buffers
-        //     .iter()
-        //     .map(
-        //         |CameraWithTransformBuffer {
-        //              transform_buffer, ..
-        //          }| {
-        //             render_mgr.create_bind_group(
-        //                 &self.camera_bind_group_layout,
-        //                 &[BindGroupEntry {
-        //                     binding: 0,
-        //                     resource: BindingResource::Buffer(BufferBinding {
-        //                         buffer: transform_buffer,
-        //                         offset: 0,
-        //                         size: None,
-        //                     }),
-        //                 }],
-        //             )
-        //         },
-        //     )
-        //     .collect::<Vec<_>>();
+        let camera_bind_groups = camera_with_transform_buffers
+            .iter()
+            .map(
+                |CameraWithTransformBuffer {
+                     transform_buffer, ..
+                 }| {
+                    render_mgr.create_bind_group(
+                        &self.camera_bind_group_layout,
+                        &[BindGroupEntry {
+                            binding: 0,
+                            resource: BindingResource::Buffer(BufferBinding {
+                                buffer: &transform_buffer.buffer(),
+                                offset: transform_buffer.offset(),
+                                size: Some(NonZeroU64::new(transform_buffer.size()).unwrap()),
+                            }),
+                        }],
+                    )
+                },
+            )
+            .collect::<Vec<_>>();
 
         let mut render_request_indices = Vec::with_capacity(4 * 1024);
         let mut render_requests = Vec::with_capacity(4 * 1024);
@@ -251,65 +262,145 @@ impl<'a> System<'a> for RenderSystem {
                 // }),
             });
 
-            continue;
-
             for (transform, size, renderer) in (&transform, &size, &sprite_renderer).join() {
                 if !Layer::has_overlap(camera.layer, renderer.layer) {
                     return;
                 }
 
-                render_request_indices.push(RenderRequestIndex {
-                    order: renderer.order,
-                    request_index: render_requests.len() as u32,
-                });
-                render_requests.push(RenderRequest {
-                    per_vertex_buffer: &self.sprite_per_vertex_buffer,
-                    per_instance_buffer: render_mgr.create_vertex_buffer({
-                        let matrix = transform_mgr.transform_world_matrix(transform.index());
-                        let matrix_elements = matrix.elements();
+                let matrix = transform_mgr.transform_world_matrix(transform.index());
+                let matrix_elements = matrix.elements();
 
-                        let mapping = renderer.sprite().mapping();
-                        let texture = renderer.sprite().texture();
+                let mapping = renderer.sprite().mapping();
+                let texture = renderer.sprite().texture();
 
-                        &[
-                            matrix_elements[0],
-                            matrix_elements[1],
-                            matrix_elements[2],
-                            matrix_elements[3],
-                            matrix_elements[4],
-                            matrix_elements[5],
-                            matrix_elements[6],
-                            matrix_elements[7],
-                            matrix_elements[8],
-                            size.size.width,
-                            size.size.height,
-                            renderer.color.r,
-                            renderer.color.g,
-                            renderer.color.b,
-                            renderer.color.a,
-                            mapping.x_min as f32 / texture.width as f32,
-                            mapping.y_min as f32 / texture.height as f32,
-                            mapping.x_max as f32 / texture.width as f32,
-                            mapping.y_max as f32 / texture.height as f32,
-                        ]
-                    }),
+                let per_instance_buffer_contents = [
+                    matrix_elements[0],
+                    matrix_elements[1],
+                    matrix_elements[2],
+                    matrix_elements[3],
+                    matrix_elements[4],
+                    matrix_elements[5],
+                    matrix_elements[6],
+                    matrix_elements[7],
+                    matrix_elements[8],
+                    size.size.width,
+                    size.size.height,
+                    renderer.color.r,
+                    renderer.color.g,
+                    renderer.color.b,
+                    renderer.color.a,
+                    mapping.x_min as f32 / texture.width as f32,
+                    mapping.y_min as f32 / texture.height as f32,
+                    mapping.x_max as f32 / texture.width as f32,
+                    mapping.y_max as f32 / texture.height as f32,
+                ];
+                let size = size_of_val(&per_instance_buffer_contents);
+
+                let request = RenderRequest {
                     pipeline: render_mgr
                         .allocate_pipeline::<SpriteRenderPipelineFactoryProvider>(&renderer.shader),
                     bind_group: renderer.bind_group(),
-                });
+                    per_vertex_buffer: &self.sprite_per_vertex_buffer,
+                    per_instance_buffer: render_mgr
+                        .create_single_frame_vertex_buffer_without_contents(size as BufferAddress),
+                    per_instance_data: render_mgr
+                        .create_single_frame_host_buffer(&per_instance_buffer_contents),
+                };
+                render_request_indices.push(RenderRequestIndex::from_request(
+                    render_requests.len() as u32,
+                    renderer.order,
+                    &request,
+                ));
+                render_requests.push(request);
             }
 
-            // render_pass.set_bind_group(0, &camera_bind_groups[index], &[]);
-            render_request_indices.sort();
+            render_pass.set_bind_group(0, &camera_bind_groups[index], &[]);
+            render_request_indices.par_sort_unstable();
 
-            for &RenderRequestIndex { request_index, .. } in &render_request_indices {
-                let request = &render_requests[request_index as usize];
-                render_pass.set_pipeline(&request.pipeline);
+            let mut index = 0;
+            let mut last_pipeline = None;
+
+            // Do dynamic batching and render them.
+            while index < render_request_indices.len() {
+                let mut instance_count = 1;
+                let mut last_request_index = index;
+
+                for additional_request_index in (index + 1)..render_request_indices.len() {
+                    let before = &render_request_indices[last_request_index];
+                    let after = &render_request_indices[additional_request_index];
+
+                    if !after.can_be_merged(before) {
+                        break;
+                    }
+
+                    instance_count += 1;
+                    last_request_index = additional_request_index
+                }
+
+                let request_index = &render_request_indices[index];
+                let request = &render_requests[request_index.request_index as usize];
+
+                // Collect per-instance vertex buffers.
+                let single_per_instance_buffer_size = request.per_instance_data.size();
+                let per_instance_buffer_size = single_per_instance_buffer_size * instance_count;
+                let per_instance_buffer = render_mgr
+                    .create_single_frame_host_buffer_without_contents(per_instance_buffer_size);
+
+                for batch_count in 0..instance_count {
+                    let batched_request_index = &render_request_indices[index + batch_count];
+                    let batched_request =
+                        &render_requests[batched_request_index.request_index as usize];
+                    let offset = single_per_instance_buffer_size * batch_count;
+                    per_instance_buffer
+                        .copy_from_allocation(&batched_request.per_instance_data, offset);
+                }
+
+                render_mgr.write_single_frame_device_buffer_contents(
+                    &request.per_instance_buffer,
+                    &per_instance_buffer.buffer().borrow(),
+                );
+
+                if match last_pipeline {
+                    Some(pipeline) => pipeline != &request.pipeline,
+                    None => true,
+                } {
+                    last_pipeline = Some(&request.pipeline);
+                    render_pass.set_pipeline(&request.pipeline);
+                    render_pass.set_vertex_buffer(0, request.per_vertex_buffer.slice(..));
+                }
+
                 render_pass.set_bind_group(1, request.bind_group, &[]);
-                render_pass.set_vertex_buffer(0, request.per_vertex_buffer.slice(..));
-                render_pass.set_vertex_buffer(1, request.per_instance_buffer.slice(..));
-                render_pass.draw(0..6, 0..1);
+                render_pass.set_vertex_buffer(
+                    1,
+                    request
+                        .per_instance_buffer
+                        .as_slice_instanced(instance_count),
+                );
+                render_pass.draw(0..6, 0..instance_count as u32);
+
+                index += instance_count;
             }
+
+            // OLD: Below is old.
+
+            // let mut last_pipeline = None;
+
+            // for &RenderRequestIndex { request_index, .. } in &render_request_indices {
+            //     let request = &render_requests[request_index as usize];
+
+            //     if match last_pipeline {
+            //         Some(pipeline) => pipeline != &request.pipeline,
+            //         None => true,
+            //     } {
+            //         last_pipeline = Some(&request.pipeline);
+            //         render_pass.set_pipeline(&request.pipeline);
+            //         render_pass.set_vertex_buffer(0, request.per_vertex_buffer.slice(..));
+            //     }
+
+            //     render_pass.set_bind_group(1, request.bind_group, &[]);
+            //     render_pass.set_vertex_buffer(1, request.per_instance_buffer.as_slice());
+            //     render_pass.draw(0..6, 0..1);
+            // }
 
             // let camera_transform_index = camera_transform.index();
             // let world_to_ndc = transform_mgr
@@ -1186,7 +1277,11 @@ impl<'a> System<'a> for RenderSystem {
             // }
         }
 
-        render_mgr.queue().submit(Some(encoder.finish()));
+        let encoders = [
+            render_mgr.submit_frame_memory_allocation().finish(),
+            encoder.finish(),
+        ];
+        render_mgr.queue().submit(encoders);
         surface_texture.present();
     }
 }
@@ -1194,19 +1289,82 @@ impl<'a> System<'a> for RenderSystem {
 struct CameraWithTransformBuffer<'c> {
     pub camera: &'c Camera,
     pub transform: &'c Transform,
-    pub transform_buffer: SingleAllocation,
+    pub transform_buffer: DeviceAllocation,
 }
 
 struct RenderRequest<'r> {
+    pub pipeline: PipelineHandle,
     pub bind_group: &'r BindGroup,
     pub per_vertex_buffer: &'r Buffer,
-    pub per_instance_buffer: BufferHandle,
-    pub pipeline: PipelineHandle,
+    pub per_instance_buffer: DeviceAllocation,
+    pub per_instance_data: HostAllocation,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy)]
 struct RenderRequestIndex {
     pub order: i32,
+    pub hash: u64, // Hash of pipeline + bind_group + per_instance_buffer; for faster computation.
+    pub buffer_begin: u32,
+    pub buffer_end: u32,
     pub request_index: u32,
-    // material id?
+}
+
+impl RenderRequestIndex {
+    pub fn from_request(request_index: u32, order: i32, request: &RenderRequest) -> Self {
+        let range = request.per_instance_buffer.range();
+        debug_assert!(range.start <= u32::MAX as u64);
+        debug_assert!(range.end <= u32::MAX as u64);
+        Self {
+            order,
+            hash: {
+                let mut hasher = DefaultHasher::new();
+                request.pipeline.as_ptr().hash(&mut hasher);
+                (request.bind_group as *const BindGroup).hash(&mut hasher);
+                Arc::as_ptr(request.per_instance_buffer.buffer()).hash(&mut hasher);
+                hasher.finish()
+            },
+            buffer_begin: range.start as u32,
+            buffer_end: range.end as u32,
+            request_index,
+        }
+    }
+
+    pub fn can_be_merged(&self, before: &Self) -> bool {
+        self.hash == before.hash && self.buffer_begin == before.buffer_end
+    }
+}
+
+impl PartialEq for RenderRequestIndex {
+    fn eq(&self, other: &Self) -> bool {
+        self.hash == other.hash && self.buffer_begin == other.buffer_begin
+    }
+}
+
+impl Eq for RenderRequestIndex {}
+
+impl PartialOrd for RenderRequestIndex {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for RenderRequestIndex {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match self.order.cmp(&other.order) {
+            Ordering::Equal => {}
+            ordering @ _ => return ordering,
+        }
+
+        match self.hash.cmp(&other.hash) {
+            Ordering::Equal => {}
+            ordering @ _ => return ordering,
+        }
+
+        match self.buffer_begin.cmp(&other.buffer_begin) {
+            Ordering::Equal => {}
+            ordering @ _ => return ordering,
+        }
+
+        Ordering::Equal
+    }
 }

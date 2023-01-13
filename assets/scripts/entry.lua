@@ -23,34 +23,34 @@ print(mk.structure.Vec3.new(10, -20, 1) * mk.structure.Mat33.affine_translation(
 
 local camera = require("assets/scripts/camera")
 
--- local shader = mk.asset.load_shader("sprite")
--- local sprite = mk.asset.load_sprite("arrow")
+local shader = mk.asset.load_shader("sprite")
+local sprite = mk.asset.load_sprite("arrow")
 
--- local sprite_renderer = mk.entity.EntityBuilder.new()
---   :name("sprite-renderer")
---   :size(mk.structure.Size.new(100, 100))
---   :sprite_renderer {
---     layer = mk.gfx.Layer.new(1),
---     order = 0,
---     color = mk.gfx.Color.white(),
---     shader = shader,
---     sprite = sprite
---   }
---   :build()
+local sprite_renderer = mk.entity.EntityBuilder.new()
+  :name("sprite-renderer")
+  :size(mk.structure.Size.new(100, 100))
+  :sprite_renderer {
+    layer = mk.gfx.Layer.new(1),
+    order = 0,
+    color = mk.gfx.Color.white(),
+    shader = shader,
+    sprite = sprite
+  }
+  :build()
 
--- for i = 1, 1 do
---   mk.entity.EntityBuilder.new()
---     :transform_position(mk.structure.Vec2.new(math.random(-300, 300), math.random(-300, 300)))
---     :size(mk.structure.Size.new(100, 100))
---     :sprite_renderer {
---       layer = mk.gfx.Layer.new(1),
---       order = 0,
---       color = mk.gfx.Color.white(),
---       shader = shader,
---       sprite = sprite
---     }
---     :build()
--- end
+for i = 1, 100000 do
+  mk.entity.EntityBuilder.new()
+    :transform_position(mk.structure.Vec2.new(math.random(-300, 300), math.random(-300, 300)))
+    :size(mk.structure.Size.new(100, 100))
+    :sprite_renderer {
+      layer = mk.gfx.Layer.new(1),
+      order = 0,
+      color = mk.gfx.Color.white(),
+      shader = shader,
+      sprite = sprite
+    }
+    :build()
+end
 
 -- local ui_status_indicator = require("assets/scripts/ui/ui-status-indicator")
 -- require("assets/scripts/utils/fps-counter")

@@ -10,7 +10,6 @@ use std::{
     io::{Error as IOError, ErrorKind as IOErrorKind},
     path::Path,
 };
-use wgpu::{SamplerDescriptor, TextureViewDescriptor};
 
 impl From<ImageError> for AssetLoadError {
     fn from(err: ImageError) -> Self {
@@ -59,17 +58,9 @@ fn from_file<P: AsRef<Path>>(
 
     let texture =
         render_mgr.create_sprite_texture(width as u16, height as u16, image.to_rgba8().as_raw());
-    let view = texture.texture.create_view(&TextureViewDescriptor {
-        ..Default::default()
-    });
-    let sampler = render_mgr.create_sampler(&SamplerDescriptor {
-        ..Default::default()
-    });
 
     Ok(SpriteHandle::new(Sprite::new(
         texture,
-        view,
-        sampler,
         SpriteTexelMapping::new(0, width as u16, 0, height as u16),
         None,
     )))

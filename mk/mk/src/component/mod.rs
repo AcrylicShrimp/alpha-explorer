@@ -29,17 +29,17 @@ pub use ui_mask::*;
 pub use ui_scaler::*;
 
 pub fn register_components(world: &mut World) {
-    // world.register::<alpha_tilemap_renderer::AlphaTilemapRenderer>();
-    world.register::<audio_source::AudioSource>();
-    world.register::<camera::Camera>();
-    world.register::<diagnostic::Diagnostic>();
-    world.register::<glyph_renderer::GlyphRenderer>();
-    // world.register::<single_animator::SingleAnimator>();
-    world.register::<size::Size>();
-    world.register::<sprite_renderer::SpriteRenderer>();
-    // world.register::<tilemap_renderer::TilemapRenderer>();
-    world.register::<transform::Transform>();
-    world.register::<ui_element::UIElement>();
-    world.register::<ui_mask::UIMask>();
-    world.register::<ui_scaler::UIScaler>();
+    // world.register::<AlphaTilemapRenderer>();
+    world.register::<AudioSource>();
+    world.register::<Camera>();
+    world.register::<Diagnostic>();
+    world.register::<GlyphRenderer>();
+    // world.register::<SingleAnimator>();
+    world.register::<Size>();
+    world.register::<SpriteRenderer>();
+    // world.register::<TilemapRenderer>();
+    world.register::<Transform>();
+    world.register::<UIElement>();
+    world.register::<UIMask>();
+    world.register::<UIScaler>();
 }

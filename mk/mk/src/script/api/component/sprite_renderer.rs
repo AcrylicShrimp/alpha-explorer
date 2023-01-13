@@ -41,7 +41,7 @@ impl LuaUserData for ComponentSpriteRenderer {
         });
         fields.add_field_method_set("sprite", |_lua, this, sprite: SpriteHandle| {
             this.with_mut(|this| {
-                this.set_sprite(&use_context().render_mgr(), sprite);
+                this.set_sprite(&mut use_context().render_mgr_mut(), sprite);
             });
             Ok(())
         });

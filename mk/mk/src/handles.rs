@@ -53,6 +53,7 @@ define_handle!(AudioClipHandle(crate::audio::AudioClip));
 
 define_handle!(FontHandle(fontdue::Font));
 
+define_handle!(BindGroupHandle(wgpu::BindGroup));
 define_handle!(BufferHandle(wgpu::Buffer));
 define_handle!(PipelineHandle(wgpu::RenderPipeline));
 define_handle!(ShaderHandle(wgpu::ShaderModule));

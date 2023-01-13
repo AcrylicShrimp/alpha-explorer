@@ -14,6 +14,8 @@ use std::fs::read_to_string;
 use std::mem::MaybeUninit;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::thread::sleep;
+use std::time::Duration;
 use winit::dpi::LogicalSize;
 use winit::dpi::PhysicalSize;
 use winit::event::{ElementState, Event, MouseButton, WindowEvent};
@@ -120,7 +122,7 @@ pub async fn run(
 
     let mut systems_render = {
         let context = context.clone();
-        move || {
+        move |skip_render: bool| {
             context
                 .event_mgr()
                 .dispatcher()
@@ -128,8 +130,10 @@ pub async fn run(
                     dt: context.time_mgr().dt_f64(),
                 });
 
-            context.render_mgr().update_uniforms(&context);
-            render_system.run_now(&context.world());
+            if !skip_render {
+                context.render_mgr().update_uniforms(&context);
+                render_system.run_now(&context.world());
+            }
 
             context
                 .event_mgr()
@@ -189,6 +193,7 @@ pub async fn run(
     window.set_visible(true);
 
     let window_id = window.id();
+    let mut window_occluded = false;
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
@@ -196,9 +201,19 @@ pub async fn run(
         match event {
             Event::MainEventsCleared => {
                 systems_pre_render();
-                systems_render();
+                systems_render(window_occluded);
+
+                if window_occluded {
+                    sleep(Duration::from_millis(60));
+                }
 
                 return;
+            }
+            Event::WindowEvent {
+                event: WindowEvent::Occluded(occluded),
+                window_id: id,
+            } if id == window_id => {
+                window_occluded = occluded;
             }
             Event::WindowEvent {
                 event: WindowEvent::KeyboardInput { input, .. },
