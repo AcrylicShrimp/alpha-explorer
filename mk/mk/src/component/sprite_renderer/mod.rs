@@ -15,12 +15,7 @@ use std::{
     mem::{replace, size_of},
     num::NonZeroU64,
 };
-use wgpu::{
-    vertex_attr_array, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BlendState,
-    BufferAddress, BufferBindingType, ColorTargetState, ColorWrites, DepthStencilState, FrontFace,
-    PolygonMode, PrimitiveState, PrimitiveTopology, SamplerBindingType, ShaderModule, ShaderStages,
-    TextureSampleType, TextureViewDimension, VertexAttribute, VertexBufferLayout, VertexStepMode,
-};
+use wgpu::*;
 
 #[derive(Component)]
 pub struct SpriteRenderer {

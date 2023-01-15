@@ -1,10 +1,7 @@
 
-struct Global {
-  camera: mat3x3<f32>,
-};
-@group(0) @binding(0) var<uniform> global: Global;
-@group(0) @binding(1) var glyph_texture: texture_2d<f32>;
-@group(0) @binding(2) var glyph_sampler: sampler;
+@group(0) @binding(0) var<uniform> camera: mat3x3<f32>;
+@group(1) @binding(0) var glyph_texture: texture_2d<f32>;
+@group(1) @binding(1) var glyph_sampler: sampler;
 
 struct VertexIn {
   @location(0) pos: vec2<f32>,
@@ -35,7 +32,7 @@ struct FragmentOut {
 fn vs_main(in: VertexIn) -> VertexOut {
   var out: VertexOut;
   let transform = mat3x3<f32>(in.transform_row0, in.transform_row1, in.transform_row2);
-  out.pos = vec4<f32>((global.camera * transform * vec3<f32>(in.pos * in.size, 1.0)).xy, 0.0, 1.0);
+  out.pos = vec4<f32>((camera * transform * vec3<f32>(in.pos * in.size, 1.0)).xy, 0.0, 1.0);
   out.uv = in.uv * (in.uv_rect.zw - in.uv_rect.xy) + in.uv_rect.xy;
   out.color = in.color;
   out.thickness = in.thickness;

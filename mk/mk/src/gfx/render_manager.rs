@@ -1,11 +1,11 @@
 use crate::{
-    component::SpriteRendererBindGroupAllocator,
+    component::{GlyphRendererBindGroupAllocator, SpriteRendererBindGroupAllocator},
     gfx::{
         low::{
-            DeviceAllocation, FrameMemoryAllocator, RenderPipelineAllocator,
+            DeviceAllocation, FrameMemoryAllocator, HostAllocation, RenderPipelineAllocator,
             RenderPipelineFactoryProvider,
         },
-        Texture,
+        GlyphSprite, Texture,
     },
     handles::*,
     EngineContext, GfxContext,
@@ -15,20 +15,19 @@ use wgpu::{
     util::{BufferInitDescriptor, DeviceExt},
     BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
     BindGroupLayoutEntry, BufferAddress, BufferUsages, CommandEncoder, CommandEncoderDescriptor,
-    Extent3d, ImageCopyBuffer, ImageCopyTexture, ImageDataLayout, ImageSubresourceRange, Origin3d,
-    Queue, Sampler, SamplerDescriptor, ShaderModuleDescriptor, ShaderSource, SurfaceTexture,
-    TextureAspect, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages, TextureView,
+    Extent3d, ImageCopyTexture, ImageDataLayout, ImageSubresourceRange, Origin3d, Queue, Sampler,
+    SamplerDescriptor, ShaderModuleDescriptor, ShaderSource, SurfaceTexture, TextureAspect,
+    TextureDescriptor, TextureDimension, TextureFormat, TextureUsages, TextureView,
     TextureViewDescriptor,
 };
 use winit::dpi::PhysicalSize;
-
-use super::low::HostAllocation;
 
 pub struct RenderManager {
     gfx_context: GfxContext,
     pipeline_allocator: RenderPipelineAllocator,
     frame_memory_allocator: FrameMemoryAllocator,
     sprite_renderer_bind_group_allocator: SpriteRendererBindGroupAllocator,
+    glyph_renderer_bind_group_allocator: GlyphRendererBindGroupAllocator,
     // stencil_texture: StencilTexture,
     // common_shader_input_buffer: Buffer,
 }
@@ -40,6 +39,7 @@ impl RenderManager {
             gfx_context,
             pipeline_allocator: RenderPipelineAllocator::new(),
             sprite_renderer_bind_group_allocator: SpriteRendererBindGroupAllocator::new(),
+            glyph_renderer_bind_group_allocator: GlyphRendererBindGroupAllocator::new(),
             // stencil_texture: StencilTexture::new(&gfx_context.device, &gfx_context.surface_config),
             // common_shader_input_buffer: Buffer::from_slice(&[
             //     0f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32,
@@ -88,6 +88,20 @@ impl RenderManager {
             old_sprite,
             new_sprite,
         )
+    }
+
+    pub fn allocate_glyph_renderer_bind_group(&mut self, sprite: &GlyphSprite) -> BindGroupHandle {
+        self.glyph_renderer_bind_group_allocator.allocate(
+            &self.gfx_context,
+            &self.pipeline_allocator,
+            sprite,
+        )
+    }
+
+    pub fn deallocate_glyph_renderer_bind_group(&mut self, sprites: &[GlyphSprite]) {
+        for sprite in sprites {
+            self.glyph_renderer_bind_group_allocator.deallocate(sprite);
+        }
     }
 
     pub fn create_render_output(&mut self) -> (SurfaceTexture, TextureView) {
@@ -255,7 +269,7 @@ impl RenderManager {
             mip_level_count: 1,
             sample_count: 1,
             dimension: TextureDimension::D2,
-            format: TextureFormat::R8Snorm,
+            format: TextureFormat::R8Unorm,
             usage: TextureUsages::COPY_DST | TextureUsages::TEXTURE_BINDING,
         });
         let mut encoder = self.create_encoder();
@@ -334,29 +348,18 @@ impl RenderManager {
         height: u32,
         data: &[u8],
     ) {
-        let buffer =
-            self.gfx_context
-                .device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: None,
-                    contents: data,
-                    usage: wgpu::BufferUsages::COPY_SRC,
-                });
-        let mut encoder = self.create_encoder();
-        encoder.copy_buffer_to_texture(
-            ImageCopyBuffer {
-                buffer: &buffer,
-                layout: ImageDataLayout {
-                    offset: 0,
-                    bytes_per_row: NonZeroU32::new(width),
-                    rows_per_image: NonZeroU32::new(height),
-                },
-            },
+        self.gfx_context.queue.write_texture(
             ImageCopyTexture {
                 texture: &texture.texture,
                 mip_level: 0,
                 origin: Origin3d { x, y, z: 0 },
                 aspect: TextureAspect::All,
+            },
+            data,
+            ImageDataLayout {
+                offset: 0,
+                bytes_per_row: NonZeroU32::new(width),
+                rows_per_image: NonZeroU32::new(height),
             },
             Extent3d {
                 width,
@@ -364,7 +367,6 @@ impl RenderManager {
                 ..Default::default()
             },
         );
-        self.gfx_context.queue.submit(once(encoder.finish()));
     }
 
     pub fn resize_gfx(&mut self, size: PhysicalSize<u32>) {
