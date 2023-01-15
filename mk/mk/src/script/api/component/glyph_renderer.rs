@@ -1,4 +1,4 @@
-use crate::handles::*;
+use crate::{engine::use_context, handles::*};
 use mlua::prelude::*;
 
 pub type ComponentGlyphRenderer = super::Component<crate::component::GlyphRenderer>;
@@ -74,13 +74,16 @@ impl LuaUserData for ComponentGlyphRenderer {
             this.with_mut(|this| this.set_font_size(font_size));
             Ok(())
         });
-        fields.add_field_method_set("text", |_lua, this, text: LuaString| {
-            let text = text.to_str()?.to_owned();
-            this.with_mut(|this| this.set_text(text));
-            Ok(())
-        });
         fields.add_field_method_set("config", |_lua, this, config| {
             this.with_mut(|this| this.set_config(config));
+            Ok(())
+        });
+        fields.add_field_method_set("text", |_lua, this, text: LuaString| {
+            let context = use_context();
+            let mut render_mgr = context.render_mgr_mut();
+            let mut glyph_mgr = context.glyph_mgr_mut();
+            let text = text.to_str()?.to_owned();
+            this.with_mut(|this| this.set_text(&mut glyph_mgr, &mut render_mgr, text));
             Ok(())
         });
     }

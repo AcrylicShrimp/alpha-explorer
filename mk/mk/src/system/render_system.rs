@@ -8,6 +8,7 @@ use crate::{
     handles::{BufferHandle, PipelineHandle},
     structure::{Mat33, Vec2},
 };
+use fontdue::layout::{HorizontalAlign, VerticalAlign};
 use rayon::slice::ParallelSliceMut;
 use specs::prelude::*;
 use std::{
@@ -31,6 +32,7 @@ pub struct RenderSystem {
 
 impl RenderSystem {
     pub fn new(render_mgr: &mut RenderManager) -> Self {
+        render_mgr.register_pipeline_factory::<GlyphRenderPipelineFactoryProvider>();
         render_mgr.register_pipeline_factory::<SpriteRenderPipelineFactoryProvider>();
 
         let camera_bind_group_layout =
@@ -142,7 +144,7 @@ impl<'a> System<'a> for RenderSystem {
         ReadStorage<'a, Camera>,
         ReadStorage<'a, Transform>,
         ReadStorage<'a, Size>,
-        WriteStorage<'a, GlyphRenderer>,
+        ReadStorage<'a, GlyphRenderer>,
         ReadStorage<'a, SpriteRenderer>,
         // ReadStorage<'a, TilemapRenderer>,
         // ReadStorage<'a, AlphaTilemapRenderer>,
@@ -154,7 +156,7 @@ impl<'a> System<'a> for RenderSystem {
             camera,
             transform,
             size,
-            mut glyph_renderer,
+            glyph_renderer,
             sprite_renderer,
             // tilemap_renderer,
             // alpha_tilemap_renderer,
@@ -162,9 +164,9 @@ impl<'a> System<'a> for RenderSystem {
     ) {
         let context = use_context();
         let mut render_mgr = context.render_mgr_mut();
+        let glyph_mgr = context.glyph_mgr();
         let screen_mgr = context.screen_mgr();
         let transform_mgr = context.transform_mgr();
-        let mut glyph_mgr = context.glyph_mgr_mut();
 
         let (surface_texture, surface_texture_view) = render_mgr.create_render_output();
         // let stencil_texture = render_mgr.stencil_texture();
@@ -172,6 +174,8 @@ impl<'a> System<'a> for RenderSystem {
 
         let width_half = (screen_mgr.width() * 0.5) as f32;
         let height_half = (screen_mgr.height() * 0.5) as f32;
+        let sdf_inset = glyph_mgr.sdf_inset();
+
         let mut camera_with_transform_buffers = (&camera, &transform)
             .join()
             .map(|(camera, transform)| {
@@ -261,6 +265,111 @@ impl<'a> System<'a> for RenderSystem {
                 //     }),
                 // }),
             });
+
+            for (transform, size, renderer) in (&transform, &size, &glyph_renderer).join() {
+                if !Layer::has_overlap(camera.layer, renderer.layer) {
+                    return;
+                }
+
+                let matrix = transform_mgr.transform_world_matrix(transform.index());
+
+                let size = size.size;
+                let layout_size = renderer.compute_size();
+                let (horizontal_align, vertical_align) = (
+                    match renderer.config().horizontal_align {
+                        HorizontalAlign::Left => 0f32,
+                        HorizontalAlign::Center => 0.5f32,
+                        HorizontalAlign::Right => 1f32,
+                    },
+                    match renderer.config().vertical_align {
+                        VerticalAlign::Top => 0f32,
+                        VerticalAlign::Middle => 0.5f32,
+                        VerticalAlign::Bottom => 1f32,
+                    },
+                );
+                let overflow_offset =
+                    Vec2::new((size.width * 0.5) as f32, (size.height * 0.5) as f32);
+                let alignment_offset = Vec2::new(
+                    (size.width - layout_size.width) * horizontal_align,
+                    (size.height - layout_size.height) * vertical_align,
+                );
+                let offset = alignment_offset - overflow_offset;
+
+                let layout = renderer.layout();
+                let glyphs = renderer.glyphs();
+
+                for (position, glyph) in layout.glyphs().iter().zip(glyphs) {
+                    let mapping = glyph.sprite().mapping();
+                    let texture = glyph.sprite().texture();
+
+                    let font_width_scale = if mapping.width() as usize == 2 * sdf_inset {
+                        0f32
+                    } else {
+                        position.width as f32 / (mapping.width() as usize - 2 * sdf_inset) as f32
+                    };
+                    let font_height_scale = if mapping.height() as usize == 2 * sdf_inset {
+                        0f32
+                    } else {
+                        position.height as f32 / (mapping.height() as usize - 2 * sdf_inset) as f32
+                    };
+
+                    let glyph_width =
+                        position.width as f32 + 2f32 * font_width_scale * sdf_inset as f32;
+                    let glyph_height =
+                        position.height as f32 + 2f32 * font_height_scale * sdf_inset as f32;
+                    let matrix_elements = (Mat33::affine_translation(Vec2::new(
+                        position.x + offset.x - sdf_inset as f32 * font_width_scale,
+                        position.y - offset.y - sdf_inset as f32 * font_height_scale,
+                    )) * matrix)
+                        .into_elements();
+
+                    let per_instance_buffer_contents = [
+                        matrix_elements[0],
+                        matrix_elements[1],
+                        matrix_elements[2],
+                        matrix_elements[3],
+                        matrix_elements[4],
+                        matrix_elements[5],
+                        matrix_elements[6],
+                        matrix_elements[7],
+                        matrix_elements[8],
+                        glyph_width,
+                        glyph_height,
+                        renderer.color.r,
+                        renderer.color.g,
+                        renderer.color.b,
+                        renderer.color.a,
+                        renderer.thickness,
+                        renderer.smoothness,
+                        (mapping.min().0 as f32) / texture.width as f32,
+                        (mapping.min().1 as f32) / texture.height as f32,
+                        (mapping.max().0 as f32) / texture.width as f32,
+                        (mapping.max().1 as f32) / texture.height as f32,
+                    ];
+                    let size = size_of_val(&per_instance_buffer_contents);
+
+                    let request = RenderRequest {
+                        pipeline: render_mgr
+                            .allocate_pipeline::<GlyphRenderPipelineFactoryProvider>(
+                                &renderer.shader,
+                            ),
+                        bind_group: glyph.bind_group(),
+                        per_vertex_buffer: &self.sprite_per_vertex_buffer,
+                        per_instance_buffer: render_mgr
+                            .create_single_frame_vertex_buffer_without_contents(
+                                size as BufferAddress,
+                            ),
+                        per_instance_data: render_mgr
+                            .create_single_frame_host_buffer(&per_instance_buffer_contents),
+                    };
+                    render_request_indices.push(RenderRequestIndex::from_request(
+                        render_requests.len() as u32,
+                        renderer.order,
+                        &request,
+                    ));
+                    render_requests.push(request);
+                }
+            }
 
             for (transform, size, renderer) in (&transform, &size, &sprite_renderer).join() {
                 if !Layer::has_overlap(camera.layer, renderer.layer) {
@@ -357,7 +466,7 @@ impl<'a> System<'a> for RenderSystem {
 
                 render_mgr.write_single_frame_device_buffer_contents(
                     &request.per_instance_buffer,
-                    &per_instance_buffer.buffer().borrow(),
+                    &per_instance_buffer.buffer().borrow()[per_instance_buffer.range()],
                 );
 
                 if match last_pipeline {

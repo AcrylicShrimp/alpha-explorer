@@ -170,6 +170,7 @@ impl LuaUserData for EntityBuilder {
             builder = builder.with(Transform::new(transform));
 
             let mut render_mgr = context.render_mgr_mut();
+            let mut glyph_mgr = context.glyph_mgr_mut();
 
             transform_mgr
                 .name_manager_mut()
@@ -260,7 +261,11 @@ impl LuaUserData for EntityBuilder {
                 );
 
                 if let Some(text) = param.text {
-                    glyph_renderer.set_text(text.as_str().to_owned());
+                    glyph_renderer.set_text(
+                        &mut glyph_mgr,
+                        &mut render_mgr,
+                        text.as_str().to_owned(),
+                    );
                 }
 
                 if let Some(config) = param.config {

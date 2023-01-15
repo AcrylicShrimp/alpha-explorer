@@ -1,12 +1,7 @@
-use super::{generate_sdf, GlyphTexture};
-use crate::{engine::use_context, gfx::SpriteTexelMapping, handles::*};
+use super::{generate_sdf, GlyphSprite, GlyphTexture};
+use crate::{gfx::RenderManager, handles::*};
 use fontdue::{layout::GlyphRasterConfig, Font};
-use std::{borrow::Borrow, collections::HashMap};
-
-pub struct GlyphSprite {
-    pub texture: TextureHandle,
-    pub mapping: SpriteTexelMapping,
-}
+use std::collections::HashMap;
 
 pub struct GlyphManager {
     sdf_font_size: f32,
@@ -37,7 +32,12 @@ impl GlyphManager {
         self.sdf_inset
     }
 
-    pub fn glyph(&mut self, font: &FontHandle, glyph: GlyphRasterConfig) -> &GlyphSprite {
+    pub fn glyph(
+        &mut self,
+        render_mgr: &RenderManager,
+        font: &FontHandle,
+        glyph: GlyphRasterConfig,
+    ) -> &GlyphSprite {
         if !self.glyphs.contains_key(&glyph) {
             let (metrics, rasterized) = font
                 .inner()
@@ -53,8 +53,6 @@ impl GlyphManager {
                 .glyph_textures
                 .entry(font.as_ptr())
                 .or_insert_with(|| Vec::with_capacity(2));
-            let render_mgr = use_context().render_mgr();
-            let render_mgr = render_mgr.borrow();
 
             for glyph_texture in glyph_textures.iter_mut() {
                 if let Some(mapping) = glyph_texture.glyph(
@@ -65,10 +63,7 @@ impl GlyphManager {
                 ) {
                     self.glyphs.insert(
                         glyph,
-                        GlyphSprite {
-                            texture: glyph_texture.texture().clone(),
-                            mapping,
-                        },
+                        GlyphSprite::new(glyph_texture.texture().clone(), mapping),
                     );
                     return self.glyphs.get(&glyph).unwrap();
                 }
@@ -85,10 +80,7 @@ impl GlyphManager {
                 .unwrap();
             self.glyphs.insert(
                 glyph,
-                GlyphSprite {
-                    texture: glyph_texture.texture().clone(),
-                    mapping,
-                },
+                GlyphSprite::new(glyph_texture.texture().clone(), mapping),
             );
             glyph_textures.push(glyph_texture);
         }

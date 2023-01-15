@@ -1,10 +1,10 @@
 
-local a = mk.structure.Mat33.identity()
-print(a:transposed())
-print(a:inversed())
-print(mk.structure.Vec3.new(10, -20, 1) * a)
-print(mk.structure.Mat33.affine_translation(mk.structure.Vec2.new(-10, 10)) * mk.structure.Mat33.affine_translation(mk.structure.Vec2.new(-10, 10)):inversed())
-print(mk.structure.Vec3.new(10, -20, 1) * mk.structure.Mat33.affine_translation(mk.structure.Vec2.new(-10, 10)))
+-- local a = mk.structure.Mat33.identity()
+-- print(a:transposed())
+-- print(a:inversed())
+-- print(mk.structure.Vec3.new(10, -20, 1) * a)
+-- print(mk.structure.Mat33.affine_translation(mk.structure.Vec2.new(-10, 10)) * mk.structure.Mat33.affine_translation(mk.structure.Vec2.new(-10, 10)):inversed())
+-- print(mk.structure.Vec3.new(10, -20, 1) * mk.structure.Mat33.affine_translation(mk.structure.Vec2.new(-10, 10)))
 
 -- local event = mk.event.Event.new()
 
@@ -53,7 +53,7 @@ for i = 1, 100000 do
 end
 
 -- local ui_status_indicator = require("assets/scripts/ui/ui-status-indicator")
--- require("assets/scripts/utils/fps-counter")
+require("assets/scripts/utils/fps-counter")
 
 -- local generate_map = require("assets/scripts/map-gen/generate")
 -- local map = generate_map(100, 100)

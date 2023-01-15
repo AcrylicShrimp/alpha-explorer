@@ -1,6 +1,6 @@
 use crate::{
     component::SpriteRenderPipelineFactoryProvider,
-    gfx::{low::RenderPipelineAllocator, Texture},
+    gfx::{low::RenderPipelineAllocator, GlyphSprite, Texture},
     handles::*,
     GfxContext,
 };
@@ -24,21 +24,9 @@ impl GlyphRendererBindGroupAllocator {
         &mut self,
         gfx_context: &GfxContext,
         pipeline_allocator: &RenderPipelineAllocator,
-        old_sprite: Option<SpriteHandle>,
-        new_sprite: &SpriteHandle,
+        sprite: &GlyphSprite,
     ) -> BindGroupHandle {
-        if let Some(old_sprite) = old_sprite {
-            let old_texture = Arc::downgrade(&old_sprite.into_inner().texture());
-
-            if old_texture.strong_count() == 0 {
-                self.cache.remove(&CacheKey::from_weak(old_texture));
-            }
-        }
-
-        match self
-            .cache
-            .entry(CacheKey::from_strong(&new_sprite.texture()))
-        {
+        match self.cache.entry(CacheKey::from_strong(&sprite.texture())) {
             Entry::Occupied(entry) => entry.get().clone(),
             Entry::Vacant(entry) => entry
                 .insert(BindGroupHandle::new(
@@ -52,11 +40,11 @@ impl GlyphRendererBindGroupAllocator {
                         entries: &[
                             BindGroupEntry {
                                 binding: 0,
-                                resource: BindingResource::TextureView(&new_sprite.texture().view),
+                                resource: BindingResource::TextureView(&sprite.texture().view),
                             },
                             BindGroupEntry {
                                 binding: 1,
-                                resource: BindingResource::Sampler(&new_sprite.texture().sampler),
+                                resource: BindingResource::Sampler(&sprite.texture().sampler),
                             },
                         ],
                     }),
@@ -64,9 +52,17 @@ impl GlyphRendererBindGroupAllocator {
                 .clone(),
         }
     }
+
+    pub fn deallocate(&mut self, sprite: &GlyphSprite) {
+        let old_texture = Arc::downgrade(&sprite.texture());
+
+        if old_texture.strong_count() == 0 {
+            self.cache.remove(&CacheKey::from_weak(old_texture));
+        }
+    }
 }
 
-impl Default for SpriteRendererBindGroupAllocator {
+impl Default for GlyphRendererBindGroupAllocator {
     fn default() -> Self {
         Self {
             cache: HashMap::with_capacity(64),
