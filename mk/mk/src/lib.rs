@@ -11,8 +11,6 @@ mod engine_gfx;
 pub mod event;
 pub mod handles;
 pub mod input;
-pub mod service;
-// pub mod looper;
 pub mod gfx;
 pub mod res;
 pub mod script;
