@@ -1,7 +1,7 @@
 use crate::asset::AssetManager;
 use crate::audio::AudioManager;
 use crate::component::register_components;
-use crate::event::EventManager;
+use crate::event::{EntityEventManager, EventManager};
 use crate::gfx::{GlyphManager, RenderManager, ScreenManager};
 use crate::input::InputManager;
 use crate::script::ScriptManager;
@@ -23,6 +23,7 @@ pub struct EngineContext {
     asset_mgr: RefCell<AssetManager>,
     transform_mgr: RefCell<TransformManager>,
     event_mgr: EventManager,
+    entity_event_mgr: EntityEventManager,
     script_mgr: ScriptManager,
     glyph_mgr: RefCell<GlyphManager>,
     render_mgr: RefCell<RenderManager>,
@@ -50,6 +51,7 @@ impl EngineContext {
             asset_mgr: AssetManager::new(asset_mgr_base).into(),
             transform_mgr: TransformManager::new().into(),
             event_mgr: EventManager::new(),
+            entity_event_mgr: EntityEventManager::new(),
             script_mgr: ScriptManager::new()
                 .with_context(|| "failed to initialize script manager")?
                 .into(),
@@ -114,6 +116,10 @@ impl EngineContext {
 
     pub fn event_mgr(&self) -> &EventManager {
         &self.event_mgr
+    }
+
+    pub fn entity_event_mgr(&self) -> &EntityEventManager {
+        &self.entity_event_mgr
     }
 
     pub fn script_mgr(&self) -> &ScriptManager {

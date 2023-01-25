@@ -1,7 +1,11 @@
 use crate::{
     component::*,
     engine::use_context,
-    script::api::{component::*, LuaApiTable},
+    event::{EntityEventHandler, LuaEvent},
+    script::{
+        api::{component::*, LuaApiTable},
+        FFIFunction,
+    },
 };
 use mlua::prelude::*;
 use smartstring::SmartString;
@@ -129,8 +133,43 @@ impl LuaUserData for Entity {
     }
 
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
-        // TODO: Implement below functions
-        methods.add_method("listen", |_lua, this, listener: LuaFunction| Ok(()));
-        methods.add_method("unlisten", |_lua, this, hash: usize| Ok(()));
+        methods.add_method(
+            "listen",
+            |lua, this, (event_name, handler): (LuaString, LuaValue)| {
+                Ok(use_context().entity_event_mgr().add_handler(
+                    *this,
+                    event_name.to_str()?,
+                    match handler {
+                        LuaNil => todo!(),
+                        LuaValue::Function(handler) => {
+                            EntityEventHandler::lua(FFIFunction::new(lua, handler)?)
+                        }
+                        LuaValue::UserData(handler) => {
+                            handler.borrow::<EntityEventHandler>()?.clone()
+                        }
+                        _ => return Err(LuaError::external("invalid event handler type")),
+                    },
+                ))
+            },
+        );
+        methods.add_method(
+            "unlisten",
+            |_lua, this, (event_name, handler): (LuaString, EntityEventHandler)| {
+                use_context().entity_event_mgr().remove_handler(
+                    *this,
+                    event_name.to_str()?,
+                    handler,
+                );
+                Ok(())
+            },
+        );
+        methods.add_method("emit", |lua, this, event: LuaMultiValue| {
+            use_context().entity_event_mgr().emit(
+                *this,
+                &LuaEvent::from_lua_multi(event, lua)?,
+                lua,
+            );
+            Ok(())
+        });
     }
 }

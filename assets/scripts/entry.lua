@@ -38,19 +38,46 @@ local sprite_renderer = mk.entity.EntityBuilder.new()
   }
   :build()
 
-for i = 1, 100000 do
-  mk.entity.EntityBuilder.new()
-    :transform_position(mk.structure.Vec2.new(math.random(-300, 300), math.random(-300, 300)))
-    :size(mk.structure.Size.new(100, 100))
-    :sprite_renderer {
-      layer = mk.gfx.Layer.new(1),
-      order = 0,
-      color = mk.gfx.Color.white(),
-      shader = shader,
-      sprite = sprite
-    }
-    :build()
-end
+local handler
+handler = sprite_renderer:listen("test", function (entity, event_name, event_param)
+  print("event called from: ", entity.name)
+  print("event name: ", event_name)
+  print("event data: ", event_param.a)
+  print("event data: ", event_param.b)
+  print("event data: ", event_param.c)
+  sprite_renderer:unlisten("test", handler)
+end)
+print("handler: ", handler)
+sprite_renderer:emit("test", {
+  a = nil,
+  b = "123",
+  c = 123
+})
+sprite_renderer:emit("test", {
+  a = nil,
+  b = "123",
+  c = 123
+})
+sprite_renderer:listen("test", handler)
+sprite_renderer:emit("test", {
+  a = nil,
+  b = "123",
+  c = 123
+})
+
+-- for i = 1, 1000 do
+--   mk.entity.EntityBuilder.new()
+--     :transform_position(mk.structure.Vec2.new(math.random(-300, 300), math.random(-300, 300)))
+--     :size(mk.structure.Size.new(100, 100))
+--     :sprite_renderer {
+--       layer = mk.gfx.Layer.new(1),
+--       order = 0,
+--       color = mk.gfx.Color.white(),
+--       shader = shader,
+--       sprite = sprite
+--     }
+--     :build()
+-- end
 
 -- local ui_status_indicator = require("assets/scripts/ui/ui-status-indicator")
 require("assets/scripts/utils/fps-counter")

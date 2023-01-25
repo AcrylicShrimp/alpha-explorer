@@ -12,32 +12,40 @@ pub fn event(item: TokenStream) -> TokenStream {
 
     let ty_name = &derive.ident;
     let ty_name_str = ty_name.to_string();
-    let mut field_impls = Vec::new();
+    let mut event_field_impls = Vec::new();
+    let mut lua_event_field_impls = Vec::new();
 
     for field in &input.fields {
         if let Some(ident) = &field.ident {
             let ident_str = ident.to_string();
-            field_impls.push(quote! {
+            event_field_impls.push(quote! {
                 #ident_str => Some(&self.#ident),
+            });
+            lua_event_field_impls.push(quote! {
+                table.set(#ident_str, self.#ident.clone())?;
             });
         }
     }
 
     TokenStream::from(quote! {
         impl crate::event::Event for #ty_name {
-            fn type_id() -> std::any::TypeId {
-                std::any::TypeId::of::<Self>()
-            }
-
-            fn name() -> &'static str {
+            fn name(&self) -> &str {
                 #ty_name_str
             }
 
             fn param(&self, param_name: &str) -> Option<&dyn std::any::Any> {
                 match param_name {
-                    #(#field_impls)*
+                    #(#event_field_impls)*
                     _ => None,
                 }
+            }
+        }
+
+        impl crate::event::ParamsToLuaTable for #ty_name {
+            fn params_to_lua_table<'lua>(&self, lua: &'lua mlua::Lua) -> mlua::Result<mlua::Table<'lua>> {
+                let table = lua.create_table()?;
+                #(#lua_event_field_impls)*
+                Ok(table)
             }
         }
     })
