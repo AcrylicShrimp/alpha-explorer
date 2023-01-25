@@ -204,7 +204,7 @@ impl GlyphRenderPipelineLayoutFactory {
             ty: BufferBindingType::Uniform,
             has_dynamic_offset: false,
             min_binding_size: Some(unsafe {
-                NonZeroU64::new_unchecked((size_of::<f32>() * 12) as u64)
+                NonZeroU64::new_unchecked((size_of::<[f32; 12]>()) as u64)
             }),
         },
         count: None,
@@ -251,13 +251,13 @@ impl RenderPipelineLayoutFactory for GlyphRenderPipelineLayoutFactory {
 pub struct GlyphRenderPipelineFactory;
 
 impl GlyphRenderPipelineFactory {
-    pub const PER_VERTEX_STRIDE: BufferAddress = (size_of::<f32>() * 4) as BufferAddress;
+    pub const PER_VERTEX_STRIDE: BufferAddress = (size_of::<[f32; 4]>()) as BufferAddress;
     pub const PER_VERTEX_ATTRIBS: [VertexAttribute; 2] = vertex_attr_array![
         0 => Float32x2,
         1 => Float32x2
     ];
 
-    pub const PER_INSTANCE_STRIDE: BufferAddress = (size_of::<f32>() * 21) as BufferAddress;
+    pub const PER_INSTANCE_STRIDE: BufferAddress = (size_of::<[f32; 21]>()) as BufferAddress;
     pub const PER_INSTANCE_ATTRIBS: [VertexAttribute; 8] = vertex_attr_array![
         2 => Float32x3,
         3 => Float32x3,
