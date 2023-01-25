@@ -15,19 +15,16 @@ use std::{
     cmp::Ordering,
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
-    mem::{size_of, size_of_val},
-    num::NonZeroU64,
+    mem::size_of_val,
     sync::Arc,
 };
 use wgpu::{
-    BindGroup, BindGroupEntry, BindGroupLayout, BindGroupLayoutEntry, BindingResource, BindingType,
-    Buffer, BufferAddress, BufferBinding, BufferBindingType, Color, LoadOp, Operations,
-    RenderPassColorAttachment, RenderPassDescriptor, ShaderStages,
+    BindGroup, Buffer, BufferAddress, Color, LoadOp, Operations, RenderPassColorAttachment,
+    RenderPassDescriptor,
 };
 
 pub struct RenderSystem {
-    camera_bind_group_layout: BindGroupLayout,
-    sprite_per_vertex_buffer: BufferHandle,
+    quad_per_vertex_buffer: BufferHandle,
 }
 
 impl RenderSystem {
@@ -35,106 +32,28 @@ impl RenderSystem {
         render_mgr.register_pipeline_factory::<GlyphRenderPipelineFactoryProvider>();
         render_mgr.register_pipeline_factory::<SpriteRenderPipelineFactoryProvider>();
 
-        let camera_bind_group_layout =
-            render_mgr.create_bind_group_layout(&[BindGroupLayoutEntry {
-                binding: 0,
-                visibility: ShaderStages::VERTEX_FRAGMENT,
-                ty: BindingType::Buffer {
-                    ty: BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: Some(
-                        NonZeroU64::new((size_of::<f32>() * 12) as u64).unwrap(),
-                    ),
-                },
-                count: None,
-            }]);
-
-        let sprite_per_vertex_buffer = render_mgr.create_vertex_buffer(&[
-            1f32, 1f32, //
-            1f32, 0f32, //
-            //
-            0f32, 0f32, //
-            0f32, 1f32, //
-            //
-            1f32, 0f32, //
-            1f32, 1f32, //
-            //
-            //
-            //
-            1f32, 1f32, //
-            1f32, 0f32, //
-            //
-            0f32, 1f32, //
-            0f32, 0f32, //
-            //
-            0f32, 0f32, //
-            0f32, 1f32, //
-        ]);
-
-        // let glyph_buffer = Buffer::from_slice(&[
-        //     1f32, 1f32, //
-        //     1f32, 0f32, //
-        //     //
-        //     0f32, 0f32, //
-        //     0f32, 1f32, //
-        //     //
-        //     1f32, 0f32, //
-        //     1f32, 1f32, //
-        //     //
-        //     //
-        //     //
-        //     1f32, 1f32, //
-        //     1f32, 0f32, //
-        //     //
-        //     0f32, 1f32, //
-        //     0f32, 0f32, //
-        //     //
-        //     0f32, 0f32, //
-        //     0f32, 1f32, //
-        // ]);
-        // let tilemap_sprite_buffer = Buffer::from_slice(&[
-        //     1f32, 1f32, //
-        //     1f32, 0f32, //
-        //     //
-        //     0f32, 0f32, //
-        //     0f32, 1f32, //
-        //     //
-        //     1f32, 0f32, //
-        //     1f32, 1f32, //
-        //     //
-        //     //
-        //     //
-        //     1f32, 1f32, //
-        //     1f32, 0f32, //
-        //     //
-        //     0f32, 1f32, //
-        //     0f32, 0f32, //
-        //     //
-        //     0f32, 0f32, //
-        //     0f32, 1f32, //
-        // ]);
-        // let alpha_tilemap_back_buffer = Buffer::from_slice(&[
-        //     1f32, 1f32, //
-        //     //
-        //     0f32, 0f32, //
-        //     //
-        //     1f32, 0f32, //
-        //     //
-        //     //
-        //     //
-        //     1f32, 1f32, //
-        //     //
-        //     0f32, 1f32, //
-        //     //
-        //     0f32, 0f32, //
-        // ]);
-
         Self {
-            // glyph_buffer,
-            camera_bind_group_layout,
-            sprite_per_vertex_buffer,
-            // tilemap_sprite_buffer,
-            // alpha_tilemap_back_buffer,
+            quad_per_vertex_buffer: render_mgr.create_vertex_buffer(&[
+                1f32, 1f32, //
+                1f32, 0f32, //
+                //
+                0f32, 0f32, //
+                0f32, 1f32, //
+                //
+                1f32, 0f32, //
+                1f32, 1f32, //
+                //
+                //
+                //
+                1f32, 1f32, //
+                1f32, 0f32, //
+                //
+                0f32, 1f32, //
+                0f32, 0f32, //
+                //
+                0f32, 0f32, //
+                0f32, 1f32, //
+            ]),
         }
     }
 }
@@ -176,66 +95,39 @@ impl<'a> System<'a> for RenderSystem {
         let height_half = (screen_mgr.height() * 0.5) as f32;
         let sdf_inset = glyph_mgr.sdf_inset();
 
-        let mut camera_with_transform_buffers = (&camera, &transform)
-            .join()
-            .map(|(camera, transform)| {
-                let world_to_ndc = transform_mgr
-                    .transform_world_matrix(transform.index())
-                    .inversed()
-                    * Mat33::affine_scale(Vec2::new(1f32 / width_half, 1f32 / height_half));
-                let matrix_elements = world_to_ndc.elements();
-                CameraWithTransformBuffer {
-                    camera,
-                    transform,
-                    transform_buffer: render_mgr.create_single_frame_uniform_buffer(&[
-                        matrix_elements[0],
-                        matrix_elements[1],
-                        matrix_elements[2],
-                        0f32, // Padding
-                        matrix_elements[3],
-                        matrix_elements[4],
-                        matrix_elements[5],
-                        0f32, // Padding
-                        matrix_elements[6],
-                        matrix_elements[7],
-                        matrix_elements[8],
-                        0f32, // Padding
-                    ]),
-                }
-            })
-            .collect::<Vec<_>>();
-        camera_with_transform_buffers.sort_unstable_by(
-            |CameraWithTransformBuffer { camera: lhs, .. },
-             CameraWithTransformBuffer { camera: rhs, .. }| lhs.order.cmp(&rhs.order),
-        );
-        let camera_bind_groups = camera_with_transform_buffers
-            .iter()
-            .map(
-                |CameraWithTransformBuffer {
-                     transform_buffer, ..
-                 }| {
-                    render_mgr.create_bind_group(
-                        &self.camera_bind_group_layout,
-                        &[BindGroupEntry {
-                            binding: 0,
-                            resource: BindingResource::Buffer(BufferBinding {
-                                buffer: &transform_buffer.buffer(),
-                                offset: transform_buffer.offset(),
-                                size: Some(NonZeroU64::new(transform_buffer.size()).unwrap()),
-                            }),
-                        }],
-                    )
-                },
-            )
-            .collect::<Vec<_>>();
+        let mut cameras = (&camera, &transform).join().collect::<Vec<_>>();
+        for (camera, transform) in &cameras {
+            let world_to_ndc = transform_mgr
+                .transform_world_matrix(transform.index())
+                .inversed()
+                * Mat33::affine_scale(Vec2::new(1f32 / width_half, 1f32 / height_half));
+            let matrix_elements = world_to_ndc.elements();
+            render_mgr.write_buffer(
+                camera.tranform_buffer(),
+                &[
+                    matrix_elements[0],
+                    matrix_elements[1],
+                    matrix_elements[2],
+                    0f32, // Padding
+                    matrix_elements[3],
+                    matrix_elements[4],
+                    matrix_elements[5],
+                    0f32, // Padding
+                    matrix_elements[6],
+                    matrix_elements[7],
+                    matrix_elements[8],
+                    0f32, // Padding
+                ],
+            );
+        }
+
+        cameras.sort_unstable_by(|(lhs, ..), (rhs, ..)| lhs.order.cmp(&rhs.order));
 
         let mut render_request_indices = Vec::with_capacity(4 * 1024);
         let mut render_requests = Vec::with_capacity(4 * 1024);
 
         // TODO: Parallelize here to improve performance.
-        for (index, CameraWithTransformBuffer { camera, .. }) in
-            camera_with_transform_buffers.iter().enumerate()
-        {
+        for (camera, _camera_transform) in cameras {
             let render_pass_load_ops = match camera.clear_mode {
                 ClearMode::None => LoadOp::Load,
                 ClearMode::Color => LoadOp::Clear(Color {
@@ -354,7 +246,7 @@ impl<'a> System<'a> for RenderSystem {
                                 &renderer.shader,
                             ),
                         bind_group: glyph.bind_group(),
-                        per_vertex_buffer: &self.sprite_per_vertex_buffer,
+                        per_vertex_buffer: &self.quad_per_vertex_buffer,
                         per_instance_buffer: render_mgr
                             .create_single_frame_vertex_buffer_without_contents(
                                 size as BufferAddress,
@@ -409,7 +301,7 @@ impl<'a> System<'a> for RenderSystem {
                     pipeline: render_mgr
                         .allocate_pipeline::<SpriteRenderPipelineFactoryProvider>(&renderer.shader),
                     bind_group: renderer.bind_group(),
-                    per_vertex_buffer: &self.sprite_per_vertex_buffer,
+                    per_vertex_buffer: &self.quad_per_vertex_buffer,
                     per_instance_buffer: render_mgr
                         .create_single_frame_vertex_buffer_without_contents(size as BufferAddress),
                     per_instance_data: render_mgr
@@ -423,7 +315,7 @@ impl<'a> System<'a> for RenderSystem {
                 render_requests.push(request);
             }
 
-            render_pass.set_bind_group(0, &camera_bind_groups[index], &[]);
+            render_pass.set_bind_group(0, camera.bind_group(), &[]);
             render_request_indices.par_sort_unstable();
 
             let mut index = 0;
@@ -489,210 +381,6 @@ impl<'a> System<'a> for RenderSystem {
 
                 index += instance_count;
             }
-
-            // OLD: Below is old.
-
-            // let mut last_pipeline = None;
-
-            // for &RenderRequestIndex { request_index, .. } in &render_request_indices {
-            //     let request = &render_requests[request_index as usize];
-
-            //     if match last_pipeline {
-            //         Some(pipeline) => pipeline != &request.pipeline,
-            //         None => true,
-            //     } {
-            //         last_pipeline = Some(&request.pipeline);
-            //         render_pass.set_pipeline(&request.pipeline);
-            //         render_pass.set_vertex_buffer(0, request.per_vertex_buffer.slice(..));
-            //     }
-
-            //     render_pass.set_bind_group(1, request.bind_group, &[]);
-            //     render_pass.set_vertex_buffer(1, request.per_instance_buffer.as_slice());
-            //     render_pass.draw(0..6, 0..1);
-            // }
-
-            // let camera_transform_index = camera_transform.index();
-            // let world_to_ndc = transform_mgr
-            //     .transform_world_matrix(camera_transform_index)
-            //     .inversed()
-            //     * Mat33::affine_scale(Vec2::new(1f32 / width_half, 1f32 / height_half));
-            // let ndc_to_world = Mat33::affine_scale(Vec2::new(width_half, height_half))
-            //     * transform_mgr.transform_world_matrix(camera_transform_index);
-
-            // let mut buffers = bump_vec![in &self.extra_bump];
-            // let mut renderers = bump_vec![in &self.extra_bump];
-            // let sdf_inset = glyph_mgr.sdf_inset();
-
-            // for (transform, size, renderer) in (&transform, &size, &mut glyph_renderer).join() {
-            //     if !Layer::has_overlap(camera.layer, renderer.layer) {
-            //         return;
-            //     }
-
-            //     let size = size.size;
-            //     let color = renderer.color;
-            //     let thickness = renderer.thickness;
-            //     let smoothness = renderer.smoothness;
-            //     let layout_size = renderer.compute_size();
-            //     let (horizontal_align, vertical_align) = (
-            //         match renderer.config().horizontal_align {
-            //             HorizontalAlign::Left => 0f32,
-            //             HorizontalAlign::Center => 0.5f32,
-            //             HorizontalAlign::Right => 1f32,
-            //         },
-            //         match renderer.config().vertical_align {
-            //             VerticalAlign::Top => 0f32,
-            //             VerticalAlign::Middle => 0.5f32,
-            //             VerticalAlign::Bottom => 1f32,
-            //         },
-            //     );
-            //     let overflow_offset =
-            //         Vec2::new((size.width * 0.5) as f32, (size.height * 0.5) as f32);
-            //     let alignment_offset = Vec2::new(
-            //         (size.width - layout_size.width) * horizontal_align,
-            //         (size.height - layout_size.height) * vertical_align,
-            //     );
-            //     let offset = alignment_offset - overflow_offset;
-            //     let matrix = transform_mgr.transform_world_matrix(transform.index());
-            //     let mut texture_and_buffers = bump_vec![in &self.extra_bump];
-
-            //     let (font, layout) = renderer.font_and_layout();
-
-            //     for glyph in layout.glyphs() {
-            //         let g = glyph_mgr.glyph(font, glyph.key);
-            //         let mut buffer = render_mgr.alloc_buffer();
-
-            //         let font_width_scale = if g.mapping.width() as usize == 2 * sdf_inset {
-            //             0f32
-            //         } else {
-            //             glyph.width as f32 / (g.mapping.width() as usize - 2 * sdf_inset) as f32
-            //         };
-            //         let font_height_scale = if g.mapping.height() as usize == 2 * sdf_inset {
-            //             0f32
-            //         } else {
-            //             glyph.height as f32 / (g.mapping.height() as usize - 2 * sdf_inset) as f32
-            //         };
-
-            //         let glyph_width =
-            //             glyph.width as f32 + 2f32 * font_width_scale * sdf_inset as f32;
-            //         let glyph_height =
-            //             glyph.height as f32 + 2f32 * font_height_scale * sdf_inset as f32;
-            //         let matrix = (Mat33::affine_translation(Vec2::new(
-            //             glyph.x + offset.x - sdf_inset as f32 * font_width_scale,
-            //             glyph.y - offset.y - sdf_inset as f32 * font_height_scale,
-            //         )) * matrix)
-            //             .into_elements();
-
-            //         buffer.replace(&[
-            //             matrix[0],
-            //             matrix[1],
-            //             matrix[2],
-            //             matrix[3],
-            //             matrix[4],
-            //             matrix[5],
-            //             matrix[6],
-            //             matrix[7],
-            //             matrix[8],
-            //             glyph_width,
-            //             glyph_height,
-            //             color.r,
-            //             color.g,
-            //             color.b,
-            //             color.a,
-            //             thickness,
-            //             smoothness,
-            //             (g.mapping.min().0 as f32) / g.texture.width() as f32,
-            //             (g.mapping.min().1 as f32) / g.texture.height() as f32,
-            //             (g.mapping.max().0 as f32) / g.texture.width() as f32,
-            //             (g.mapping.max().1 as f32) / g.texture.height() as f32,
-            //         ]);
-
-            //         texture_and_buffers.push((g.texture.handle(), buffer));
-            //     }
-
-            //     let shader = &renderer.shader;
-            //     let mut r = Renderer::new(&self.renderer_bump);
-
-            //     // TODO: Merge instances that have the same texture to reduce draw calls.
-
-            //     for (texture, buffer) in texture_and_buffers {
-            //         r.enqueue(1, 2, RenderMode::Trangles, shader, |req| {
-            //             render_mgr.apply_common_shader_input(shader, req);
-
-            //             // TODO: Add shader type checking logic to alert if types have no match.
-
-            //             if let Some(uniform) = shader.uniform("camera") {
-            //                 req.uniform_f33(uniform.location, world_to_ndc.elements().clone());
-            //             }
-            //             if let Some(uniform) = shader.uniform("glyph") {
-            //                 req.uniform_texture_raw(uniform.location, texture);
-            //             }
-
-            //             if let Some(attribute) = shader.attribute("pos") {
-            //                 req.attribute(attribute.location, &self.glyph_buffer, 0, attribute.ty);
-            //             }
-            //             if let Some(attribute) = shader.attribute("uv") {
-            //                 req.attribute(
-            //                     attribute.location,
-            //                     &self.glyph_buffer,
-            //                     (size_of::<f32>() * 2) as _,
-            //                     attribute.ty,
-            //                 );
-            //             }
-
-            //             if let Some(attribute) = shader.attribute("transform") {
-            //                 req.attribute_per_instance(
-            //                     attribute.location,
-            //                     &buffer,
-            //                     0,
-            //                     attribute.ty,
-            //                 );
-            //             }
-            //             if let Some(attribute) = shader.attribute("size") {
-            //                 req.attribute_per_instance(
-            //                     attribute.location,
-            //                     &buffer,
-            //                     (size_of::<f32>() * 9) as _,
-            //                     attribute.ty,
-            //                 );
-            //             }
-            //             if let Some(attribute) = shader.attribute("color") {
-            //                 req.attribute_per_instance(
-            //                     attribute.location,
-            //                     &buffer,
-            //                     (size_of::<f32>() * 11) as _,
-            //                     attribute.ty,
-            //                 );
-            //             }
-            //             if let Some(attribute) = shader.attribute("thickness") {
-            //                 req.attribute_per_instance(
-            //                     attribute.location,
-            //                     &buffer,
-            //                     (size_of::<f32>() * 15) as _,
-            //                     attribute.ty,
-            //                 );
-            //             }
-            //             if let Some(attribute) = shader.attribute("smoothness") {
-            //                 req.attribute_per_instance(
-            //                     attribute.location,
-            //                     &buffer,
-            //                     (size_of::<f32>() * 16) as _,
-            //                     attribute.ty,
-            //                 );
-            //             }
-            //             if let Some(attribute) = shader.attribute("uv_rect") {
-            //                 req.attribute_per_instance(
-            //                     attribute.location,
-            //                     &buffer,
-            //                     (size_of::<f32>() * 17) as _,
-            //                     attribute.ty,
-            //                 );
-            //             }
-            //         });
-            //         buffers.push(buffer);
-            //     }
-
-            //     renderers.push((renderer.order, r));
-            // }
 
             // // for (transform, size, renderer) in (&transform, &size, &nine_patch_renderer).join() {
             // //     if !Layer::has_overlap(camera.layer, renderer.layer) {
@@ -1386,19 +1074,10 @@ impl<'a> System<'a> for RenderSystem {
             // }
         }
 
-        let encoders = [
-            render_mgr.submit_frame_memory_allocation().finish(),
-            encoder.finish(),
-        ];
+        let encoders = [render_mgr.submit_buffer_write().finish(), encoder.finish()];
         render_mgr.queue().submit(encoders);
         surface_texture.present();
     }
-}
-
-struct CameraWithTransformBuffer<'c> {
-    pub camera: &'c Camera,
-    pub transform: &'c Transform,
-    pub transform_buffer: DeviceAllocation,
 }
 
 struct RenderRequest<'r> {

@@ -236,6 +236,7 @@ impl LuaUserData for EntityBuilder {
 
             if let Some(param) = this.camera_params.take() {
                 let camera = Camera::new(
+                    &render_mgr,
                     param.layer,
                     param.order,
                     param.clear_mode,

@@ -9,42 +9,25 @@ pub use single_device_memory_allocator::*;
 pub use single_host_memory_allocator::*;
 
 use crate::GfxContext;
-use std::{mem::replace, num::NonZeroU64};
+use std::num::NonZeroU64;
 use wgpu::{util::StagingBelt, BufferAddress, BufferUsages, CommandEncoder};
 
 pub struct FrameMemoryAllocator {
-    encoder: CommandEncoder,
-    staging_belt: StagingBelt,
     host_allocator: HostMemoryAllocator,
     vertex_allocator: DeviceMemoryAllocator,
     uniform_allocator: DeviceMemoryAllocator,
 }
 
 impl FrameMemoryAllocator {
-    pub fn new(gfx_context: &GfxContext) -> Self {
+    pub fn new() -> Self {
         Self {
-            encoder: gfx_context
-                .device
-                .create_command_encoder(&Default::default()),
-            staging_belt: StagingBelt::new(8 * DeviceMemoryAllocator::PAGE_SIZE),
             host_allocator: HostMemoryAllocator::new(),
             vertex_allocator: DeviceMemoryAllocator::new(BufferUsages::VERTEX),
             uniform_allocator: DeviceMemoryAllocator::new(BufferUsages::UNIFORM),
         }
     }
 
-    pub fn submit(&mut self, gfx_context: &GfxContext) -> CommandEncoder {
-        self.staging_belt.finish();
-        replace(
-            &mut self.encoder,
-            gfx_context
-                .device
-                .create_command_encoder(&Default::default()),
-        )
-    }
-
     pub fn release(&mut self) {
-        self.staging_belt.recall();
         self.host_allocator.release();
         self.vertex_allocator.release();
         self.uniform_allocator.release();
@@ -64,17 +47,15 @@ impl FrameMemoryAllocator {
     pub fn allocate_vertex_buffer<T>(
         &mut self,
         gfx_context: &GfxContext,
+        encoder: &mut CommandEncoder,
+        staging_belt: &mut StagingBelt,
         contents: &[T],
     ) -> DeviceAllocation
     where
         T: Sized,
     {
-        self.vertex_allocator.allocate(
-            gfx_context,
-            &mut self.encoder,
-            &mut self.staging_belt,
-            contents,
-        )
+        self.vertex_allocator
+            .allocate(gfx_context, encoder, staging_belt, contents)
     }
 
     pub fn allocate_vertex_buffer_without_contents(
@@ -89,22 +70,22 @@ impl FrameMemoryAllocator {
     pub fn allocate_uniform_buffer<T>(
         &mut self,
         gfx_context: &GfxContext,
+        encoder: &mut CommandEncoder,
+        staging_belt: &mut StagingBelt,
         contents: &[T],
     ) -> DeviceAllocation
     where
         T: Sized,
     {
-        self.uniform_allocator.allocate(
-            gfx_context,
-            &mut self.encoder,
-            &mut self.staging_belt,
-            contents,
-        )
+        self.uniform_allocator
+            .allocate(gfx_context, encoder, staging_belt, contents)
     }
 
     pub fn write_device_allocation<T>(
         &mut self,
         gfx_context: &GfxContext,
+        encoder: &mut CommandEncoder,
+        staging_belt: &mut StagingBelt,
         allocation: &DeviceAllocation,
         contents: &[T],
     ) where
@@ -113,9 +94,9 @@ impl FrameMemoryAllocator {
         let (_lhs, contents, _rhs) = unsafe { contents.align_to() };
         debug_assert!(_lhs.len() == 0);
         debug_assert!(_rhs.len() == 0);
-        self.staging_belt
+        staging_belt
             .write_buffer(
-                &mut self.encoder,
+                encoder,
                 allocation.buffer(),
                 allocation.offset(),
                 NonZeroU64::new(contents.len() as BufferAddress).unwrap(),
