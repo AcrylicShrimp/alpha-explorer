@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use itertools::Itertools;
 use thiserror::Error;
 use wgpu::{
@@ -49,14 +47,13 @@ impl GfxContext {
                         wgpu::Limits::downlevel_defaults()
                     },
                 },
-                Some(&PathBuf::from("/Users/ashrimp/Devel/alpha-explorer/_trace")),
+                None,
             )
             .await?;
 
         let window_inner_size = window.inner_size();
         let surface_config = SurfaceConfiguration {
             usage: TextureUsages::RENDER_ATTACHMENT,
-            // format: surface.get_supported_formats(adapter)[0],
             format: TextureFormat::Bgra8Unorm,
             width: window_inner_size.width,
             height: window_inner_size.height,
@@ -94,8 +91,6 @@ fn select_adapter(surface: &Surface, adapters: impl AsRef<[Adapter]>) -> Option<
         }
 
         let info = adapter.get_info();
-        println!("Using {} ({:?})", info.name, info.backend);
-
         let device_score = match info.device_type {
             DeviceType::IntegratedGpu => 10,
             DeviceType::DiscreteGpu => 20,
