@@ -14,10 +14,7 @@ pub struct EventManager {
 
 impl EventManager {
     pub fn new() -> Self {
-        Self {
-            dispatcher: EventDispatcher::new(),
-            entity_dispatcher: HashMap::new().into(),
-        }
+        Default::default()
     }
 
     pub fn dispatcher(&self) -> &EventDispatcher {
