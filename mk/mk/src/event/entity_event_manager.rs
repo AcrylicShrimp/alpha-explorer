@@ -89,7 +89,7 @@ impl EntityEventManager {
         }
 
         let key = EntityEventKey::new(entity, event.name());
-        if let Some(handlers) = per_entity.get_mut(&key) {
+        if let Some(handlers) = per_entity.get(&key) {
             for handler in handlers {
                 match handler.handle(entity, event, lua) {
                     Ok(..) => {}
