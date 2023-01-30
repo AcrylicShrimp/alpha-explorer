@@ -1,4 +1,5 @@
 use crate::script::api::LuaApiTable;
+use codegen::Event;
 use mlua::prelude::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -57,7 +58,8 @@ impl LuaUserData for SubDiagnostic {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Event, Debug, Clone)]
+#[event_name("__diagnostic__")]
 pub struct Diagnostic {
     pub level: DiagnosticLevel,
     pub message: String,

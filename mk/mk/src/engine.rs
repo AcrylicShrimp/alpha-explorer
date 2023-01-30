@@ -2,9 +2,9 @@ use crate::asset::*;
 use crate::emit_diagnostic_info;
 use crate::event::*;
 use crate::log_diagnostic_event;
+use crate::script::event::Diagnostic;
 use crate::structure::Vec2;
 use crate::system::*;
-use crate::util::*;
 use crate::EngineContext;
 use crate::GfxContext;
 use anyhow::Context;
@@ -56,29 +56,17 @@ pub async fn run(
         CONTEXT.write(context.clone());
     }
 
-    // context.event_mgr()
-    //     .dispatcher()
-    //     .add_listener(TypedEventListener::Native(BoxId::from_box(Box::new(
-    //         |event: &crate::script::event::PerEntity| {
-    //             if let Err(err) = use_context().entity_event_mgr().emit(use_context().lua_mgr().lua(), event) {
-    //                 emit_diagnostic_error!(format!(
-    //                     "an error occurred while handing entity event {{entity={:?}; event={}}}: {}",
-    //                     event.entity, event.event, err
-    //                 ));
-    //             }
-    //         },
-    //     ))));
-
     #[cfg(debug_assertions)]
     {
-        context
-            .event_mgr()
-            .dispatcher()
-            .add_listener(TypedEventListener::Native(BoxId::from_box(Box::new(
-                |event: &crate::script::event::Diagnostic| {
+        context.event_mgr().add_handler(
+            Diagnostic::name(),
+            EventHandler::native(|event| {
+                if let Some(event) = event.downcast_ref::<Diagnostic>() {
                     log_diagnostic_event(event);
-                },
-            ))));
+                }
+                Ok(())
+            }),
+        );
     }
 
     emit_diagnostic_info!(format!("configuring built-in systems."));
@@ -99,48 +87,48 @@ pub async fn run(
             context.ui_mgr_mut().update_elements();
             context.transform_mgr_mut().update_world_matrices();
 
-            context
-                .event_mgr()
-                .dispatcher()
-                .emit(&crate::script::event::PreUpdate {
+            context.event_mgr().emit(
+                &crate::script::event::PreUpdate {
                     dt: context.time_mgr().dt_f64(),
-                });
-            context
-                .event_mgr()
-                .dispatcher()
-                .emit(&crate::script::event::Update {
+                },
+                context.script_mgr().lua(),
+            );
+            context.event_mgr().emit(
+                &crate::script::event::Update {
                     dt: context.time_mgr().dt_f64(),
-                });
-            context
-                .event_mgr()
-                .dispatcher()
-                .emit(&crate::script::event::PostUpdate {
+                },
+                context.script_mgr().lua(),
+            );
+            context.event_mgr().emit(
+                &crate::script::event::PostUpdate {
                     dt: context.time_mgr().dt_f64(),
-                });
+                },
+                context.script_mgr().lua(),
+            );
         }
     };
 
     let mut systems_render = {
         let context = context.clone();
         move |skip_render: bool| {
-            context
-                .event_mgr()
-                .dispatcher()
-                .emit(&crate::script::event::PreRender {
+            context.event_mgr().emit(
+                &crate::script::event::PreRender {
                     dt: context.time_mgr().dt_f64(),
-                });
+                },
+                context.script_mgr().lua(),
+            );
 
             if !skip_render {
                 context.render_mgr().update_uniforms(&context);
                 render_system.run_now(&context.world());
             }
 
-            context
-                .event_mgr()
-                .dispatcher()
-                .emit(&crate::script::event::PostRender {
+            context.event_mgr().emit(
+                &crate::script::event::PostRender {
                     dt: context.time_mgr().dt_f64(),
-                });
+                },
+                context.script_mgr().lua(),
+            );
 
             context.screen_mgr_mut().reset_dirty();
         }
@@ -224,16 +212,16 @@ pub async fn run(
                 if let Some(key) = input.virtual_keycode {
                     match input.state {
                         ElementState::Pressed => {
-                            context
-                                .event_mgr()
-                                .dispatcher()
-                                .emit(&crate::script::event::KeyDown::from_key(key));
+                            context.event_mgr().emit(
+                                &crate::script::event::KeyDown::from_key(key),
+                                context.script_mgr().lua(),
+                            );
                         }
                         ElementState::Released => {
-                            context
-                                .event_mgr()
-                                .dispatcher()
-                                .emit(&crate::script::event::KeyUp::from_key(key));
+                            context.event_mgr().emit(
+                                &crate::script::event::KeyUp::from_key(key),
+                                context.script_mgr().lua(),
+                            );
                         }
                     }
                 }
@@ -244,10 +232,10 @@ pub async fn run(
                 event: WindowEvent::CursorEntered { .. },
                 window_id: id,
             } if id == window_id => {
-                context
-                    .event_mgr()
-                    .dispatcher()
-                    .emit(&crate::script::event::PointerEnter);
+                context.event_mgr().emit(
+                    &crate::script::event::PointerEnter,
+                    context.script_mgr().lua(),
+                );
 
                 return;
             }
@@ -255,10 +243,10 @@ pub async fn run(
                 event: WindowEvent::CursorLeft { .. },
                 window_id: id,
             } if id == window_id => {
-                context
-                    .event_mgr()
-                    .dispatcher()
-                    .emit(&crate::script::event::PointerExit);
+                context.event_mgr().emit(
+                    &crate::script::event::PointerExit,
+                    context.script_mgr().lua(),
+                );
                 context.ui_event_mgr_mut().handle_mouse_exit();
 
                 return;
@@ -269,13 +257,13 @@ pub async fn run(
             } if id == window_id => {
                 let position = position.to_logical(context.screen_mgr().scale_factor());
 
-                context
-                    .event_mgr()
-                    .dispatcher()
-                    .emit(&crate::script::event::PointerMove {
+                context.event_mgr().emit(
+                    &crate::script::event::PointerMove {
                         pointer_x: position.x,
                         pointer_y: position.y,
-                    });
+                    },
+                    context.script_mgr().lua(),
+                );
                 context
                     .ui_event_mgr_mut()
                     .handle_mouse_move(Vec2::new(position.x as f32, position.y as f32));
@@ -295,21 +283,21 @@ pub async fn run(
 
                 match state {
                     ElementState::Pressed => {
-                        context
-                            .event_mgr()
-                            .dispatcher()
-                            .emit(&crate::script::event::PointerDown {
+                        context.event_mgr().emit(
+                            &crate::script::event::PointerDown {
                                 button: button_name,
-                            });
+                            },
+                            context.script_mgr().lua(),
+                        );
                         context.ui_event_mgr_mut().handle_mouse_button_down(button);
                     }
                     ElementState::Released => {
-                        context
-                            .event_mgr()
-                            .dispatcher()
-                            .emit(&crate::script::event::PointerUp {
+                        context.event_mgr().emit(
+                            &crate::script::event::PointerUp {
                                 button: button_name,
-                            });
+                            },
+                            context.script_mgr().lua(),
+                        );
                         context.ui_event_mgr_mut().handle_mouse_button_up(button);
                     }
                 }

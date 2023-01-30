@@ -1,13 +1,16 @@
+use downcast_rs::{impl_downcast, Downcast};
 use mlua::prelude::*;
 use std::any::Any;
 
 pub trait Event
 where
-    Self: ParamsToLuaTable,
+    Self: Downcast + ParamsToLuaTable,
 {
     fn name(&self) -> &str;
     fn param(&self, param_name: &str) -> Option<&dyn Any>;
 }
+
+impl_downcast!(Event);
 
 pub trait ParamsToLuaTable {
     fn params_to_lua_table<'lua>(&self, lua: &'lua Lua) -> LuaResult<LuaTable<'lua>>;

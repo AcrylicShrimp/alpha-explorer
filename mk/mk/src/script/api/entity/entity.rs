@@ -11,7 +11,7 @@ use mlua::prelude::*;
 use smartstring::SmartString;
 use specs::WorldExt;
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Entity(pub specs::Entity);
 
 impl Entity {

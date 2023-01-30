@@ -1,4 +1,5 @@
 use crate::script::api::LuaApiTable;
+use codegen::Event;
 use mlua::prelude::*;
 use winit::event::VirtualKeyCode;
 
@@ -170,7 +171,8 @@ fn keycode_to_str(keycode: VirtualKeyCode) -> &'static str {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Event, Debug, Clone, Copy)]
+#[event_name("key_down")]
 pub struct KeyDown {
     pub key: &'static str,
 }
@@ -199,7 +201,8 @@ impl LuaUserData for KeyDown {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Event, Debug, Clone, Copy)]
+#[event_name("key_up")]
 pub struct KeyUp {
     pub key: &'static str,
 }
@@ -228,7 +231,8 @@ impl LuaUserData for KeyUp {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Event, Debug, Clone, Copy)]
+#[event_name("pointer_enter")]
 pub struct PointerEnter;
 
 impl LuaApiTable for PointerEnter {
@@ -243,7 +247,8 @@ impl LuaApiTable for PointerEnter {
 
 impl LuaUserData for PointerEnter {}
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Event, Debug, Clone, Copy)]
+#[event_name("pointer_enter")]
 pub struct PointerExit;
 
 impl LuaApiTable for PointerExit {
@@ -258,7 +263,8 @@ impl LuaApiTable for PointerExit {
 
 impl LuaUserData for PointerExit {}
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Event, Debug, Clone, Copy)]
+#[event_name("pointer_move")]
 pub struct PointerMove {
     pub pointer_x: f64,
     pub pointer_y: f64,
@@ -281,7 +287,8 @@ impl LuaUserData for PointerMove {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Event, Debug, Clone, Copy)]
+#[event_name("pointer_down")]
 pub struct PointerDown {
     pub button: &'static str,
 }
@@ -302,7 +309,8 @@ impl LuaUserData for PointerDown {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Event, Debug, Clone, Copy)]
+#[event_name("pointer_up")]
 pub struct PointerUp {
     pub button: &'static str,
 }

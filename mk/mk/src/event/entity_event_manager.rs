@@ -10,7 +10,7 @@ use std::{
 
 #[derive(Default)]
 pub struct EntityEventManager {
-    per_entity: RefCell<HashMap<EntityEventKey, Vec<EntityEventHandler>>>,
+    per_event_key: RefCell<HashMap<EntityEventKey, Vec<EntityEventHandler>>>,
     added_handlers: RefCell<Vec<(EntityEventKey, EntityEventHandler)>>,
     removed_handlers: RefCell<Vec<(EntityEventKey, EntityEventHandler)>>,
 }
@@ -32,7 +32,7 @@ impl EntityEventManager {
             .borrow_mut()
             .retain(|(k, h)| k != &key || h != &handler);
 
-        if let Ok(mut per_entity) = self.per_entity.try_borrow_mut() {
+        if let Ok(mut per_entity) = self.per_event_key.try_borrow_mut() {
             per_entity.entry(key).or_default().push(handler.clone());
         } else {
             self.added_handlers
@@ -55,8 +55,8 @@ impl EntityEventManager {
             .borrow_mut()
             .retain(|(k, h)| k != &key || h != &handler);
 
-        if let Ok(mut per_entity) = self.per_entity.try_borrow_mut() {
-            if let Some(handlers) = per_entity.get_mut(&key) {
+        if let Ok(mut per_event_key) = self.per_event_key.try_borrow_mut() {
+            if let Some(handlers) = per_event_key.get_mut(&key) {
                 handlers.retain(|h| h != &handler);
             }
         } else {
@@ -65,12 +65,12 @@ impl EntityEventManager {
     }
 
     pub fn emit(&self, entity: Entity, event: &dyn Event, lua: &Lua) {
-        let mut per_entity = self.per_entity.borrow_mut();
+        let mut per_event_key = self.per_event_key.borrow_mut();
 
         {
             let mut added_handlers = self.added_handlers.borrow_mut();
             for (key, handler) in added_handlers.drain(..) {
-                match per_entity.entry(key) {
+                match per_event_key.entry(key) {
                     Entry::Occupied(mut entry) => entry.get_mut().push(handler),
                     Entry::Vacant(entry) => {
                         entry.insert(vec![handler]);
@@ -82,14 +82,14 @@ impl EntityEventManager {
         {
             let mut removed_handlers = self.removed_handlers.borrow_mut();
             for (key, handler) in removed_handlers.drain(..) {
-                if let Some(handlers) = per_entity.get_mut(&key) {
+                if let Some(handlers) = per_event_key.get_mut(&key) {
                     handlers.retain(|h| h != &handler);
                 }
             }
         }
 
         let key = EntityEventKey::new(entity, event.name());
-        if let Some(handlers) = per_entity.get(&key) {
+        if let Some(handlers) = per_event_key.get(&key) {
             for handler in handlers {
                 match handler.handle(entity, event, lua) {
                     Ok(..) => {}

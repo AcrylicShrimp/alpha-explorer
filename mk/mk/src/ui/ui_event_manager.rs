@@ -1,8 +1,11 @@
 use crate::component::{Camera, Transform};
 use crate::engine::use_context;
-use crate::script::event::PerEntity;
+use crate::event::NativeEvent;
+use crate::script::event::{
+    UIDragBegin, UIDragDrop, UIDragEnd, UIFocusIn, UIFocusOut, UIMouseDown, UIMouseEnter,
+    UIMouseExit, UIMouseMove, UIMouseUp,
+};
 use crate::structure::Vec2;
-use mlua::prelude::*;
 use specs::prelude::*;
 use winit::event::MouseButton;
 
@@ -34,12 +37,7 @@ impl UIEventManager {
 
     pub fn handle_mouse_exit(&mut self) {
         if let Some(mouse_in_entity) = self.mouse_in.take() {
-            let context = use_context();
-            context.event_mgr().dispatcher().emit(&PerEntity {
-                entity: mouse_in_entity,
-                event: "mouse-exit".to_owned(),
-                param: LuaNil,
-            })
+            emit_event(mouse_in_entity, &UIMouseExit);
         }
         self.last_mouse_position = None;
     }
@@ -65,42 +63,34 @@ impl UIEventManager {
             Some(entity) => {
                 if let Some(mouse_in_entity) = self.mouse_in {
                     if entity != mouse_in_entity {
-                        context.event_mgr().dispatcher().emit(&PerEntity {
-                            entity: mouse_in_entity,
-                            event: "mouse-exit".to_owned(),
-                            param: LuaNil,
-                        });
-                        context.event_mgr().dispatcher().emit(&PerEntity {
+                        emit_event(mouse_in_entity, &UIMouseExit);
+                        emit_event(
                             entity,
-                            event: "mouse-enter".to_owned(),
-                            param: LuaNil,
-                        });
+                            &UIMouseEnter {
+                                mouse_position: point_in_screen,
+                            },
+                        );
                     }
                 } else {
-                    context.event_mgr().dispatcher().emit(&PerEntity {
+                    emit_event(
                         entity,
-                        event: "mouse-enter".to_owned(),
-                        param: LuaNil,
-                    });
+                        &UIMouseEnter {
+                            mouse_position: point_in_screen,
+                        },
+                    );
                 }
 
                 self.mouse_in = Some(entity);
-
-                context.event_mgr().dispatcher().emit(&PerEntity {
+                emit_event(
                     entity,
-                    event: "mouse-move".to_owned(),
-                    param: EventMouseMove {
+                    &UIMouseMove {
                         mouse_position: point_in_screen,
                     },
-                });
+                );
             }
             None => {
                 if let Some(mouse_in_entity) = self.mouse_in.take() {
-                    context.event_mgr().dispatcher().emit(&PerEntity {
-                        entity: mouse_in_entity,
-                        event: "mouse-exit".to_owned(),
-                        param: LuaNil,
-                    });
+                    emit_event(mouse_in_entity, &UIMouseExit);
                 }
             }
         }
@@ -112,11 +102,9 @@ impl UIEventManager {
         }) {
             Some((entity, mouse_button)) if self.mouse_drag.is_none() => {
                 self.mouse_drag = Some(MouseDrag { entity });
-
-                context.event_mgr().dispatcher().emit(&PerEntity {
+                emit_event(
                     entity,
-                    event: "drag-begin".to_owned(),
-                    param: EventDragBegin {
+                    &UIDragBegin {
                         mouse_position: point_in_screen,
                         mouse_button: match mouse_button {
                             MouseButton::Left => "left",
@@ -125,7 +113,7 @@ impl UIEventManager {
                             MouseButton::Other(_) => "other",
                         },
                     },
-                });
+                );
             }
             _ => {}
         }
@@ -137,24 +125,14 @@ impl UIEventManager {
         self.mouse_down = None;
 
         if let Some(mouse_drag) = self.mouse_drag.take() {
-            let context = use_context();
-            context.event_mgr().dispatcher().emit(&PerEntity {
-                entity: mouse_drag.entity,
-                event: "drag-end".to_owned(),
-                param: LuaNil,
-            });
+            emit_event(mouse_drag.entity, &UIDragEnd);
         }
 
         let last_mouse_position = match self.last_mouse_position {
             Some(last_mouse_position) => last_mouse_position,
             None => {
                 if let Some(focus_entity) = self.focus.take() {
-                    let context = use_context();
-                    context.event_mgr().dispatcher().emit(&PerEntity {
-                        entity: focus_entity,
-                        event: "focus-out".to_owned(),
-                        param: LuaNil,
-                    });
+                    emit_event(focus_entity, &UIFocusOut);
                 }
                 return;
             }
@@ -184,24 +162,15 @@ impl UIEventManager {
 
                 if let Some(focus_entity) = self.focus {
                     if entity != focus_entity {
-                        context.event_mgr().dispatcher().emit(&PerEntity {
-                            entity: focus_entity,
-                            event: "focus-out".to_owned(),
-                            param: LuaNil,
-                        });
-                        context.event_mgr().dispatcher().emit(&PerEntity {
-                            entity,
-                            event: "focus-in".to_owned(),
-                            param: LuaNil,
-                        });
                         self.focus = Some(entity);
+                        emit_event(focus_entity, &UIFocusOut);
+                        emit_event(entity, &UIFocusIn);
                     }
                 }
 
-                context.event_mgr().dispatcher().emit(&PerEntity {
+                emit_event(
                     entity,
-                    event: "mouse-down".to_owned(),
-                    param: EventMouseDown {
+                    &UIMouseDown {
                         mouse_position: last_mouse_position,
                         mouse_button: match button {
                             MouseButton::Left => "left",
@@ -210,7 +179,7 @@ impl UIEventManager {
                             MouseButton::Other(_) => "other",
                         },
                     },
-                });
+                );
             }
             None => {
                 self.mouse_down = Some(MouseDown {
@@ -219,11 +188,7 @@ impl UIEventManager {
                 });
 
                 if let Some(focus_entity) = self.focus.take() {
-                    context.event_mgr().dispatcher().emit(&PerEntity {
-                        entity: focus_entity,
-                        event: "focus-out".to_owned(),
-                        param: LuaNil,
-                    });
+                    emit_event(focus_entity, &UIFocusOut);
                 }
             }
         }
@@ -236,19 +201,7 @@ impl UIEventManager {
             Some(last_mouse_position) => last_mouse_position,
             None => {
                 if let Some(mouse_drag) = self.mouse_drag.take() {
-                    let context = use_context();
-                    context.event_mgr().dispatcher().emit(&PerEntity {
-                        entity: mouse_drag.entity,
-                        event: "drag-end".to_owned(),
-                        param: EventDragEnd {
-                            mouse_button: match button {
-                                MouseButton::Left => "left",
-                                MouseButton::Right => "right",
-                                MouseButton::Middle => "middle",
-                                MouseButton::Other(_) => "other",
-                            },
-                        },
-                    });
+                    emit_event(mouse_drag.entity, &UIDragEnd);
                 }
                 return;
             }
@@ -272,11 +225,11 @@ impl UIEventManager {
         match entity {
             Some(entity) => {
                 if let Some(mouse_drag) = self.mouse_drag.take() {
-                    context.event_mgr().dispatcher().emit(&PerEntity {
-                        entity,
-                        event: "drop".to_owned(),
-                        param: EventDrop {
+                    emit_event(
+                        mouse_drag.entity,
+                        &UIDragDrop {
                             from: crate::script::entity::Entity::new(mouse_drag.entity),
+                            mouse_position: last_mouse_position,
                             mouse_button: match button {
                                 MouseButton::Left => "left",
                                 MouseButton::Right => "right",
@@ -284,25 +237,14 @@ impl UIEventManager {
                                 MouseButton::Other(_) => "other",
                             },
                         },
-                    });
-                    context.event_mgr().dispatcher().emit(&PerEntity {
-                        entity: mouse_drag.entity,
-                        event: "drag-end".to_owned(),
-                        param: EventDragEnd {
-                            mouse_button: match button {
-                                MouseButton::Left => "left",
-                                MouseButton::Right => "right",
-                                MouseButton::Middle => "middle",
-                                MouseButton::Other(_) => "other",
-                            },
-                        },
-                    });
+                    );
+                    emit_event(mouse_drag.entity, &UIDragEnd);
                 }
 
-                context.event_mgr().dispatcher().emit(&PerEntity {
+                emit_event(
                     entity,
-                    event: "mouse-up".to_owned(),
-                    param: EventMouseUp {
+                    &UIMouseUp {
+                        mouse_position: last_mouse_position,
                         mouse_button: match button {
                             MouseButton::Left => "left",
                             MouseButton::Right => "right",
@@ -310,96 +252,25 @@ impl UIEventManager {
                             MouseButton::Other(_) => "other",
                         },
                     },
-                });
+                );
             }
             None => {
                 if let Some(mouse_drag) = self.mouse_drag.take() {
-                    context.event_mgr().dispatcher().emit(&PerEntity {
-                        entity: mouse_drag.entity,
-                        event: "drag-end".to_owned(),
-                        param: EventDragEnd {
-                            mouse_button: match button {
-                                MouseButton::Left => "left",
-                                MouseButton::Right => "right",
-                                MouseButton::Middle => "middle",
-                                MouseButton::Other(_) => "other",
-                            },
-                        },
-                    });
+                    emit_event(mouse_drag.entity, &UIDragEnd);
                 }
             }
         }
     }
 }
 
-#[derive(Clone)]
-pub struct EventMouseDown {
-    pub mouse_position: Vec2,
-    pub mouse_button: &'static str,
-}
-
-impl LuaUserData for EventMouseDown {
-    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
-        fields.add_field_method_get("mouse_position", |_lua, this| Ok(this.mouse_position));
-        fields.add_field_method_get("mouse_button", |_lua, this| Ok(this.mouse_button));
-    }
-}
-
-#[derive(Clone)]
-pub struct EventMouseUp {
-    pub mouse_button: &'static str,
-}
-
-impl LuaUserData for EventMouseUp {
-    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
-        fields.add_field_method_get("mouse_button", |_lua, this| Ok(this.mouse_button));
-    }
-}
-
-#[derive(Clone)]
-pub struct EventMouseMove {
-    pub mouse_position: Vec2,
-}
-
-impl LuaUserData for EventMouseMove {
-    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
-        fields.add_field_method_get("mouse_position", |_lua, this| Ok(this.mouse_position));
-    }
-}
-
-#[derive(Clone)]
-pub struct EventDragBegin {
-    pub mouse_position: Vec2,
-    pub mouse_button: &'static str,
-}
-
-impl LuaUserData for EventDragBegin {
-    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
-        fields.add_field_method_get("mouse_position", |_lua, this| Ok(this.mouse_position));
-        fields.add_field_method_get("mouse_button", |_lua, this| Ok(this.mouse_button));
-    }
-}
-
-#[derive(Clone)]
-pub struct EventDragEnd {
-    pub mouse_button: &'static str,
-}
-
-impl LuaUserData for EventDragEnd {
-    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
-        fields.add_field_method_get("mouse_button", |_lua, this| Ok(this.mouse_button));
-    }
-}
-
-#[derive(Clone)]
-pub struct EventDrop {
-    pub from: crate::script::entity::Entity,
-    pub mouse_button: &'static str,
-}
-
-impl LuaUserData for EventDrop {
-    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
-        fields.add_field_method_get("from", |_lua, this| Ok(this.from));
-        fields.add_field_method_get("mouse_button", |_lua, this| Ok(this.mouse_button));
-    }
+fn emit_event<T>(entity: Entity, event: &T)
+where
+    T: NativeEvent,
+{
+    let context = use_context();
+    context.entity_event_mgr().emit(
+        crate::script::entity::Entity::new(entity),
+        event,
+        context.script_mgr().lua(),
+    );
 }

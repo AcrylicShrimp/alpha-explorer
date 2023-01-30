@@ -2,7 +2,8 @@
 macro_rules! emit_diagnostic {
     ($level:expr, $message:expr) => {
         let (file, line, column) = (file!(), line!(), column!());
-        crate::engine::use_context().event_mgr().dispatcher().emit(
+        let context = crate::engine::use_context();
+        context.event_mgr().emit(
             &crate::script::event::Diagnostic {
                 level: $level,
                 message: $message,
@@ -11,11 +12,13 @@ macro_rules! emit_diagnostic {
                 line,
                 column,
             },
+            context.script_mgr().lua(),
         );
     };
     ($level:expr, $message:expr, $sub_diagnostics:expr) => {
         let (file, line, column) = (file!(), line!(), column!());
-        crate::engine::use_context().event_mgr().dispatcher().emit(
+        let context = crate::engine::use_context();
+        context.event_mgr().emit(
             &crate::script::event::Diagnostic {
                 level: $level,
                 message: $message,
@@ -24,6 +27,7 @@ macro_rules! emit_diagnostic {
                 line,
                 column,
             },
+            context.script_mgr().lua(),
         );
     };
 }

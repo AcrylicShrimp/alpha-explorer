@@ -7,22 +7,17 @@ macro_rules! impl_event_listeners {
             "listen",
             $lua.create_function(|lua, handler: mlua::Function| {
                 let event_mgr = crate::engine::use_context().event_mgr();
-                Ok(event_mgr.dispatcher().add_listener::<Self>(
-                    crate::event::TypedEventListener::Script(crate::util::BoxId::new(
-                        lua.create_registry_value(handler)?,
-                    )),
+                Ok(event_mgr.add_handler(
+                    <Self as crate::event::NativeEvent>::name(),
+                    crate::event::EventHandler::lua(crate::script::FFIFunction::new(lua, handler)?),
                 ))
             })?,
         )?;
         $table.set(
             "unlisten",
-            $lua.create_function(|lua, handler: usize| {
+            $lua.create_function(|_lua, handler: crate::event::EventHandler| {
                 let event_mgr = crate::engine::use_context().event_mgr();
-                if let Some(listener) = event_mgr.dispatcher().remove_listener::<Self>(handler) {
-                    if let Ok(handler) = listener.into_inner().downcast::<mlua::RegistryKey>() {
-                        lua.remove_registry_value(*handler)?;
-                    }
-                }
+                event_mgr.remove_handler(<Self as crate::event::NativeEvent>::name(), handler);
                 Ok(())
             })?,
         )?;
@@ -30,15 +25,14 @@ macro_rules! impl_event_listeners {
 }
 
 mod diagnostic;
-mod event;
 mod input;
 mod lifecycles;
-mod per_entity;
+mod ui;
 
 pub use diagnostic::*;
 pub use input::*;
 pub use lifecycles::*;
-pub use per_entity::*;
+pub use ui::*;
 
 pub struct EventModule;
 

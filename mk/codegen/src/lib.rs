@@ -4,7 +4,9 @@ mod lua;
 
 use animation::animation;
 use event::event;
-use lua::{lua_component, lua_component_no_wrapper, lua_expose, lua_handle, lua_rc, lua_struct};
+use lua::{
+    lua_component, lua_component_no_wrapper, lua_enum, lua_expose, lua_handle, lua_rc, lua_struct,
+};
 use proc_macro::TokenStream;
 use proc_macro_error::*;
 
@@ -14,7 +16,7 @@ pub fn _animation(item: TokenStream) -> TokenStream {
     animation(item)
 }
 
-#[proc_macro_derive(Event)]
+#[proc_macro_derive(Event, attributes(event_name))]
 #[proc_macro_error]
 pub fn _event(item: TokenStream) -> TokenStream {
     event(item)
@@ -52,6 +54,12 @@ pub fn _lua_component(item: TokenStream) -> TokenStream {
 #[proc_macro_error]
 pub fn _lua_component_no_wrapper(item: TokenStream) -> TokenStream {
     lua_component_no_wrapper(item)
+}
+
+#[proc_macro_derive(LuaEnum)]
+#[proc_macro_error]
+pub fn _lua_enum(item: TokenStream) -> TokenStream {
+    lua_enum(item)
 }
 
 #[proc_macro]

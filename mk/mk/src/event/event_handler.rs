@@ -1,48 +1,43 @@
 use super::Event;
-use crate::script::{entity::Entity, FFIFunction};
+use crate::script::FFIFunction;
 use anyhow::{Error as AnyError, Result as AnyResult};
 use mlua::prelude::*;
 use std::{fmt::Display, hash::Hash, mem::discriminant, sync::Arc};
 use thiserror::Error;
 
-pub type NativeHandlerFunction = dyn Fn(Entity, &dyn Event) -> AnyResult<()>;
+pub type NativeHandlerFunction = dyn Fn(&dyn Event) -> AnyResult<()>;
 
 #[derive(Clone)]
-pub enum EntityEventHandler {
+pub enum EventHandler {
     LuaEventHandler(FFIFunction),
     NativeEventHandler(Arc<NativeHandlerFunction>),
 }
 
-impl EntityEventHandler {
+impl EventHandler {
     pub fn lua(f: FFIFunction) -> Self {
         Self::LuaEventHandler(f)
     }
 
-    pub fn native(f: impl Fn(Entity, &dyn Event) -> AnyResult<()> + 'static) -> Self {
+    pub fn native(f: impl Fn(&dyn Event) -> AnyResult<()> + 'static) -> Self {
         Self::NativeEventHandler(Arc::new(f))
     }
 
-    pub fn handle<'lua>(
-        &self,
-        entity: Entity,
-        event: &dyn Event,
-        lua: &'lua Lua,
-    ) -> EventHandlingResult<()> {
+    pub fn handle<'lua>(&self, event: &dyn Event, lua: &'lua Lua) -> EventHandlingResult<()> {
         match self {
             Self::LuaEventHandler(f) => {
                 f.as_function(lua)?
-                    .call((entity, event.name(), event.params_to_lua_table(lua)))?;
+                    .call((event.name(), event.params_to_lua_table(lua)))?;
                 Ok(())
             }
             Self::NativeEventHandler(f) => {
-                f(entity, event)?;
+                f(event)?;
                 Ok(())
             }
         }
     }
 }
 
-impl PartialEq for EntityEventHandler {
+impl PartialEq for EventHandler {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::LuaEventHandler(l0), Self::LuaEventHandler(r0)) => l0 == r0,
@@ -54,9 +49,9 @@ impl PartialEq for EntityEventHandler {
     }
 }
 
-impl Eq for EntityEventHandler {}
+impl Eq for EventHandler {}
 
-impl Hash for EntityEventHandler {
+impl Hash for EventHandler {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         discriminant(self).hash(state);
         match self {
@@ -66,20 +61,20 @@ impl Hash for EntityEventHandler {
     }
 }
 
-impl Display for EntityEventHandler {
+impl Display for EventHandler {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            EntityEventHandler::LuaEventHandler(handler) => {
+            EventHandler::LuaEventHandler(handler) => {
                 write!(f, "LuaEventHandler({:?})", handler.as_registry_key())
             }
-            EntityEventHandler::NativeEventHandler(handler) => {
+            EventHandler::NativeEventHandler(handler) => {
                 write!(f, "NativeEventHandler({:p})", handler.as_ref() as *const _)
             }
         }
     }
 }
 
-impl LuaUserData for EntityEventHandler {
+impl LuaUserData for EventHandler {
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
         methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
             Ok(this.to_string())

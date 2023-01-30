@@ -1,7 +1,9 @@
 use crate::script::api::LuaApiTable;
+use codegen::Event;
 use mlua::prelude::*;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Event, Debug, Clone, Copy)]
+#[event_name("__pre_update__")]
 pub struct PreUpdate {
     pub dt: f64,
 }
@@ -22,7 +24,8 @@ impl LuaUserData for PreUpdate {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Event, Debug, Clone, Copy)]
+#[event_name("__update__")]
 pub struct Update {
     pub dt: f64,
 }
@@ -43,7 +46,8 @@ impl LuaUserData for Update {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Event, Debug, Clone, Copy)]
+#[event_name("__post_update__")]
 pub struct PostUpdate {
     pub dt: f64,
 }
@@ -64,7 +68,8 @@ impl LuaUserData for PostUpdate {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Event, Debug, Clone, Copy)]
+#[event_name("__pre_render__")]
 pub struct PreRender {
     pub dt: f64,
 }
@@ -85,7 +90,8 @@ impl LuaUserData for PreRender {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Event, Debug, Clone, Copy)]
+#[event_name("__post_render__")]
 pub struct PostRender {
     pub dt: f64,
 }
