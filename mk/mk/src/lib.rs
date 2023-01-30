@@ -9,9 +9,9 @@ mod engine_context;
 mod engine_diagnostic;
 mod engine_gfx;
 pub mod event;
+pub mod gfx;
 pub mod handles;
 pub mod input;
-pub mod gfx;
 pub mod res;
 pub mod script;
 pub mod structure;
@@ -24,7 +24,7 @@ pub mod util;
 
 pub use engine::run;
 pub use engine_context::EngineContext;
-pub use engine_diagnostic::*;
+pub(crate) use engine_diagnostic::*;
 pub use engine_gfx::*;
 
 #[cfg(test)]
