@@ -48,12 +48,21 @@ impl ScriptManager {
         let lua = Lua::new();
         lua.globals()
             .raw_set("mk", Module::create_api_table(&lua)?)?;
-
         Ok(Self { lua })
     }
 
     pub fn lua(&self) -> &Lua {
         &self.lua
+    }
+
+    pub fn append_api_table<T>(&self, name: impl AsRef<str>) -> Result<()>
+    where
+        T: LuaApiTable,
+    {
+        self.lua
+            .globals()
+            .raw_set(name.as_ref(), T::create_api_table(&self.lua)?)
+            .with_context(|| "unable to append api table")
     }
 
     pub fn execute(&self, chunk: impl AsRef<str>) -> Result<()> {

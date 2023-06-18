@@ -1,4 +1,4 @@
-use rodio::{source::Buffered, Sample, Source};
+use rodio::{cpal::FromSample, source::Buffered, Sample, Source};
 
 pub type RawAudioClip = Buffered<Box<dyn Source<Item = f32> + Send>>;
 
@@ -11,6 +11,7 @@ impl AudioClip {
     where
         T: Source<Item = I> + Send + 'static,
         I: Sample,
+        f32: FromSample<I>,
     {
         Self {
             raw: (Box::new(raw.convert_samples()) as Box<dyn Source<Item = f32> + Send>).buffered(),

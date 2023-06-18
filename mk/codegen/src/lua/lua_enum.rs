@@ -16,8 +16,9 @@ pub fn lua_enum(item: TokenStream) -> TokenStream {
 
     for variant in &input.variants {
         let ident = &variant.ident;
+        let variant_in_str = format!("{}::{}", ty_name, ident);
         to_string_impls.push(quote! {
-            #ty_name::#ident => Ok(stringify!(#ident)),
+            #ty_name::#ident => Ok(#variant_in_str),
         });
         api_table_impls.push(quote! {
             table.set(stringify!(#ident), #ty_name::#ident)?;
@@ -33,6 +34,18 @@ pub fn lua_enum(item: TokenStream) -> TokenStream {
                 methods.add_meta_function(mlua::MetaMethod::Eq, |_lua, (lhs, rhs): (Self, Self)| {
                     Ok(lhs == rhs)
                 });
+            }
+        }
+
+        impl crate::script::ConversionByValueReadOnly for #ty_name {
+            fn perform_convertion_to_lua<'lua>(&self, lua: &'lua mlua::Lua) -> mlua::Result<mlua::Value<'lua>> {
+                <Self as mlua::ToLua>::to_lua(self.clone(), lua)
+            }
+        }
+
+        impl crate::script::ConversionByValue for #ty_name {
+            fn perform_conversion_from_lua<'lua>(value: mlua::Value<'lua>, lua: &'lua mlua::Lua) -> mlua::Result<Self> {
+                <Self as mlua::FromLua>::from_lua(value, lua)
             }
         }
 

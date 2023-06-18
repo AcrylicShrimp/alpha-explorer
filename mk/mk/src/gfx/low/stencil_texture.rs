@@ -24,6 +24,7 @@ impl StencilTexture {
             dimension: TextureDimension::D2,
             format: TextureFormat::Depth24PlusStencil8,
             usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
+            view_formats: &[TextureFormat::Depth24PlusStencil8],
         });
         let view = texture.create_view(&TextureViewDescriptor::default());
         let sampler = device.create_sampler(&SamplerDescriptor {

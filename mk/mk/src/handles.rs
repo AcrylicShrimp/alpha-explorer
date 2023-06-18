@@ -4,10 +4,12 @@ macro_rules! define_handle {
         pub struct $name(std::sync::Arc<$type>);
 
         impl $name {
+            #[allow(dead_code)]
             pub(crate) fn new(inner: $type) -> Self {
                 Self(std::sync::Arc::new(inner))
             }
 
+            #[allow(dead_code)]
             pub(crate) fn wrap(inner: std::sync::Arc<$type>) -> Self {
                 Self(inner)
             }

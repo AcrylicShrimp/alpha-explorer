@@ -14,7 +14,7 @@ use std::{
     borrow::Cow,
     iter::once,
     mem::{replace, size_of},
-    num::{NonZeroU32, NonZeroU64},
+    num::NonZeroU64,
 };
 use wgpu::{
     util::{BufferInitDescriptor, DeviceExt, StagingBelt},
@@ -329,6 +329,7 @@ impl RenderManager {
             dimension: TextureDimension::D2,
             format: TextureFormat::R8Unorm,
             usage: TextureUsages::COPY_DST | TextureUsages::TEXTURE_BINDING,
+            view_formats: &[TextureFormat::R8Unorm],
         });
         let mut encoder = self.create_encoder();
         encoder.clear_texture(
@@ -372,6 +373,7 @@ impl RenderManager {
             dimension: TextureDimension::D2,
             format: TextureFormat::Rgba8Unorm,
             usage: TextureUsages::COPY_DST | TextureUsages::TEXTURE_BINDING,
+            view_formats: &[TextureFormat::Rgba8Unorm],
         });
         self.gfx_context.queue.write_texture(
             ImageCopyTexture {
@@ -383,8 +385,8 @@ impl RenderManager {
             data,
             ImageDataLayout {
                 offset: 0,
-                bytes_per_row: NonZeroU32::new(4 * width as u32),
-                rows_per_image: NonZeroU32::new(height as u32),
+                bytes_per_row: Some(4 * width as u32),
+                rows_per_image: Some(height as u32),
             },
             Extent3d {
                 width: width as u32,
@@ -428,8 +430,8 @@ impl RenderManager {
             data,
             ImageDataLayout {
                 offset: 0,
-                bytes_per_row: NonZeroU32::new(width),
-                rows_per_image: NonZeroU32::new(height),
+                bytes_per_row: Some(width),
+                rows_per_image: Some(height),
             },
             Extent3d {
                 width,

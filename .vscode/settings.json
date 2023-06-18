@@ -4,5 +4,6 @@
     "editor.insertSpaces": true,
     "editor.tabSize": 4,
     "editor.defaultFormatter": "rust-lang.rust-analyzer"
-  }
+  },
+  "rust-analyzer.showUnlinkedFileNotification": false
 }

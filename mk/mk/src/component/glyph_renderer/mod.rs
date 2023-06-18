@@ -112,6 +112,7 @@ impl GlyphRenderer {
             vertical_align: self.config.vertical_align,
             wrap_style: self.config.wrap_style,
             wrap_hard_breaks: self.config.wrap_hard_breaks,
+            line_height: 1f32,
         });
         self.layout.append(
             &[self.font.inner().as_ref()],

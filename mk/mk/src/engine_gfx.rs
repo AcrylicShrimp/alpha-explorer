@@ -2,8 +2,8 @@ use itertools::Itertools;
 use thiserror::Error;
 use wgpu::{
     Adapter, Backend, Backends, CompositeAlphaMode, Device, DeviceDescriptor, DeviceType, Features,
-    Instance, PresentMode, Queue, RequestDeviceError, Surface, SurfaceConfiguration, TextureFormat,
-    TextureUsages,
+    Instance, InstanceDescriptor, PresentMode, Queue, RequestDeviceError, Surface,
+    SurfaceConfiguration, TextureFormat, TextureUsages,
 };
 use winit::window::Window;
 
@@ -13,6 +13,8 @@ pub enum GfxContextCreationError {
     AdapterNotFound,
     #[error("failed to obtain device")]
     RequestDeviceError(#[from] RequestDeviceError),
+    #[error("failed to create surface")]
+    CreateSurfaceError(#[from] wgpu::CreateSurfaceError),
 }
 
 pub struct GfxContext {
@@ -25,8 +27,8 @@ pub struct GfxContext {
 
 impl GfxContext {
     pub(crate) async fn new(window: &Window) -> Result<Self, GfxContextCreationError> {
-        let instance = Instance::new(Backends::all());
-        let surface = unsafe { instance.create_surface(window) };
+        let instance = Instance::new(InstanceDescriptor::default());
+        let surface = unsafe { instance.create_surface(window) }?;
         let adapters = instance
             .enumerate_adapters(Backends::all())
             .collect::<Vec<_>>();
@@ -59,6 +61,7 @@ impl GfxContext {
             height: window_inner_size.height,
             present_mode: PresentMode::Fifo,
             alpha_mode: CompositeAlphaMode::Auto,
+            view_formats: vec![TextureFormat::Bgra8Unorm],
         };
         surface.configure(&device, &surface_config);
 
@@ -76,7 +79,7 @@ fn select_adapter(surface: &Surface, adapters: impl AsRef<[Adapter]>) -> Option<
     let adapters = adapters
         .as_ref()
         .iter()
-        .filter(|adapter| !surface.get_supported_formats(adapter).is_empty())
+        .filter(|adapter| !surface.get_capabilities(adapter).formats.is_empty())
         .collect::<Vec<_>>();
 
     if adapters.is_empty() {
@@ -86,7 +89,7 @@ fn select_adapter(surface: &Surface, adapters: impl AsRef<[Adapter]>) -> Option<
     let mut scores = adapters.iter().map(|_| 0).collect::<Vec<_>>();
 
     for (index, adapter) in adapters.iter().enumerate() {
-        if surface.get_supported_formats(adapter).is_empty() {
+        if surface.get_capabilities(adapter).formats.is_empty() {
             continue;
         }
 

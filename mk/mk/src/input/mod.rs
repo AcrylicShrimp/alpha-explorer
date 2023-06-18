@@ -1,5 +1,7 @@
 mod action;
 mod button;
+mod channel;
+mod device;
 mod driver;
 mod drivers;
 mod input_manager;
@@ -9,6 +11,8 @@ mod trigger;
 
 pub use action::*;
 pub use button::*;
+pub use channel::*;
+pub use device::*;
 pub use driver::*;
 pub use drivers::*;
 pub use input_manager::*;

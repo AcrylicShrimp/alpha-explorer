@@ -1,33 +1,53 @@
+use crate::script::UserDataOpsProvider;
+
 use super::{Mat33Mut, Mat33Ref, Vec2, Vec3};
+use codegen::{
+    hidden, lua_user_data_method, no_except, ops_extra, ops_to_string, rename, LuaUserData,
+};
+use mlua::prelude::*;
 use std::{
     fmt::Display,
     ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign},
 };
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(LuaUserData, Debug, Clone, PartialEq)]
 pub struct Mat33 {
     elements: [f32; 9],
 }
 
+#[lua_user_data_method]
+#[ops_to_string]
+#[ops_extra]
 impl Mat33 {
+    #[no_except]
     pub fn new(elements: [f32; 9]) -> Self {
         Self { elements }
     }
 
+    #[no_except]
     pub fn elements(&self) -> &[f32; 9] {
         &self.elements
     }
 
+    #[hidden]
     pub fn elements_mut(&mut self) -> &mut [f32; 9] {
         &mut self.elements
     }
 
+    #[hidden]
     pub fn set<'b>(&mut self, rhs: Mat33Ref<'b>) {
         let lhs = self.elements_mut();
         let rhs = rhs.elements();
         *lhs = rhs.clone();
     }
 
+    #[no_except]
+    #[rename("set")]
+    fn lua_set(&mut self, rhs: Self) {
+        self.set(rhs.as_ref());
+    }
+
+    #[no_except]
     pub fn row(&self, index: usize) -> Vec3 {
         let lhs = self.elements();
         Vec3 {
@@ -37,6 +57,7 @@ impl Mat33 {
         }
     }
 
+    #[no_except]
     pub fn column(&self, index: usize) -> Vec3 {
         let lhs = self.elements();
         Vec3 {
@@ -46,12 +67,14 @@ impl Mat33 {
         }
     }
 
+    #[no_except]
     pub fn determinant(&self) -> f32 {
         let lhs = self.elements();
         lhs[0] * (lhs[4] * lhs[8] - lhs[5] * lhs[7]) - lhs[1] * (lhs[3] * lhs[8] - lhs[5] * lhs[6])
             + lhs[2] * (lhs[3] * lhs[7] - lhs[4] * lhs[6])
     }
 
+    #[no_except]
     pub fn inverse(&mut self) -> &mut Self {
         let det_inv = 1f32 / self.determinant();
         let lhs = self.elements_mut();
@@ -68,6 +91,7 @@ impl Mat33 {
         self
     }
 
+    #[no_except]
     pub fn inversed(&self) -> Mat33 {
         let det_inv = 1f32 / self.determinant();
         let rhs = self.elements();
@@ -84,6 +108,7 @@ impl Mat33 {
         ])
     }
 
+    #[no_except]
     pub fn transpose(&mut self) -> &mut Self {
         let lhs = self.elements_mut();
         let rhs = lhs.clone();
@@ -96,6 +121,7 @@ impl Mat33 {
         self
     }
 
+    #[no_except]
     pub fn transposed(&self) -> Mat33 {
         let lhs = self.elements();
         Mat33::new([
@@ -103,6 +129,7 @@ impl Mat33 {
         ])
     }
 
+    #[hidden]
     pub fn element_wise_multiply<'a>(&mut self, rhs: Mat33Ref<'a>) -> &mut Self {
         let lhs = self.elements_mut();
         let rhs = rhs.elements();
@@ -118,6 +145,7 @@ impl Mat33 {
         self
     }
 
+    #[hidden]
     pub fn element_wise_multiplied<'a>(&self, rhs: Mat33Ref<'a>) -> Mat33 {
         let lhs = self.elements();
         let rhs = rhs.elements();
@@ -134,6 +162,7 @@ impl Mat33 {
         ])
     }
 
+    #[hidden]
     pub fn element_wise_divide<'a>(&mut self, rhs: Mat33Ref<'a>) -> &mut Self {
         let lhs = self.elements_mut();
         let rhs = rhs.elements();
@@ -149,6 +178,7 @@ impl Mat33 {
         self
     }
 
+    #[hidden]
     pub fn element_wise_divided<'a>(&self, rhs: Mat33Ref<'a>) -> Mat33 {
         let lhs = self.elements();
         let rhs = rhs.elements();
@@ -165,36 +195,43 @@ impl Mat33 {
         ])
     }
 
+    #[hidden]
     pub fn as_ref(&self) -> Mat33Ref {
         Mat33Ref::new(&self.elements)
     }
 
+    #[hidden]
     pub fn as_mut(&mut self) -> Mat33Mut {
         Mat33Mut::new(&mut self.elements)
     }
 
+    #[no_except]
     pub fn into_elements(self) -> [f32; 9] {
         self.elements
     }
 
+    #[no_except]
     pub fn zero() -> Self {
         Self {
             elements: [0f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32, 0f32],
         }
     }
 
+    #[no_except]
     pub fn identity() -> Self {
         Self {
             elements: [1f32, 0f32, 0f32, 0f32, 1f32, 0f32, 0f32, 0f32, 1f32],
         }
     }
 
+    #[no_except]
     pub fn affine_translation(t: Vec2) -> Self {
         Self {
             elements: [1f32, 0f32, 0f32, 0f32, 1f32, 0f32, t.x, t.y, 1f32],
         }
     }
 
+    #[no_except]
     pub fn affine_rotation(angle_degrees: f32) -> Self {
         let rad = angle_degrees.to_radians();
         let cos = rad.cos();
@@ -204,12 +241,14 @@ impl Mat33 {
         }
     }
 
+    #[no_except]
     pub fn affine_scale(s: Vec2) -> Self {
         Self {
             elements: [s.x, 0f32, 0f32, 0f32, s.y, 0f32, 0f32, 0f32, 1f32],
         }
     }
 
+    #[no_except]
     pub fn affine_srt(t: Vec2, angle_degrees: f32, s: Vec2) -> Self {
         let rad = angle_degrees.to_radians();
         let cos = rad.cos();
@@ -229,6 +268,7 @@ impl Mat33 {
         }
     }
 
+    #[no_except]
     pub fn affine_trs(t: Vec2, angle_degrees: f32, s: Vec2) -> Self {
         let rad = angle_degrees.to_radians();
         let cos = rad.cos();
@@ -705,5 +745,44 @@ impl Display for Mat33 {
             self.elements[7],
             self.elements[8]
         )
+    }
+}
+
+impl UserDataOpsProvider for Mat33 {
+    fn add_ops<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_meta_function(LuaMetaMethod::Add, |_lua, (lhs, rhs): (Self, Self)| {
+            Ok(lhs + rhs)
+        });
+
+        methods.add_meta_function(LuaMetaMethod::Sub, |_lua, (lhs, rhs): (Self, Self)| {
+            Ok(lhs - rhs)
+        });
+
+        methods.add_meta_function(
+            LuaMetaMethod::Mul,
+            |lua, (lhs, rhs): (LuaValue, LuaValue)| match (&lhs, &rhs) {
+                (_, &LuaValue::Integer(..)) => {
+                    (Self::from_lua(lhs, lua)? * f32::from_lua(rhs, lua)?).to_lua(lua)
+                }
+                (_, &LuaValue::Number(..)) => {
+                    (Self::from_lua(lhs, lua)? * f32::from_lua(rhs, lua)?).to_lua(lua)
+                }
+                (&LuaValue::Integer(..), _) => {
+                    (f32::from_lua(lhs, lua)? * Self::from_lua(rhs, lua)?).to_lua(lua)
+                }
+                (&LuaValue::Number(..), _) => {
+                    (f32::from_lua(lhs, lua)? * Self::from_lua(rhs, lua)?).to_lua(lua)
+                }
+                (_, LuaValue::UserData(rhs_inner)) if rhs_inner.is::<Vec3>() => {
+                    (Self::from_lua(lhs, lua)? * Vec3::from_lua(rhs, lua)?).to_lua(lua)
+                }
+                (LuaValue::UserData(lhs_inner), _) if lhs_inner.is::<Vec3>() => {
+                    (Vec3::from_lua(lhs, lua)? * Self::from_lua(rhs, lua)?).to_lua(lua)
+                }
+                _ => (Self::from_lua(lhs, lua)? * Self::from_lua(rhs, lua)?).to_lua(lua),
+            },
+        );
+
+        methods.add_meta_function(LuaMetaMethod::Unm, |_lua, lhs: Self| Ok(-lhs));
     }
 }

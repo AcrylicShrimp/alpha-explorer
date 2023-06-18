@@ -6,6 +6,8 @@ mod lua_expose;
 mod lua_handle;
 mod lua_rc;
 mod lua_struct;
+mod lua_user_data;
+mod lua_user_data_method;
 
 pub use common::*;
 pub use lua_component::*;
@@ -15,3 +17,5 @@ pub use lua_expose::*;
 pub use lua_handle::*;
 pub use lua_rc::*;
 pub use lua_struct::*;
+pub use lua_user_data::*;
+pub use lua_user_data_method::*;

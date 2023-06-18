@@ -20,6 +20,7 @@ use winit::dpi::LogicalSize;
 use winit::dpi::PhysicalSize;
 use winit::event::{ElementState, Event, MouseButton, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
+use winit::window::Window;
 use winit::window::WindowBuilder;
 
 static mut CONTEXT: MaybeUninit<Arc<EngineContext>> = MaybeUninit::uninit();
@@ -35,6 +36,7 @@ pub async fn run(
     resizable: bool,
     asset_base: impl Into<PathBuf>,
     entry_script_path: impl AsRef<Path>,
+    once_engine_initialized: impl FnOnce(&Window, &EngineContext) -> Result<()>,
 ) -> Result<()> {
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
@@ -151,10 +153,21 @@ pub async fn run(
         emit_diagnostic_info!(format!("abjusting scale factor."));
 
         let scale_factor = window.scale_factor();
-        context.screen_mgr_mut().update_scale_factor(
+        let mut screen_mgr = context.screen_mgr_mut();
+        let mut render_mgr = context.render_mgr_mut();
+        screen_mgr.update_scale_factor(
             scale_factor,
             LogicalSize::new(width, height).to_physical(scale_factor),
         );
+        render_mgr.resize_gfx(PhysicalSize::new(
+            screen_mgr.physical_width() as u32,
+            screen_mgr.physical_height() as u32,
+        ));
+    }
+
+    {
+        emit_diagnostic_info!(format!("executing engine initialization callback."));
+        once_engine_initialized(&window, &context).with_context(|| "failed to execute callback")?;
     }
 
     {
@@ -168,15 +181,6 @@ pub async fn run(
     }
 
     emit_diagnostic_info!(format!("engine is up and running."));
-
-    {
-        let screen_mgr = context.screen_mgr();
-        let mut render_mgr = context.render_mgr_mut();
-        render_mgr.resize_gfx(PhysicalSize::new(
-            screen_mgr.physical_width() as u32,
-            screen_mgr.physical_height() as u32,
-        ));
-    }
 
     window.set_visible(true);
 
@@ -202,6 +206,8 @@ pub async fn run(
                 window_id: id,
             } if id == window_id => {
                 window_occluded = occluded;
+
+                return;
             }
             Event::WindowEvent {
                 event: WindowEvent::KeyboardInput { input, .. },
@@ -310,6 +316,7 @@ pub async fn run(
             } if id == window_id => {
                 context.screen_mgr_mut().update_size(inner_size);
                 context.render_mgr_mut().resize_gfx(inner_size);
+
                 return;
             }
             Event::WindowEvent {
@@ -324,6 +331,7 @@ pub async fn run(
                     .screen_mgr_mut()
                     .update_scale_factor(scale_factor, *new_inner_size);
                 context.render_mgr_mut().resize_gfx(*new_inner_size);
+
                 return;
             }
             Event::WindowEvent {
@@ -331,6 +339,7 @@ pub async fn run(
                 window_id: id,
             } if id == window_id => {
                 *control_flow = ControlFlow::Exit;
+
                 return;
             }
             _ => return,

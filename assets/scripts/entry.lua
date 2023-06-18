@@ -1,4 +1,6 @@
 
+print(game.map)
+
 -- local a = mk.structure.Mat33.identity()
 -- print(a:transposed())
 -- print(a:inversed())
